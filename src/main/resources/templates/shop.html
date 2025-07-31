@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Shop</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <h1>Shop All Products</h1>
+    <div class="product-grid">
+        <div th:each="product : ${products}" class="product-card">
+            <a th:href="@{'/product/' + ${product.id}}">
+                <img th:src="@{${product.imageUrl}}" alt="Image" width="150">
+                <h3 th:text="${product.name}"></h3>
+                <p>₹<span th:text="${product.price}"></span></p>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

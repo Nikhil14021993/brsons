@@ -14,9 +14,9 @@ public class HomeController {
     @GetMapping("/")
     public String home(Model model) {
         List<Product> products = Arrays.asList(
-            new Product(1, "T-Shirt", 499.99, "/images/tshirt.jpg"),
-            new Product(2, "Jeans", 899.00, "/images/jeans.jpg"),
-            new Product(3, "Jacket", 1599.00, "/images/jacket.jpg")
+        		new Product(1, "T-Shirt", 499.99, "Cotton T-Shirt in various colors", "/images/tshirt.jpg"),
+                new Product(2, "Jeans", 899.00, "Slim-fit blue jeans", "/images/jeans.jpg"),
+                new Product(3, "Jacket", 1599.00, "Winter warm jacket", "/images/jacket.jpg")
         );
         model.addAttribute("products", products);
         return "index";

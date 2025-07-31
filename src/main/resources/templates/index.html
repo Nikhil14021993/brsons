@@ -5,6 +5,17 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+<nav class="navbar">
+        <div class="navbar-logo">Cloth Shop</div>
+        <ul class="navbar-links">
+            <li><a href="#">Home</a></li>
+            <li><a th:href="@{/shop}">Shop</a></li>
+            <li><a href="#">Services</a></li>
+            <li><a href="#">Pricing</a></li>
+            <li><a href="#">About Us</a></li>
+            <li><a href="#">Contact Us</a></li>
+        </ul>
+    </nav>
     <h1>Welcome to Our Cloth Shop</h1>
     <div class="product-grid">
         <div th:each="product : ${products}" class="product-card">
