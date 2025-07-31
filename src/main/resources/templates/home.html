@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Cloth Shop – Home</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-logo">Cloth Shop</div>
+    <ul class="navbar-links">
+      <li><a th:href="@{/}">Home</a></li>
+      <li><a th:href="@{/shop}">Shop</a></li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Pricing</a></li>
+      <li><a href="#">About Us</a></li>
+      <li><a href="#">Contact Us</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero banner -->
+  <header class="hero">
+    <h1>Elevate Your Style with Our Latest Collection</h1>
+    <p>Discover trends, quality, and comfort that suits you</p>
+    <a th:href="@{/shop}" class="btn-primary">Shop Now</a>
+  </header>
+
+  <!-- Features Section -->
+  <section class="features">
+    <div class="feature-card">
+      <h3>Premium Quality</h3>
+      <p>Only the finest fabrics handcrafted to perfection</p>
+    </div>
+    <div class="feature-card">
+      <h3>Fast & Free Delivery</h3>
+      <p>Hassle-free shipping across India</p>
+    </div>
+    <div class="feature-card">
+      <h3>Easy Returns</h3>
+      <p>30‑day return policy on all purchases</p>
+    </div>
+  </section>
+
+  <!-- Showcase 3 products -->
+  <section class="home-products">
+    <h2>Featured Products</h2>
+    <div class="product-grid">
+      <div th:each="p : ${featured}" class="product-card">
+        <a th:href="@{'/product/' + ${p.id}}">
+          <img th:src="@{${p.imageUrl}}" alt="" width="150">
+          <h3 th:text="${p.name}"></h3>
+          <p>₹<span th:text="${p.price}"></span></p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>&copy; 2025 Cloth Shop. All rights reserved.</p>
+  </footer>
+</body>
+</html>
