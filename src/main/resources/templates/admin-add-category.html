@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Add Category</title>
+    <style>
+        body { font-family: Arial; background: #f4f6f8; }
+        .form-container {
+            background: white; padding: 20px; margin: 50px auto;
+            width: 400px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        label { display: block; margin-top: 10px; }
+        input, select {
+            width: 100%; padding: 8px; margin-top: 5px;
+            border: 1px solid #ccc; border-radius: 5px;
+        }
+        button { margin-top: 15px; width: 100%; padding: 10px;
+            background: #007bff; color: white; border: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Add Category</h2>
+        <form th:action="@{/admin/add-category}" method="post" enctype="multipart/form-data">
+
+            <label>Category Name:</label>
+            <input type="text" name="categoryName" required>
+
+            <label>Creation Date:</label>
+            <input type="text" value="[[${#temporals.format(T(java.time.LocalDateTime).now(), 'yyyy-MM-dd HH:mm')}]]" disabled>
+
+            <label>Status:</label>
+            <select name="status" required>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+            </select>
+
+            <label>Category Image:</label>
+            <input type="file" name="imageFile" accept="image/*">
+
+            <button type="submit">Save Category</button>
+        </form>
+    </div>
+</body>
+</html>

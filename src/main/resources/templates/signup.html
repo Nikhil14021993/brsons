@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Sign Up</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #f8bbd0, #f48fb1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .form-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 350px;
+            text-align: center;
+        }
+        h2 {
+            margin-bottom: 20px;
+            color: #ad1457;
+        }
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        button {
+            background-color: #ad1457;
+            color: white;
+            padding: 10px 20px;
+            margin: 10px 5px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #880e4f;
+        }
+        .error { color: red; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Create Account</h2>
+
+        <form th:action="@{/signup}" th:object="${user}" method="post">
+            <input type="text" th:field="*{name}" placeholder="Full Name" required><br>
+            <input type="email" th:field="*{email}" placeholder="Email" required><br>
+            <input type="text" th:field="*{phone}" placeholder="Phone (10 digits)" required><br>
+            <input type="password" th:field="*{password}" placeholder="Password" required><br>
+            <input type="password" name="confirmPassword" placeholder="Confirm Password" required><br>
+            <span th:if="${passwordError}" class="error" th:text="${passwordError}"></span><br>
+
+            <button type="submit">Submit</button>
+            <a th:href="@{/login}"><button type="button">Cancel</button></a>
+        </form>
+    </div>
+</body>
+</html>

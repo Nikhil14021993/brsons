@@ -1,19 +1,110 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Product Details</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title th:text="${product.productName}"></title>
+    <style>
+        .slider-container {
+            position: relative;
+            width: 400px;
+            margin: auto;
+            text-align: center;
+        }
+
+        .slider-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .prev, .next {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .prev { left: 10px; }
+        .next { right: 10px; }
+
+        .details {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .details h2 {
+            margin-bottom: 10px;
+        }
+
+        .details p {
+            margin: 5px 0;
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
-    <div class="product-detail-container">
-        <img th:src="@{${product.imageUrl}}" alt="Product Image" width="200">
-        <h2 th:text="${product.name}"></h2>
-        <p><strong>Price:</strong> ₹<span th:text="${product.price}"></span></p>
-        <p><strong>Description:</strong> <span th:text="${product.description}"></span></p>
 
-        <form method="post" th:action="@{'/cart/add/' + ${product.id}}">
-            <button type="submit">Add to Cart</button>
-        </form>
+    <div class="slider-container">
+        <button class="prev" onclick="prevSlide()">&#10094;</button>
+
+        <img id="productImage" class="slider-image" th:src="@{${images[0]}}" alt="Product Image">
+
+        <button class="next" onclick="nextSlide()">&#10095;</button>
     </div>
+
+    <div class="details">
+        <h2 th:text="${product.productName}"></h2>
+        <p th:text="'Price: ₹' + ${product.price}"></p>
+        <p th:text="'Colour: ' + ${product.colour}"></p>
+        <p th:text="'Size: ' + ${product.size}"></p>
+
+        <button>Add to Cart</button>
+    </div>
+
+    <script th:inline="javascript">
+        let images = /*[[${images}]]*/ [];
+        let index = 0;
+
+        function showSlide() {
+            if (images.length === 0) return;
+            document.getElementById("productImage").src = images[index];
+        }
+
+        function nextSlide() {
+            index = (index + 1) % images.length;
+            showSlide();
+        }
+
+        function prevSlide() {
+            index = (index - 1 + images.length) % images.length;
+            showSlide();
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            showSlide();
+        });
+    </script>
+
 </body>
 </html>

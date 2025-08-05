@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Add Product</title>
+    <style>
+        body { font-family: Arial; background: #f4f6f8; }
+        .form-container {
+            background: white; padding: 20px; margin: 50px auto;
+            width: 400px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        label { display: block; margin-top: 10px; }
+        input, select {
+            width: 100%; padding: 8px; margin-top: 5px;
+            border: 1px solid #ccc; border-radius: 5px;
+        }
+        button { margin-top: 15px; width: 100%; padding: 10px;
+            background: #007bff; color: white; border: none; border-radius: 5px; }
+    </style>
+    <script>
+    function toggleNewCategory(select) {
+        var input = document.getElementById("newCategoryInput");
+        input.style.display = (select.value === 'Other') ? 'block' : 'none';
+        if (select.value === 'Other') {
+            input.setAttribute("required", "true");
+        } else {
+            input.removeAttribute("required");
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const fileInputs = [
+            { input: document.querySelector('input[name="imageFile1"]'), label: "Image 1" },
+            { input: document.querySelector('input[name="imageFile2"]'), label: "Image 2" },
+            { input: document.querySelector('input[name="imageFile3"]'), label: "Image 3" },
+            { input: document.querySelector('input[name="imageFile4"]'), label: "Image 4" },
+            { input: document.querySelector('input[name="imageFile5"]'), label: "Image 5" }
+        ];
+        const mainPhotoSelect = document.getElementById("mainPhotoSelect");
+
+        function updateMainPhotoOptions() {
+            mainPhotoSelect.innerHTML = '<option value="">-- Select Main Photo --</option>';
+            fileInputs.forEach(({ input, label }) => {
+                if (input.files.length > 0) {
+                    const fileName = input.files[0].name;
+                    const option = document.createElement("option");
+                    option.value = fileName; // store actual file name
+                    option.textContent = `${label} (${fileName})`;
+                    mainPhotoSelect.appendChild(option);
+                }
+            });
+        }
+
+        fileInputs.forEach(({ input }) => {
+            input.addEventListener("change", updateMainPhotoOptions);
+        });
+    });
+    </script>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Add Product</h2>
+        <form th:action="@{/admin/add-product}" th:object="${product}" method="post" enctype="multipart/form-data">
+
+            <label>Category:</label>
+            <select name="selectedCategory" onchange="toggleNewCategory(this)" required>
+                <option th:each="cat : ${categories}" th:value="${cat.id}" th:text="${cat.categoryName}"></option>
+                <option value="Other">Other</option>
+            </select>
+
+            <input type="text" name="newCategoryName" id="newCategoryInput" style="display:none;" placeholder="Enter new category name">
+
+            <label>Product Name:</label>
+            <input type="text" th:field="*{productName}" required>
+
+            <label>Colour:</label>
+            <input type="text" th:field="*{colour}" required>
+
+            <label>Price:</label>
+            <input type="number" step="0.01" th:field="*{price}" required>
+
+            <label>Size:</label>
+            <input type="text" th:field="*{size}" required>
+
+            <label>Status:</label>
+            <input type="text" th:field="*{status}" required>
+
+            <label>Image 1 (Mandatory):</label>
+            <input type="file" name="imageFile1" accept="image/*" required>
+
+            <label>Image 2:</label>
+            <input type="file" name="imageFile2" accept="image/*">
+
+            <label>Image 3:</label>
+            <input type="file" name="imageFile3" accept="image/*">
+
+            <label>Image 4:</label>
+            <input type="file" name="imageFile4" accept="image/*">
+
+            <label>Image 5:</label>
+            <input type="file" name="imageFile5" accept="image/*">
+
+            <label>Main Photo:</label>
+            <select name="mainPhoto" id="mainPhotoSelect" required>
+                <option value="">-- Select Main Photo --</option>
+            </select>
+
+            <button type="submit">Save Product</button>
+        </form>
+    </div>
+</body>
+</html>

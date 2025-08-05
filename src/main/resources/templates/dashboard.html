@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Cloth Shop</title>
+    <title>Dashboard</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<nav class="navbar">
+    <!-- Navbar -->
+    <nav class="navbar">
         <div class="navbar-logo">Cloth Shop</div>
         <ul class="navbar-links">
-            <li><a href="#">Home</a></li>
-          <!-- Show Admin button only if logged-in user type is Admin -->
+            <li><a th:href="@{/}">Home</a></li>
+           <!-- Show Admin button only if logged-in user type is Admin -->
     <li th:if="${session.user != null and session.user.type == 'Admin'}">
         <a th:href="@{/admin}">Admin</a>
     </li>
@@ -18,15 +19,15 @@
             <li><a href="#">Pricing</a></li>
             <li><a href="#">About Us</a></li>
             <li><a href="#">Contact Us</a></li>
+            <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
         </ul>
     </nav>
-    <h1>Welcome to Our Cloth Shop</h1>
-    <div class="product-grid">
-        <div th:each="product : ${products}" class="product-card">
-            <img th:src="@{${product.imageUrl}}" alt="Image" width="150">
-            <h3 th:text="${product.name}"></h3>
-            <p>Price: ₹<span th:text="${product.price}"></span></p>
-        </div>
+
+    <div class="dashboard-content">
+        <h2>Welcome, <span th:text="${user}"></span>!</h2>
+        <p>You are successfully logged in.</p>
     </div>
 </body>
 </html>

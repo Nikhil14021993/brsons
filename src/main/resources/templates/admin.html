@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Admin Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+        }
+        /* Navbar */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #007bff;
+            padding: 15px 30px;
+            color: white;
+        }
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+        }
+        .navbar a:hover {
+            text-decoration: underline;
+        }
+        /* Content */
+        .container {
+            padding: 30px;
+            text-align: center;
+        }
+        h2 {
+            color: #007bff;
+            margin-bottom: 30px;
+        }
+        /* Buttons */
+        .admin-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .admin-buttons a {
+            background-color: #007bff;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .admin-buttons a:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div>Cloth Shop - Admin</div>
+        <div>
+            <a th:href="@{/}">Home</a>
+            <a th:href="@{/shop}">Shop</a>
+            <a th:href="@{/logout}">Logout</a>
+        </div>
+    </nav>
+
+    <!-- Admin Content -->
+    <div class="container">
+        <h2>Welcome Admin! Manage Your Store</h2>
+
+        <div class="admin-buttons">
+            <a th:href="@{/admin/add-product}">Add Product</a>
+            <a th:href="@{/admin/add-category}">Add Category</a>
+            <a th:href="@{/admin/delete-product}">Delete Product</a>
+            <a th:href="@{/admin/update-product}">Update Product</a>
+            <a th:href="@{/admin/orders}">Show Orders</a>
+        </div>
+    </div>
+</body>
+</html>

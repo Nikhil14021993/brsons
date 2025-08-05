@@ -10,11 +10,19 @@
     <div class="navbar-logo">Cloth Shop</div>
     <ul class="navbar-links">
       <li><a th:href="@{/}">Home</a></li>
+       <!-- Show Admin button only if logged-in user type is Admin -->
+    <li th:if="${session.user != null and session.user.type == 'Admin'}">
+        <a th:href="@{/admin}">Admin</a>
+    </li>
       <li><a th:href="@{/shop}">Shop</a></li>
       <li><a href="#">Services</a></li>
       <li><a href="#">Pricing</a></li>
       <li><a href="#">About Us</a></li>
       <li><a href="#">Contact Us</a></li>
+      <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+      
     </ul>
   </nav>
 
