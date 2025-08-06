@@ -36,7 +36,7 @@ public class LoginController {
 
         if (user != null && user.getPassword().equals(password)) {
             session.setAttribute("user", user); // Store logged-in user in session
-            return "redirect:/";
+            return "redirect:/?userId=" + user.getPhone();
         } else {
             model.addAttribute("error", "Invalid credentials");
             return "login";

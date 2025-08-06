@@ -33,6 +33,7 @@ public class User {
     
     @Column(name = "type")
     private String type; // Example values: "Admin", "Customer"
+    private String role = "USER";
 
     // Getter & Setter
     public String getType() { return type; }
@@ -50,5 +51,11 @@ public class User {
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
     public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public String getRole() {
+		return role;
+	}
+	public void setRole(String role) {
+		this.role = role;
+	}
+	public void setStatus(String status) { this.status = status; }
 }

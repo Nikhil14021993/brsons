@@ -3,6 +3,34 @@
 <head>
     <title th:text="'Products - ' + ${category.categoryName}"></title>
     <style>
+    /* Navbar */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #007bff;
+            padding: 15px 30px;
+            color: white;
+        }
+        .navbar-logo {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .navbar-links {
+            list-style: none;
+            display: flex;
+            gap: 20px;
+            margin: 0;
+            padding: 0;
+        }
+        .navbar-links li a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .navbar-links li a:hover {
+            color: #ffe600;
+        }
         .product-grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
         .product-card {
             width: 200px; border: 1px solid #ccc; border-radius: 8px; background: white;
@@ -14,6 +42,27 @@
     </style>
 </head>
 <body>
+<!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">Cloth Shop</div>
+        <ul class="navbar-links">
+            <li><a th:href="@{/}">Home</a></li>
+            <!-- Show Admin button only if logged-in user type is Admin -->
+    <li th:if="${session.user != null and session.user.type == 'Admin'}">
+        <a th:href="@{/admin}">Admin</a>
+    </li>
+            <li><a th:href="@{/shop}">Shop</a></li>
+            <li><a href="#">Services</a></li>
+            <li><a href="#">Pricing</a></li>
+            <li><a href="#">About Us</a></li>
+            <li><a href="#">Contact Us</a></li>
+        </ul>
+        <div>
+    <a href="/cart">
+        🛒 Cart
+    </a>
+</div>
+    </nav>
     <h1 style="text-align:center;" th:text="${category.categoryName}"></h1>
     <div class="product-grid">
         <div th:each="prod : ${products}" class="product-card">
@@ -22,7 +71,7 @@
                 <h3 th:text="${prod.productName}"></h3>
                 <p th:text="'Color: ' + ${prod.colour}"></p>
             </a>
-            <button class="btn">Add to Cart</button>
+            
         </div>
     </div>
 </body>
