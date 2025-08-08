@@ -15,8 +15,11 @@ import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -70,43 +73,65 @@ public class ShopController {
 	
 	
 	@PostMapping("/add-to-cart/{productId}")
-	public String addToCart(@PathVariable Long productId,
-	                        HttpSession session,
-	                        RedirectAttributes redirectAttributes) throws Exception {
-	    
-	    // Get the logged-in user from session
+	@ResponseBody
+	public ResponseEntity<?> addToCart(@PathVariable Long productId,
+	                                   HttpSession session) {
+
 	    User user = (User) session.getAttribute("user");
 
-	    // If user is not logged in, redirect to login page
 	    if (user == null) {
-	        redirectAttributes.addFlashAttribute("error", "Please login to add to cart");
-	        return "redirect:/login";
+	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Please login");
 	    }
 
-	    // Fetch or create the cart
-	    AddToCart cart = addToCartRepository.findByUserId(user.getId()).orElse(new AddToCart());
+	    AddToCart cart = addToCartRepository.findByUserId(user.getId())
+	            .orElse(new AddToCart());
+
 	    cart.setUserId(user.getId());
 	    cart.setUserName(user.getName());
 	    cart.setUserEmail(user.getEmail());
 	    cart.setUserPhone(user.getPhone());
-
-	    // Prepare product list
-	    List<Long> products = new ArrayList<>();
-	    if (cart.getProductIds() != null) {
-	        products = new ArrayList<>(Arrays.asList(cart.getProductIds()));
+	    
+	    System.out.println("productId from URL: " + productId);
+	    if (productId == null) {
+	        return ResponseEntity.badRequest().body("Product ID is missing from path");
 	    }
 
-	    // Add product only if it's not already in the cart
-	    if (!products.contains(productId)) {
-	        products.add(productId);
-	    }
+	    Map<Long, Integer> quantities = cart.getProductQuantities();
+	    int newQty = quantities.getOrDefault(productId, 0) + 1;
+	    quantities.put(productId, newQty);
 
-	    // Update cart and save
-	    cart.setProductIds(products.toArray(new Long[0]));
+	    cart.setProductQuantities(quantities);
 	    addToCartRepository.save(cart);
 
-	    redirectAttributes.addFlashAttribute("success", "Product added to cart!");
-	    return "redirect:/shop";
+	    return ResponseEntity.ok(Map.of("quantity", newQty));
+	}
+	@PostMapping("/update-cart/{productId}")
+	@ResponseBody
+	public ResponseEntity<?> updateCart(@PathVariable Long productId,
+	                                    @RequestParam int delta,
+	                                    HttpSession session) {
+
+	    User user = (User) session.getAttribute("user");
+	    if (user == null) {
+	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Login required");
+	    }
+
+	    AddToCart cart = addToCartRepository.findByUserId(user.getId())
+	            .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+	    Map<Long, Integer> productQuantities = cart.getProductQuantities();
+	    int newQty = productQuantities.getOrDefault(productId, 0) + delta;
+
+	    if (newQty <= 0) {
+	        productQuantities.remove(productId);
+	    } else {
+	        productQuantities.put(productId, newQty);
+	    }
+
+	    cart.setProductQuantities(productQuantities);
+	    addToCartRepository.save(cart);
+
+	    return ResponseEntity.ok(Map.of("quantity", newQty));
 	}
 
 }

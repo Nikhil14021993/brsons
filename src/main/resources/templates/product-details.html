@@ -127,12 +127,55 @@
     <p th:text="'Colour: ' + ${product.colour}"></p>
     <p th:text="'Size: ' + ${product.size}"></p>
         
-        <form th:action="@{'/add-to-cart/' + ${product.id}}" method="post">
+<div id="cart-controls" th:data-product-id="${product.id}">
+    <button th:if="${session.user == null}" onclick="window.location.href='/login'">Login to Add</button>
+
+    <div th:if="${session.user != null}">
+        <div id="add-btn">
+            <button onclick="addToCart()">Add to Cart</button>
+        </div>
+        <div id="quantity-controls" style="display:none;">
+            <button onclick="updateQty(-1)">➖</button>
+            <span id="qty">1</span>
+            <button onclick="updateQty(1)">➕</button>
+        </div>
+    </div>
+</div>
     
-    <button type="submit">Add to Cart</button>
+    
 </form>
    
 </div>
+
+<script>
+    const productId = document.getElementById('cart-controls').dataset.productId;
+
+    async function addToCart() {
+        const res = await fetch(`/add-to-cart/${productId}`, { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            document.getElementById('add-btn').style.display = 'none';
+            document.getElementById('quantity-controls').style.display = 'inline';
+            document.getElementById('qty').textContent = data.quantity;
+        } else {
+            alert("Login required");
+            window.location.href = "/login";
+        }
+    }
+
+    async function updateQty(delta) {
+        const res = await fetch(`/update-cart/${productId}?delta=${delta}`, { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.quantity <= 0) {
+                document.getElementById('add-btn').style.display = 'inline';
+                document.getElementById('quantity-controls').style.display = 'none';
+            } else {
+                document.getElementById('qty').textContent = data.quantity;
+            }
+        }
+    }
+</script>
 
     <script th:inline="javascript">
         let images = /*[[${images}]]*/ [];
