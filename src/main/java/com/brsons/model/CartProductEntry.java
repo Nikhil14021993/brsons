@@ -4,20 +4,20 @@ import jakarta.persistence.Embeddable;
 
 @Embeddable
 public class CartProductEntry {
-    
+
     private Long productId;
     private Integer quantity;
     private String userPhone;
 
-    // Constructors
     public CartProductEntry() {}
+
     public CartProductEntry(Long productId, Integer quantity, String userPhone) {
         this.productId = productId;
         this.quantity = quantity;
         this.userPhone = userPhone;
     }
 
-    // Getters and setters
+    // Getters & Setters
     public Long getProductId() {
         return productId;
     }
@@ -42,4 +42,3 @@ public class CartProductEntry {
         this.userPhone = userPhone;
     }
 }
-

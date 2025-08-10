@@ -1,7 +1,9 @@
 package com.brsons.model;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import jakarta.persistence.CollectionTable;
@@ -29,13 +31,9 @@ public class AddToCart {
     private String userPhone;
 
     @ElementCollection
-    @CollectionTable(
-        name = "add_to_cart_product_quantities",
-        joinColumns = @JoinColumn(name = "add_to_cart_id")
-    )
-    @MapKeyColumn(name = "product_id")
-    @Column(name = "quantity")
-    private Map<Long, Integer> productQuantities = new HashMap<>();
+    @CollectionTable(name = "add_to_cart_product_quantities", 
+        joinColumns = @JoinColumn(name = "add_to_cart_id"))
+    private List<CartProductEntry> productQuantities = new ArrayList<>();
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -80,16 +78,18 @@ public class AddToCart {
 	}
 
 	
-	public Map<Long, Integer> getProductQuantities() {
-		return productQuantities;
-	}
-
-	public void setProductQuantities(Map<Long, Integer> productQuantities) {
-		this.productQuantities = productQuantities;
-	}
+	
 
 	public LocalDateTime getCreatedAt() {
 		return createdAt;
+	}
+
+	public List<CartProductEntry> getProductQuantities() {
+		return productQuantities;
+	}
+
+	public void setProductQuantities(List<CartProductEntry> productQuantities) {
+		this.productQuantities = productQuantities;
 	}
 
 	public void setCreatedAt(LocalDateTime createdAt) {

@@ -128,24 +128,60 @@
     <p th:text="'Size: ' + ${product.size}"></p>
         
 <div id="cart-controls" th:data-product-id="${product.id}">
-    <button th:if="${session.user == null}" onclick="window.location.href='/login'">Login to Add</button>
+    
 
-    <div th:if="${session.user != null}">
-        <div id="add-btn">
-            <button onclick="addToCart()">Add to Cart</button>
-        </div>
-        <div id="quantity-controls" style="display:none;">
-            <button onclick="updateQty(-1)">➖</button>
-            <span id="qty">1</span>
-            <button onclick="updateQty(1)">➕</button>
-        </div>
+    <div id="add-to-cart-btn" th:style="'display: ' + (${quantityInCart > 0} ? 'none' : 'inline')">
+    <button onclick="addToCart()">Add to Cart</button>
+</div>
+
+<div id="quantity-controls" th:style="'display: ' + (${quantityInCart > 0} ? 'inline' : 'none')">
+    <button onclick="updateQty(-1)">➖</button>
+    <span id="qty" th:text="${quantityInCart}">1</span>
+    <button onclick="updateQty(1)">➕</button>
+</div>
+
     </div>
 </div>
+
     
     
 </form>
    
 </div>
+<script>
+    const productId = document.getElementById('cart-controls').dataset.productId;
+    const addBtn = document.getElementById('add-to-cart-btn');
+    const qtyControls = document.getElementById('quantity-controls');
+    const qtySpan = document.getElementById('qty');
+
+    async function addToCart() {
+        const res = await fetch(`/add-to-cart/${productId}`, { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            qtySpan.textContent = data.quantity;
+            addBtn.style.display = 'none';
+            qtyControls.style.display = 'inline';
+        } else {
+            alert("Login required");
+            window.location.href = "/login";
+        }
+    }
+
+    async function updateQty(delta) {
+        const res = await fetch(`/update-cart/${productId}?delta=${delta}`, { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            qtySpan.textContent = data.quantity;
+            if (data.quantity <= 0) {
+                qtyControls.style.display = 'none';
+                addBtn.style.display = 'inline';
+            } else {
+                qtyControls.style.display = 'inline';
+                addBtn.style.display = 'none';
+            }
+        }
+    }
+</script>
 
 <script>
     const productId = document.getElementById('cart-controls').dataset.productId;

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Checkout</title>
+</head>
+<body>
+    <h1>Checkout</h1>
+
+    <form th:action="@{/checkout}" method="post">
+        <label>Name:</label><br>
+        <input type="text" name="name" required><br><br>
+
+        <label>Phone:</label><br>
+        <input type="text" name="phone" th:value="${userPhone}" readonly><br><br>
+
+        <label>Address Line 1:</label><br>
+        <input type="text" name="addressLine1" required><br><br>
+
+        <label>Address Line 2:</label><br>
+        <input type="text" name="addressLine2"><br><br>
+
+        <label>City:</label><br>
+        <input type="text" name="city" required><br><br>
+
+        <label>State:</label><br>
+        <input type="text" name="state" required><br><br>
+
+        <label>Zip Code:</label><br>
+        <input type="text" name="zipCode" required><br><br>
+
+        <button type="submit">Confirm</button>
+        <a th:href="@{/}"><button type="button">Cancel</button></a>
+    </form>
+</body>
+</html>
