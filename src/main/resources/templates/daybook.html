@@ -65,21 +65,37 @@
         <h3>Summary</h3>
         <p><strong>Total Amount:</strong> ₹<span th:text="${daybook.totalAmount}"></span></p>
         <p><strong>Total GST:</strong> ₹<span th:text="${daybook.totalGst}"></span></p>
-
+<h3>Accounting Reports</h3>
+<ul>
+    <li><a th:href="@{/accounting/trial-balance}">Trial Balance</a></li>
+    <li><a th:href="@{/accounting/balance-sheet}">Balance Sheet</a></li>
+    <li><a th:href="@{/accounting/profit-loss}">Profit &amp; Loss</a></li>
+</ul>
         <h3>Orders</h3>
         <table>
             <thead>
                 <tr>
                     <th>Order ID</th>
-                    <th>Total</th>
+                    <th>InvoiceNumber</th>
+                    <th>SubTotal</th>
                     <th>GST</th>
+                    <th>Total</th>
+                    
                 </tr>
             </thead>
             <tbody>
                 <tr th:each="order : ${daybook.orders}">
-                    <td th:text="${order.id}"></td>
-                    <td th:text="${order.total}"></td>
+                <td>
+    <a th:href="@{'/orders/' + ${order.id} + '/invoice.pdf'}" 
+       style="color: blue; text-decoration: underline;">
+       <span th:text="${order.id}"></span>
+    </a>
+</td>
+                    <td th:text="${order.invoiceNumber}"></td>
+                    <td th:text="${order.subTotal}"></td>
                     <td th:text="${order.gstAmount}"></td>
+                    <td th:text="${order.total}"></td>
+                    
                 </tr>
             </tbody>
         </table>

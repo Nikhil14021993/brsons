@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Trial Balance</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px 12px; border: 1px solid #ccc; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+
+    <h1>Trial Balance</h1>
+
+    <form id="trialBalanceForm">
+        <label>Start Date:</label>
+        <input type="date" id="startDate" required>
+        <label>End Date:</label>
+        <input type="date" id="endDate" required>
+        <button type="submit">Get Trial Balance</button>
+    </form>
+
+    <table id="trialBalanceTable">
+        <thead>
+            <tr>
+                <th>Account Name</th>
+                <th>Debit</th>
+                <th>Credit</th>
+            </tr>
+            <tr th:each="row : ${trialBalanceRow}">
+    <td th:text="${row.accountName}"></td>
+    <td th:text="${row.totalDebit}"></td>
+    <td th:text="${row.totalCredit}"></td>
+</tr>
+        </thead>
+        <tbody>
+            <!-- Data will be inserted here -->
+        </tbody>
+    </table>
+
+   <script>
+    document.getElementById("trialBalanceForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const startDate = document.getElementById("startDate").value;
+        const endDate = document.getElementById("endDate").value;
+
+        fetch(`/accounting/trial-balance?startDate=${startDate}&endDate=${endDate}`)
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.querySelector("#trialBalanceTable tbody");
+                tableBody.innerHTML = ""; // Clear existing rows
+
+                data.forEach(row => {
+                    const tr = document.createElement("tr");
+
+                    const accountCell = document.createElement("td");
+                    accountCell.textContent = row.accountName;
+
+                    const debitCell = document.createElement("td");
+                    debitCell.textContent = row.totalDebit; // ✅ FIXED property name
+
+                    const creditCell = document.createElement("td");
+                    creditCell.textContent = row.totalCredit; // ✅ FIXED property name
+
+                    tr.appendChild(accountCell);
+                    tr.appendChild(debitCell);
+                    tr.appendChild(creditCell);
+
+                    tableBody.appendChild(tr);
+                });
+            })
+            .catch(err => {
+                console.error("Error fetching trial balance:", err);
+            });
+    });
+</script>
+
+</body>
+</html>

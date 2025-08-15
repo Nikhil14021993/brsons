@@ -171,7 +171,7 @@ public class InvoicePdfService {
             document.open();
 
             // Title
-            document.add(new Paragraph("Invoice #" + order.getId(), new Font(Font.HELVETICA, 18, Font.BOLD)));
+//            document.add(new Paragraph("Invoice #" + order.getId(), new Font(Font.HELVETICA, 18, Font.BOLD)));
             document.add(new Paragraph(" ")); // Empty line
             
          // 3️⃣ Seller Info
@@ -222,7 +222,7 @@ public class InvoicePdfService {
             // Fetch order items from DB
             List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
 
-            BigDecimal grandTotal = BigDecimal.ZERO;
+            BigDecimal subTotal = BigDecimal.ZERO;
 
             for (OrderItem item : orderItems) {
                 Product product = productRepository.findById(item.getProductId())
@@ -240,18 +240,33 @@ public class InvoicePdfService {
                 table.addCell(body(price.toString()));
                 table.addCell(body(total.toString()));
 
-                grandTotal = grandTotal.add(total);
+                subTotal = subTotal.add(total);
             }
+            
+         // GST & Total
+            BigDecimal gstAmount = subTotal.multiply(new BigDecimal("0.05")); // 5% GST
+            BigDecimal grandTotal = subTotal.add(gstAmount);
 
             // Grand total row
             PdfPCell emptyCell = new PdfPCell(new Phrase(""));
             emptyCell.setColspan(3);
             emptyCell.setBorder(Rectangle.NO_BORDER);
+            
             table.addCell(emptyCell);
-
-            table.addCell(body("Grand Total: " + grandTotal));
+            table.addCell(body("SubTotal : " +subTotal.toString()));
+            
+            table.addCell(emptyCell);
+            table.addCell(body("GST (5%) : " +gstAmount.toString()));
+            
+            table.addCell(emptyCell);              
+            table.addCell(body("Grand Total : " + grandTotal));
+            
+            
+            
+            
 
             document.add(table);
+            document.add(new Paragraph("\nThank you for your purchase!", new Font(Font.HELVETICA, 10, Font.ITALIC)));
             document.close();
 
             return baos.toByteArray();
