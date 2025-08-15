@@ -1,9 +1,11 @@
 package com.brsons.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -125,6 +127,119 @@ public class Order {
     private String status; // like "Active", "Cancelled", etc.
 
     private String orderStatus = "Not Confirmed"; // Default value
+    
+    
+    
+    // ===== GST / invoice fields =====
+    // Kaccha or Pakka
+    @Column(length = 10)
+    private String billType; // "Kaccha" or "Pakka"
+
+    // Seller profile snapshot (to keep historical correctness)
+    private String sellerName;
+    private String sellerGstin;
+
+    // Optional buyer GSTIN if B2B
+    private String buyerGstin;
+
+    // Numbering
+    @Column(unique = true)
+    private String invoiceNumber;  // e.g. PK-2025-000123
+
+    // Money
+    @Column(precision = 12, scale = 2)
+    private BigDecimal subTotal;   // sum of (price * qty) without GST
+
+    @Column(precision = 5, scale = 2)
+    private BigDecimal gstRate;    // e.g. 5.00, 12.00
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal gstAmount;  // subTotal * gstRate/100
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal total;      // subTotal + gstAmount
+
+   
+
+  
+    
+    public String getBillType() {
+		return billType;
+	}
+
+	public void setBillType(String billType) {
+		this.billType = billType;
+	}
+
+	public String getSellerName() {
+		return sellerName;
+	}
+
+	public void setSellerName(String sellerName) {
+		this.sellerName = sellerName;
+	}
+
+	public String getSellerGstin() {
+		return sellerGstin;
+	}
+
+	public void setSellerGstin(String sellerGstin) {
+		this.sellerGstin = sellerGstin;
+	}
+
+	public String getBuyerGstin() {
+		return buyerGstin;
+	}
+
+	public void setBuyerGstin(String buyerGstin) {
+		this.buyerGstin = buyerGstin;
+	}
+
+	public String getInvoiceNumber() {
+		return invoiceNumber;
+	}
+
+	public void setInvoiceNumber(String invoiceNumber) {
+		this.invoiceNumber = invoiceNumber;
+	}
+
+	public BigDecimal getSubTotal() {
+		return subTotal;
+	}
+
+	public void setSubTotal(BigDecimal subTotal) {
+		this.subTotal = subTotal;
+	}
+
+	public BigDecimal getGstRate() {
+		return gstRate;
+	}
+
+	public void setGstRate(BigDecimal gstRate) {
+		this.gstRate = gstRate;
+	}
+
+	public BigDecimal getGstAmount() {
+		return gstAmount;
+	}
+
+	public void setGstAmount(BigDecimal gstAmount) {
+		this.gstAmount = gstAmount;
+	}
+
+	public BigDecimal getTotal() {
+		return total;
+	}
+
+	public void setTotal(BigDecimal total) {
+		this.total = total;
+	}
+
+	
+
+	
+
+	
 
     private LocalDateTime createdAt;
 

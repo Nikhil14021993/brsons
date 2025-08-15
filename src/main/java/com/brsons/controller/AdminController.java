@@ -6,14 +6,19 @@ import com.brsons.model.User;
 import com.brsons.repository.CategoryRepository;
 import com.brsons.repository.ProductRepository;
 import com.brsons.repository.UserRepository;
+import com.brsons.service.DayBookService;
+import com.brsons.service.OrderService;
 
 import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +29,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Controller
 public class AdminController {
+	
+	@Autowired
+    private DayBookService dayBookService;
 	private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
 
@@ -211,6 +219,16 @@ public class AdminController {
             return "admin-add-category"; // This should be your Thymeleaf HTML template
         }
         return "redirect:/";
+    }
+    
+    @GetMapping("/admin/daybook")
+    public String showDaybook(@RequestParam(value = "date", required = false) String date, Model model) {
+        if (date != null) {
+            LocalDate localDate = LocalDate.parse(date);
+            Map<String, Object> daybookData = dayBookService.getDayBook(localDate);
+            model.addAttribute("daybook", daybookData);
+        }
+        return "daybook"; // daybook.html
     }
 
 }

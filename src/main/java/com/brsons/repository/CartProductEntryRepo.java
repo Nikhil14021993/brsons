@@ -14,4 +14,6 @@ import com.brsons.model.CartProductEntry1;
 
 public interface CartProductEntryRepo extends JpaRepository<CartProductEntry1, Long> {
     List<CartProductEntry1> findByUserPhone(String userPhone);
+    
+    void deleteByUserPhone(String userPhone);
 }

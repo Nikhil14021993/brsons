@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><title>My Orders</title></head>
+<body>
+<h1>Your Orders</h1>
+
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr>
+    <th>Invoice</th>
+    <th>Date</th>
+    <th>Bill Type</th>
+    <th>SubTotal</th>
+    <th>GST</th>
+    <th>Total</th>
+    <th>Action</th>
+  </tr>
+  <tr th:each="o : ${orders}">
+    <td th:text="${o.invoiceNumber}">INV</td>
+    <td th:text="${#temporals.format(o.createdAt,'dd-MMM-yyyy HH:mm')}">date</td>
+    <td th:text="${o.billType}">Pakka</td>
+    <td th:text="${o.subTotal}">0.00</td>
+    <td th:text="${o.gstAmount}">0.00</td>
+    <td th:text="${o.total}">0.00</td>
+    <td><a th:href="@{'/orders/' + ${o.id} + '/invoice.pdf'}">Download PDF</a></td>
+  </tr>
+</table>
+
+<p><a th:href="@{/}">Back to Home</a></p>
+</body>
+</html>

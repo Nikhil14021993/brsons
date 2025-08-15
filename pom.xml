@@ -39,6 +39,19 @@
     <artifactId>postgresql</artifactId>
 </dependency>
 
+  <!-- OpenPDF (iText 4.2 fork) -->
+  <dependency>
+    <groupId>com.github.librepdf</groupId>
+    <artifactId>openpdf</artifactId>
+    <version>1.3.40</version>
+  </dependency>
+
+  <!-- Commons Lang (string utils) -->
+  <dependency>
+    <groupId>org.apache.commons</groupId>
+    <artifactId>commons-lang3</artifactId>
+    <version>3.14.0</version>
+  </dependency>
 <dependency>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-data-jpa</artifactId>

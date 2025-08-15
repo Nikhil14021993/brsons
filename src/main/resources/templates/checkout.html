@@ -27,6 +27,15 @@
 
         <label>Zip Code:</label><br>
         <input type="text" name="zipCode" required><br><br>
+        
+        <label>Bill Type:</label><br>
+<select name="billType">
+  <option value="Pakka">Pakka (with GST)</option>
+  <option value="Kaccha">Kaccha</option>
+</select><br><br>
+
+<label>Buyer GSTIN (optional):</label><br>
+<input type="text" name="buyerGstin"><br><br>
 
         <button type="submit">Confirm</button>
         <a th:href="@{/}"><button type="button">Cancel</button></a>
