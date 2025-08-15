@@ -222,13 +222,16 @@ public class AdminController {
     }
     
     @GetMapping("/admin/daybook")
-    public String showDaybook(@RequestParam(value = "date", required = false) String date, Model model) {
-        if (date != null) {
+    public String showDaybook(@RequestParam(value = "date", required = false) String date, Model model, HttpSession session) {
+    	 if (isAdmin(session)) {
+    	if (date != null) {
             LocalDate localDate = LocalDate.parse(date);
             Map<String, Object> daybookData = dayBookService.getDayBook(localDate);
             model.addAttribute("daybook", daybookData);
         }
-        return "daybook"; // daybook.html
+    	return "daybook"; // daybook.html
+    	 }
+    	 return "redirect:/";
     }
 
 }

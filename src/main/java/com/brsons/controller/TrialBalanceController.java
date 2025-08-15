@@ -1,7 +1,11 @@
 package com.brsons.controller;
 
 import com.brsons.dto.TrialBalanceRow;
+import com.brsons.model.User;
 import com.brsons.service.TrialBalanceService;
+
+import jakarta.servlet.http.HttpSession;
+
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -20,16 +24,27 @@ public class TrialBalanceController {
     }
 
     @GetMapping("/trial-balance-ui")
-    public String trialBalancePage() {
+    public String trialBalancePage(HttpSession session) {
+    	if (isAdmin(session)) {
         return "trial_balance"; // trial_balance.html
+    	}
+    	return "redirect:/";
+    }
+    private boolean isAdmin(HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        return user != null && "Admin".equalsIgnoreCase(user.getType());
     }
 
+    LocalDate customDate = LocalDate.of(2024, 8, 16);
+    
     @GetMapping("/trial-balance")
     @ResponseBody
     public List<TrialBalanceRow> getTrialBalance(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate, HttpSession session) {
+    	if (isAdmin(session)) {
         return trialBalanceService.getTrialBalance(startDate, endDate);
+    	}
+    	return trialBalanceService.getTrialBalance(customDate, customDate);
     }
 }
