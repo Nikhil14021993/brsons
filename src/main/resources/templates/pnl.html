@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Profit & Loss</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px 12px; border: 1px solid #ccc; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+
+<h1>Profit & Loss (P&L)</h1>
+
+<form id="pnlForm">
+    <label>Start Date:</label>
+    <input type="date" id="startDate" required>
+    <label>End Date:</label>
+    <input type="date" id="endDate" required>
+    <button type="submit">Get P&L</button>
+</form>
+
+<table id="pnlTable">
+    <thead>
+        <tr>
+            <th>Account Name</th>
+            <th>Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Data will be injected here -->
+    </tbody>
+</table>
+
+<script>
+document.getElementById("pnlForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    const startDate = document.getElementById("startDate").value;
+    const endDate = document.getElementById("endDate").value;
+
+    fetch(`/accounting/pnl?startDate=${startDate}&endDate=${endDate}`)
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.querySelector("#pnlTable tbody");
+            tbody.innerHTML = "";
+
+            data.forEach(row => {
+                const tr = document.createElement("tr");
+                const accountCell = document.createElement("td");
+                accountCell.textContent = row.accountName;
+
+                const amountCell = document.createElement("td");
+                amountCell.textContent = row.amount ?? 0;
+
+                tr.appendChild(accountCell);
+                tr.appendChild(amountCell);
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(err => console.error("Error:", err));
+});
+</script>
+
+</body>
+</html>

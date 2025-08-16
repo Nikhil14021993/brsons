@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Balance Sheet</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px 12px; border: 1px solid #ccc; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Balance Sheet</h1>
+
+    <form id="balanceSheetForm">
+        <label>Date:</label>
+        <input type="date" id="date" required>
+        <button type="submit">Get Balance Sheet</button>
+    </form>
+
+    <table id="balanceSheetTable">
+        <thead>
+            <tr>
+                <th>Account Name</th>
+                <th>Amount</th>
+            </tr>
+            <tr th:each="row : ${balanceSheetRow}">
+    <td th:text="${row.accountName}"></td>
+    <td th:text="${row.balance}"></td>
+    
+        </thead>
+        <tbody>
+            <!-- Data will be inserted here -->
+        </tbody>
+    </table>
+
+    <script>
+        document.getElementById("balanceSheetForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            const date = document.getElementById("date").value;
+
+            fetch(`/accounting/balance-sheet?date=${date}`)
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.querySelector("#balanceSheetTable tbody");
+                    tbody.innerHTML = "";
+
+                    data.forEach(row => {
+                        const tr = document.createElement("tr");
+
+                        const accountCell = document.createElement("td");
+                        accountCell.textContent = row.accountName;
+
+                        const amountCell = document.createElement("td");
+                        amountCell.textContent = row.balance;
+
+                        tr.appendChild(accountCell);
+                        tr.appendChild(amountCell);
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(err => console.error("Error fetching balance sheet:", err));
+        });
+    </script>
+</body>
+</html>
