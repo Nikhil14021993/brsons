@@ -12,7 +12,10 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.brsons.dto.BalanceSheetRow;
 import com.brsons.dto.PnLRow;
+import com.brsons.model.User;
 import com.brsons.service.AccountingReportService;
+
+import jakarta.servlet.http.HttpSession;
 
 @Controller
 @RequestMapping("/accounting")
@@ -25,8 +28,11 @@ public class AccountingReportController {
     }
 
     @GetMapping("/balance-sheet-ui")
-    public String balanceSheetPage() {
+    public String balanceSheetPage(HttpSession session) {
+    	if (isAdmin(session)) {
         return "balance_sheet"; // Thymeleaf template
+    	}
+    	return "redirect:/";
     }
 
     @GetMapping("/balance-sheet")
@@ -36,10 +42,17 @@ public class AccountingReportController {
     }
 
     @GetMapping("/pnl-ui")
-    public String pnlPage() {
+    public String pnlPage(HttpSession session) {
+    	if (isAdmin(session)) {
         return "pnl"; // Thymeleaf template
+    	}
+    	return "redirect:/";
     }
-
+    private boolean isAdmin(HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        return user != null && "Admin".equalsIgnoreCase(user.getType());
+    }
+    
     @GetMapping("/pnl")
     @ResponseBody
     public List<PnLRow> getPnL(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
