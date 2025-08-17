@@ -1,30 +1,131 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head><title>My Orders</title></head>
-<body>
-<h1>Your Orders</h1>
+<head>
+    <title>My Orders</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7fa;
+            margin: 0;
+            padding: 20px;
+        }
 
-<table border="1" cellpadding="6" cellspacing="0">
-  <tr>
-    <th>Invoice</th>
-    <th>Date</th>
-    <th>Bill Type</th>
-    <th>SubTotal</th>
-    <th>GST</th>
-    <th>Total</th>
-    <th>Action</th>
-  </tr>
-  <tr th:each="o : ${orders}">
-    <td th:text="${o.invoiceNumber}">INV</td>
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .orders-container {
+            max-width: 1000px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 14px 16px;
+            text-align: center;
+        }
+
+        th {
+            background: #34495e;
+            color: white;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+
+        tr:nth-child(even) {
+            background: #f9fbfd;
+        }
+
+        tr:hover {
+            background: #ecf6ff;
+            transition: 0.2s;
+        }
+
+        td {
+            color: #2c3e50;
+            font-size: 15px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            background: #3498db;
+            color: white;
+            transition: 0.2s;
+        }
+
+        .btn:hover {
+            background: #217dbb;
+        }
+
+        .back-home {
+            display: block;
+            margin-top: 20px;
+            text-align: center;
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .back-home:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="orders-container">
+        <h1>Your Orders</h1>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Id</th>
+                    <th>Date</th>
+                    <th>Bill Type</th>
+                    <th>SubTotal</th>
+                    <th>GST</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+           <tbody>
+<tr th:each="o, iterStat : ${orders}"
+    th:onclick="|window.location.href='@{/orders/{id}(id=${o.id})}'|"
+    style="cursor:pointer;">
+    <td th:text="${iterStat.index + 1}">1</td>
+    <td th:text="${o.id}">INV</td>
     <td th:text="${#temporals.format(o.createdAt,'dd-MMM-yyyy HH:mm')}">date</td>
     <td th:text="${o.billType}">Pakka</td>
     <td th:text="${o.subTotal}">0.00</td>
     <td th:text="${o.gstAmount}">0.00</td>
     <td th:text="${o.total}">0.00</td>
-    <td><a th:href="@{'/orders/' + ${o.id} + '/invoice.pdf'}">Download PDF</a></td>
-  </tr>
-</table>
+    <td>
+        <a class="btn"
+           th:href="@{'/orders/' + ${o.id} + '/invoice.pdf'}"
+           onclick="event.stopPropagation()">Download PDF</a>
+    </td>
+</tr>
+</tbody>
+        </table>
 
-<p><a th:href="@{/}">Back to Home</a></p>
+        <a class="back-home" th:href="@{/}">← Back to Home</a>
+    </div>
 </body>
 </html>
