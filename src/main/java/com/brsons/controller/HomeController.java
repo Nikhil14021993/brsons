@@ -2,7 +2,10 @@ package com.brsons.controller;
 
 import com.brsons.model.Product;
 import com.brsons.model.User;
+import com.brsons.model.AddToCart;
+import com.brsons.model.CartProductEntry;
 import com.brsons.repository.UserRepository;
+import com.brsons.repository.AddToCartRepository;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -18,24 +21,37 @@ import java.util.Arrays;
 @Controller
 public class HomeController {
 	private final UserRepository userRepository;
+	private final AddToCartRepository addToCartRepository;
 
-    public HomeController(UserRepository userRepository) {
+    public HomeController(UserRepository userRepository, AddToCartRepository addToCartRepository) {
         this.userRepository = userRepository;
+        this.addToCartRepository = addToCartRepository;
     }
 	  @GetMapping("/")
-	    public String home(@RequestParam(name = "userId", required = false) Long userId,
-	                       HttpSession session,
-	                       Model model) {
-
-	        User sessionUser = (User) session.getAttribute("user");
-
-	        if (userId != null && (sessionUser == null || !userId.equals(sessionUser.getId()))) {
-	            // Fetch and store user in session if userId is passed
-	            Optional<User> optionalUser = userRepository.findById(userId);
-	            optionalUser.ifPresent(user -> session.setAttribute("user", user));
-	        }
-	   // List<Product> featured = productList.subList(0, Math.min(productList.size(), 3));
-	   // model.addAttribute("featured", featured);
-	    return "home";
+	public String home(HttpSession session, Model model) {
+		// Debug logging
+		System.out.println("=== HOME PAGE ACCESSED ===");
+		System.out.println("Session ID: " + session.getId());
+		
+		User sessionUser = (User) session.getAttribute("user");
+		System.out.println("User from session: " + (sessionUser != null ? "User ID: " + sessionUser.getId() + ", Name: " + sessionUser.getName() : "null"));
+		
+		// Add user to model for display purposes
+		if (sessionUser != null) {
+			model.addAttribute("currentUser", sessionUser);
+			
+			// Set cart count in session for navbar display
+			AddToCart cart = addToCartRepository.findByUserId(sessionUser.getId()).orElse(null);
+			if (cart != null && !cart.getProductQuantities().isEmpty()) {
+				int totalItems = cart.getProductQuantities().stream()
+						.mapToInt(CartProductEntry::getQuantity)
+						.sum();
+				session.setAttribute("cartCount", totalItems);
+			} else {
+				session.setAttribute("cartCount", 0);
+			}
+		}
+		
+		return "home";
 	}
 }

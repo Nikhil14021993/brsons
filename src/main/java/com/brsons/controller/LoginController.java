@@ -35,8 +35,20 @@ public class LoginController {
         User user = userRepository.findByEmailOrPhone(emailOrPhone, emailOrPhone).orElse(null);
 
         if (user != null && user.getPassword().equals(password)) {
-            session.setAttribute("user", user); // Store logged-in user in session
-            return "redirect:/?userId=" + user.getPhone();
+            // Store logged-in user in session
+            session.setAttribute("user", user);
+            
+            // Debug logging
+            System.out.println("=== LOGIN SUCCESSFUL ===");
+            System.out.println("User ID: " + user.getId());
+            System.out.println("User Name: " + user.getName());
+            System.out.println("User Email: " + user.getEmail());
+            System.out.println("User Phone: " + user.getPhone());
+            System.out.println("Session ID: " + session.getId());
+            System.out.println("User stored in session: " + (session.getAttribute("user") != null ? "YES" : "NO"));
+            
+            // Redirect to home page
+            return "redirect:/";
         } else {
             model.addAttribute("error", "Invalid credentials");
             return "login";

@@ -32,7 +32,7 @@ public class User {
     private String status = "ACTIVE";
     
     @Column(name = "type")
-    private String type; // Example values: "Admin", "Customer"
+    private String type = "Retail"; // Example values: "Admin", "Customer"
     private String role = "USER";
 
     // Getter & Setter

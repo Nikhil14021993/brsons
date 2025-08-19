@@ -43,28 +43,64 @@ public class ShopController {
 	    }
 
 	@GetMapping("/shop")
-	public String viewCategories(Model model) {
+	public String viewCategories(Model model, HttpSession session) {
 	    List<Category> categories = categoryRepository.findByStatus("Active");
 	    model.addAttribute("categories", categories);
+	    
+	    // Set cart count in session for navbar display
+	    User user = (User) session.getAttribute("user");
+	    if (user != null) {
+	        AddToCart cart = addToCartRepository.findByUserId(user.getId()).orElse(null);
+	        if (cart != null && !cart.getProductQuantities().isEmpty()) {
+	            int totalItems = cart.getProductQuantities().stream()
+	                    .mapToInt(CartProductEntry::getQuantity)
+	                    .sum();
+	            session.setAttribute("cartCount", totalItems);
+	        } else {
+	            session.setAttribute("cartCount", 0);
+	        }
+	    }
+	    
 	    return "shop-categories";
 	}
 	
 	@GetMapping("/shop/category/{id}")
-	public String viewProductsByCategory(@PathVariable Long id, Model model) {
+	public String viewProductsByCategory(@PathVariable Long id, Model model, HttpSession session) {
 	    Category category = categoryRepository.findById(id).orElse(null);
 	    if (category != null) {
 	        List<Product> products = productRepository.findByCategoryIdAndStatus(id, "active");
 	        model.addAttribute("category", category);
 	        model.addAttribute("products", products);
+	        
+	        // Set cart count in session for navbar display
+	        User user = (User) session.getAttribute("user");
+	        if (user != null) {
+	            AddToCart cart = addToCartRepository.findByUserId(user.getId()).orElse(null);
+	            if (cart != null && !cart.getProductQuantities().isEmpty()) {
+	                int totalItems = cart.getProductQuantities().stream()
+	                        .mapToInt(CartProductEntry::getQuantity)
+	                        .sum();
+	                session.setAttribute("cartCount", totalItems);
+	            } else {
+	                session.setAttribute("cartCount", 0);
+	            }
+	        }
 	    }
 	    return "shop-products";
 	}
 	@GetMapping("/product/{id}")
 	public String viewProduct(@PathVariable Long id, Model model, HttpSession session) {
+	    System.out.println("=== PRODUCT ENDPOINT HIT ===");
+	    System.out.println("Product ID: " + id);
+	    System.out.println("Session ID: " + session.getId());
+	    
 	    Product product = productRepository.findById(id).orElse(null);
 	    if (product == null) {
+	        System.out.println("Product not found, redirecting to home");
 	        return "redirect:/"; // Or a 404 page
 	    }
+	    
+	    System.out.println("Product found: " + product.getProductName());
 
 	    // Collect product images
 	    List<String> images = new ArrayList<>();
@@ -80,6 +116,8 @@ public class ShopController {
 	    // Check quantity in cart
 	    int quantityInCart = 0;
 	    User user = (User) session.getAttribute("user");
+	    System.out.println("User from session: " + (user != null ? user.getId() : "null"));
+	    
 	    if (user != null) {
 	        Optional<AddToCart> optionalCart = addToCartRepository.findByUserId(user.getId());
 	        if (optionalCart.isPresent()) {
@@ -89,6 +127,7 @@ public class ShopController {
 	                for (CartProductEntry entry : productQuantities) {
 	                    if (entry.getProductId().equals(product.getId())) {
 	                        quantityInCart = entry.getQuantity();
+	                        System.out.println("Found product in cart with quantity: " + quantityInCart);
 	                        break;
 	                    }
 	                }
@@ -97,6 +136,20 @@ public class ShopController {
 	    }
 
 	    model.addAttribute("quantityInCart", quantityInCart);
+	    System.out.println("Returning product-details template with quantityInCart: " + quantityInCart);
+
+	    // Set cart count in session for navbar display
+	    if (user != null) {
+	        AddToCart cart = addToCartRepository.findByUserId(user.getId()).orElse(null);
+	        if (cart != null && !cart.getProductQuantities().isEmpty()) {
+	            int totalItems = cart.getProductQuantities().stream()
+	                    .mapToInt(CartProductEntry::getQuantity)
+	                    .sum();
+	            session.setAttribute("cartCount", totalItems);
+	        } else {
+	            session.setAttribute("cartCount", 0);
+	        }
+	    }
 
 	    return "product-details";
 	}
@@ -105,9 +158,15 @@ public class ShopController {
 	@ResponseBody
 	public ResponseEntity<?> addToCart(@PathVariable Long productId,
 	                                   HttpSession session) {
+	    System.out.println("=== ADD TO CART ENDPOINT HIT ===");
+	    System.out.println("Product ID: " + productId);
+	    System.out.println("Session ID: " + session.getId());
+	    
 	    User user = (User) session.getAttribute("user");
+	    System.out.println("User from session: " + (user != null ? user.getId() : "null"));
 
 	    if (user == null) {
+	        System.out.println("User not logged in, returning 401");
 	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Please login");
 	    }
 
@@ -142,13 +201,23 @@ public class ShopController {
 	        CartProductEntry entry = existingEntryOpt.get();
 	        entry.setQuantity(entry.getQuantity() + 1);
 	        newQty = entry.getQuantity();
+	        System.out.println("Updated existing product quantity to: " + newQty);
 	    } else {
 	        CartProductEntry newEntry = new CartProductEntry(productId, 1, user.getPhone());
 	        productEntries.add(newEntry);
 	        newQty = 1;
+	        System.out.println("Added new product with quantity: " + newQty);
 	    }
 
 	    addToCartRepository.save(cart1);
+	    System.out.println("Cart saved successfully, returning quantity: " + newQty);
+	    
+	    // Update cart count in session
+	    int totalItems = cart1.getProductQuantities().stream()
+	            .mapToInt(CartProductEntry::getQuantity)
+	            .sum();
+	    session.setAttribute("cartCount", totalItems);
+	    
 	    return ResponseEntity.ok(Map.of("quantity", newQty));
 	}
 
@@ -183,6 +252,13 @@ public class ShopController {
 	        }
 
 	        addToCartRepository.save(cart);
+	        
+	        // Update cart count in session
+	        int totalItems = cart.getProductQuantities().stream()
+	                .mapToInt(CartProductEntry::getQuantity)
+	                .sum();
+	        session.setAttribute("cartCount", totalItems);
+	        
 	        return ResponseEntity.ok(Map.of("quantity", updatedQty));
 	    }
 
@@ -208,23 +284,148 @@ public class ShopController {
 	    List<CartItemDetails> cartItems = new ArrayList<>();
 	    double grandTotal = 0.0;
 
-	    for (CartProductEntry entry : cart.getProductQuantities()) {
-	        Optional<Product> productOpt = productRepository.findById(entry.getProductId());
+	    System.out.println("=== CART PAGE DEBUG ===");
+	    System.out.println("User ID: " + user.getId());
+	    System.out.println("Cart found: " + (cart != null));
+	    if (cart != null) {
+	        System.out.println("Cart ID: " + cart.getId());
+	        System.out.println("Product quantities count: " + cart.getProductQuantities().size());
+	    }
 
-	        if (productOpt.isPresent()) {
-	            Product product = productOpt.get();
+	    for (CartProductEntry entry : cart.getProductQuantities()) {
+	        System.out.println("Processing entry - Product ID: " + entry.getProductId() + ", Quantity: " + entry.getQuantity());
+	        
+	        // Use a custom query to fetch product with category
+	        Product product = productRepository.findByIdWithCategory(entry.getProductId()).orElse(null);
+
+	        if (product != null) {
+	            System.out.println("Product found: " + product.getProductName() + ", Price: " + product.getPrice());
+	            System.out.println("Product category: " + (product.getCategory() != null ? product.getCategory().getCategoryName() : "NULL"));
+	            
 	            int quantity = entry.getQuantity();
 	            double totalPrice = product.getPrice() * quantity;
 
 	            grandTotal += totalPrice;
 
-	            cartItems.add(new CartItemDetails(product, quantity, totalPrice));
+	            CartItemDetails cartItem = new CartItemDetails(product.getId(), product, quantity, totalPrice);
+	            cartItems.add(cartItem);
+	            System.out.println("Cart item created - ID: " + cartItem.getId() + ", Total Price: " + cartItem.getTotalPrice());
+	        } else {
+	            System.out.println("Product not found for ID: " + entry.getProductId());
 	        }
 	    }
 
+	    System.out.println("Final cart items count: " + cartItems.size());
+	    System.out.println("Final grand total: " + grandTotal);
+
 	    model.addAttribute("cartItems", cartItems);
 	    model.addAttribute("grandTotal", grandTotal);
+	    
+	    // Set cart count in session for navbar display
+	    int totalItems = cart.getProductQuantities().stream()
+	            .mapToInt(CartProductEntry::getQuantity)
+	            .sum();
+	    session.setAttribute("cartCount", totalItems);
+	    
 	    return "cart";
+	}
+
+	@GetMapping("/cart/count")
+	@ResponseBody
+	public ResponseEntity<?> getCartCount(HttpSession session) {
+	    User user = (User) session.getAttribute("user");
+	    
+	    if (user == null) {
+	        return ResponseEntity.ok(Map.of("count", 0));
+	    }
+	    
+	    AddToCart cart = addToCartRepository.findByUserId(user.getId())
+	            .orElse(null);
+	    
+	    if (cart == null || cart.getProductQuantities().isEmpty()) {
+	        return ResponseEntity.ok(Map.of("count", 0));
+	    }
+	    
+	    int totalItems = cart.getProductQuantities().stream()
+	            .mapToInt(CartProductEntry::getQuantity)
+	            .sum();
+	    
+	    return ResponseEntity.ok(Map.of("count", totalItems));
+	}
+
+	@GetMapping("/debug/session")
+	@ResponseBody
+	public ResponseEntity<?> debugSession(HttpSession session) {
+	    System.out.println("=== SESSION DEBUG ENDPOINT ===");
+	    System.out.println("Session ID: " + session.getId());
+	    
+	    User user = (User) session.getAttribute("user");
+	    System.out.println("User from session: " + (user != null ? "User ID: " + user.getId() + ", Name: " + user.getName() : "null"));
+	    
+	    Map<String, Object> debugInfo = new HashMap<>();
+	    debugInfo.put("sessionId", session.getId());
+	    debugInfo.put("userLoggedIn", user != null);
+	    
+	    if (user != null) {
+	        debugInfo.put("userId", user.getId());
+	        debugInfo.put("userName", user.getName());
+	        debugInfo.put("userEmail", user.getEmail());
+	        debugInfo.put("userPhone", user.getPhone());
+	    }
+	    
+	    return ResponseEntity.ok(debugInfo);
+	}
+
+	@GetMapping("/test/session")
+	@ResponseBody
+	public ResponseEntity<?> testSession(HttpSession session) {
+	    System.out.println("=== TEST SESSION ENDPOINT ===");
+	    System.out.println("Session ID: " + session.getId());
+	    
+	    // Try to get user from session
+	    User user = (User) session.getAttribute("user");
+	    System.out.println("User from session: " + (user != null ? "User ID: " + user.getId() + ", Name: " + user.getName() : "null"));
+	    
+	    // Try to set a test attribute
+	    session.setAttribute("testAttribute", "testValue");
+	    String testValue = (String) session.getAttribute("testAttribute");
+	    System.out.println("Test attribute value: " + testValue);
+	    
+	    Map<String, Object> result = new HashMap<>();
+	    result.put("sessionId", session.getId());
+	    result.put("userLoggedIn", user != null);
+	    result.put("testAttributeSet", "testValue".equals(testValue));
+	    
+	    if (user != null) {
+	        result.put("userId", user.getId());
+	        result.put("userName", user.getName());
+	    }
+	    
+	    return ResponseEntity.ok(result);
+	}
+
+	@GetMapping("/cart/details")
+	@ResponseBody
+	public ResponseEntity<?> getCartDetails(HttpSession session) {
+	    User user = (User) session.getAttribute("user");
+	    if (user == null) {
+	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Login required");
+	    }
+	    
+	    AddToCart cart = addToCartRepository.findByUserId(user.getId()).orElse(null);
+	    if (cart == null || cart.getProductQuantities().isEmpty()) {
+	        return ResponseEntity.ok(Map.of("items", new ArrayList<>()));
+	    }
+	    
+	    List<Map<String, Object>> cartDetails = new ArrayList<>();
+	    for (CartProductEntry entry : cart.getProductQuantities()) {
+	        Map<String, Object> item = new HashMap<>();
+	        item.put("productId", entry.getProductId());
+	        item.put("quantity", entry.getQuantity());
+	        cartDetails.add(item);
+	    }
+	    
+	    return ResponseEntity.ok(Map.of("items", cartDetails));
 	}
 
 	

@@ -2,136 +2,488 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Shop - Categories</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body {
+        * {
             margin: 0;
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #f4f4f4;
+            padding: 0;
+            box-sizing: border-box;
         }
-/* Navbar */
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        /* Navbar */
         .navbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background-color: #007bff;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
             padding: 15px 30px;
-            color: white;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
+
         .navbar-logo {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: bold;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
+
         .navbar-links {
             list-style: none;
             display: flex;
-            gap: 20px;
+            gap: 25px;
             margin: 0;
             padding: 0;
         }
+
         .navbar-links li a {
-            color: white;
+            color: #333;
             text-decoration: none;
             font-weight: 500;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 20px;
         }
+
         .navbar-links li a:hover {
-            color: #ffe600;
-        }
-        .top-bar {
-            background-color: #333;
+            background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
-            padding: 15px;
-            text-align: center;
-            font-size: 18px;
+            transform: translateY(-2px);
         }
 
-        h1 {
-            text-align: center;
-            margin-top: 30px;
-            color: #333;
+        .cart-icon {
+            position: relative;
+            font-size: 20px;
+            color: #667eea;
         }
 
-        .category-grid {
+        .cart-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff4757;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
+            align-items: center;
             justify-content: center;
-            margin: 40px auto;
-            max-width: 1200px;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+        }
+
+        .hero-section h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .hero-section p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        /* Search and Filter Section */
+        .search-filter-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            margin: 0 20px 40px;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .filter-tags {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tag {
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-tag:hover, .filter-tag.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-color: #667eea;
+        }
+
+        /* Categories Grid */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin: 40px 20px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .category-card {
-            width: 220px;
-            text-align: center;
-            border-radius: 10px;
-            overflow: hidden;
             background: white;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            transition: transform 0.3s;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            transition: all 0.4s ease;
+            position: relative;
         }
 
         .category-card:hover {
-            transform: scale(1.05);
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+        }
+
+        .category-image-container {
+            position: relative;
+            overflow: hidden;
+            height: 200px;
         }
 
         .category-card img {
             width: 100%;
-            height: 160px;
+            height: 100%;
             object-fit: cover;
+            transition: transform 0.4s ease;
         }
 
-        .category-card h3 {
-            margin: 12px 0 6px;
+        .category-card:hover img {
+            transform: scale(1.1);
+        }
+
+        .category-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(102, 126, 234, 0.8), rgba(118, 75, 162, 0.8));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .category-card:hover .category-overlay {
+            opacity: 1;
+        }
+
+        .category-overlay i {
+            color: white;
+            font-size: 3rem;
+        }
+
+        .category-info {
+            padding: 25px;
+            text-align: center;
+        }
+
+        .category-info h3 {
             color: #333;
+            font-size: 1.4rem;
+            margin-bottom: 10px;
         }
 
-        .category-card p {
-            color: #777;
-            font-size: 14px;
-            padding: 0 10px 10px;
+        .category-info p {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .category-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #999;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .navbar-links {
+                display: none;
+            }
+            
+            .hero-section h1 {
+                font-size: 2.5rem;
+            }
+            
+            .category-grid {
+                grid-template-columns: 1fr;
+                margin: 20px 10px;
+            }
+            
+            .search-filter-section {
+                margin: 0 10px 20px;
+                padding: 20px;
+            }
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
- <!-- Navbar -->
+    <!-- Navbar -->
     <nav class="navbar">
-        <div class="navbar-logo">Cloth Shop</div>
+        <div class="navbar-logo">Brsons Fashion</div>
         <ul class="navbar-links">
-            <li><a th:href="@{/}">Home</a></li>
-            <!-- Show Admin button only if logged-in user type is Admin -->
-    <li th:if="${session.user != null and session.user.type == 'Admin'}">
-        <a th:href="@{/admin}">Admin</a>
-    </li>
-            <li><a th:href="@{/shop}">Shop</a></li>
+            <li><a th:href="@{/}"><i class="fas fa-home"></i> Home</a></li>
+            <li th:if="${session.user != null and session.user.type == 'Admin'}">
+                <a th:href="@{/admin}"><i class="fas fa-cog"></i> Admin</a>
+            </li>
+            <li><a th:href="@{/shop}"><i class="fas fa-shopping-bag"></i> Shop</a></li>
             <li th:if="${session.user != null}">
-  <a th:href="@{/orders}">Orders</a>
-</li>
-            <li><a href="#">Services</a></li>
-            <li><a href="#">Pricing</a></li>
-            <li><a href="#">About Us</a></li>
-            <li><a href="#">Contact Us</a></li>
-            
-            <!-- Dynamic Login/Logout -->
-    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
-    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
-           
+                <a th:href="@{/orders}"><i class="fas fa-list"></i> Orders</a>
+            </li>
+            <li><a href="#"><i class="fas fa-star"></i> Services</a></li>
+            <li><a href="#"><i class="fas fa-tags"></i> Pricing</a></li>
+            <li><a href="#"><i class="fas fa-info-circle"></i> About</a></li>
+            <li><a href="#"><i class="fas fa-envelope"></i> Contact</a></li>
+            <li th:if="${session.user == null}"><a th:href="@{/login}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+            <li th:if="${session.user != null}"><a th:href="@{/logout}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
         </ul>
+        <div class="cart-icon">
+            <a th:href="@{/cart}" style="color: inherit; text-decoration: none;">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="cart-count" th:if="${session.cartCount != null}" th:text="${session.cartCount}">0</span>
+            </a>
+        </div>
+        
+        <!-- Session Status Indicator (for debugging) -->
+        <div style="margin-left: 20px; padding: 5px 10px; background: rgba(255,255,255,0.8); border-radius: 5px; font-size: 12px;">
+            <span th:if="${session.user != null}" style="color: #28a745;">
+                <i class="fas fa-user-check"></i> Logged in as: <span th:text="${session.user.name}">User</span>
+            </span>
+            <span th:if="${session.user == null}" style="color: #dc3545;">
+                <i class="fas fa-user-times"></i> Not logged in
+            </span>
+        </div>
     </nav>
-    <div class="top-bar">
-        Welcome to Our Shop — Browse by Category
+
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <h1>Discover Your Style</h1>
+        <p>Explore our curated collection of fashion categories</p>
     </div>
 
-    <h1>Shop by Category</h1>
+    <!-- Search and Filter Section -->
+    <div class="search-filter-section">
+        <div class="search-box">
+            <input type="text" class="search-input" id="searchInput" placeholder="Search categories...">
+            <button class="search-btn" onclick="searchCategories()">
+                <i class="fas fa-search"></i> Search
+            </button>
+        </div>
+        <div class="filter-tags">
+            <span class="filter-tag active" onclick="filterCategories('all')">All</span>
+            <span class="filter-tag" onclick="filterCategories('clothing')">Clothing</span>
+            <span class="filter-tag" onclick="filterCategories('accessories')">Accessories</span>
+            <span class="filter-tag" onclick="filterCategories('footwear')">Footwear</span>
+            <span class="filter-tag" onclick="filterCategories('jewelry')">Jewelry</span>
+        </div>
+    </div>
 
-    <div class="category-grid">
-        <div th:each="cat : ${categories}" class="category-card">
-            <a th:href="@{'/shop/category/' + ${cat.id}}">
-                <a th:href="@{'/shop/category/' + ${cat.id}}">
-                <img th:src="${cat.image}" alt="Category Image">
-                <h3 th:text="${cat.categoryName}"></h3>
-               
+    <!-- Loading Animation -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Loading categories...</p>
+    </div>
+
+    <!-- Categories Grid -->
+    <div class="category-grid" id="categoryGrid">
+        <div th:each="cat : ${categories}" class="category-card" th:data-category="${cat.categoryName.toLowerCase()}">
+            <a th:href="@{'/shop/category/' + ${cat.id}}" style="text-decoration: none; color: inherit;">
+                <div class="category-image-container">
+                    <img th:src="${cat.image}" th:alt="${cat.categoryName} + ' Image'" loading="lazy">
+                    <div class="category-overlay">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                </div>
+                <div class="category-info">
+                    <h3 th:text="${cat.categoryName}">Category Name</h3>
+                    <p>Explore our latest collection</p>
+                    <div class="category-stats">
+                        <div class="stat">
+                            <div class="stat-number">50+</div>
+                            <div class="stat-label">Products</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number">New</div>
+                            <div class="stat-label">Arrivals</div>
+                        </div>
+                    </div>
+                </div>
             </a>
         </div>
     </div>
 
+    <script>
+        // Search functionality
+        function searchCategories() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const categories = document.querySelectorAll('.category-card');
+            
+            categories.forEach(category => {
+                const categoryName = category.querySelector('h3').textContent.toLowerCase();
+                if (categoryName.includes(searchTerm)) {
+                    category.style.display = 'block';
+                } else {
+                    category.style.display = 'none';
+                }
+            });
+        }
+
+        // Filter functionality
+        function filterCategories(filter) {
+            const categories = document.querySelectorAll('.category-card');
+            const filterTags = document.querySelectorAll('.filter-tag');
+            
+            // Update active filter tag
+            filterTags.forEach(tag => tag.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (filter === 'all') {
+                categories.forEach(category => category.style.display = 'block');
+            } else {
+                categories.forEach(category => {
+                    const categoryName = category.dataset.category;
+                    if (categoryName.includes(filter)) {
+                        category.style.display = 'block';
+                    } else {
+                        category.style.display = 'none';
+                    }
+                });
+            }
+        }
+
+        // Real-time search
+        document.getElementById('searchInput').addEventListener('input', searchCategories);
+
+        // Add smooth scroll behavior
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Add loading animation
+        window.addEventListener('load', () => {
+            document.getElementById('loading').style.display = 'none';
+            
+            // Initialize cart count if available
+            initializeCartCount();
+        });
+
+        // Initialize cart count
+        function initializeCartCount() {
+            const cartCount = document.querySelector('.cart-count');
+            if (cartCount && cartCount.textContent === '0') {
+                // You can make an API call here to get the actual cart count
+                // For now, we'll keep it as is
+                console.log('Cart count initialized');
+            }
+        }
+    </script>
 </body>
 </html>
