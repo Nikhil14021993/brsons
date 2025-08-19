@@ -2,22 +2,66 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Add Category</title>
+    <link rel="stylesheet" href="/css/style.css">
     <style>
-        body { font-family: Arial; background: #f4f6f8; }
+        body { 
+            font-family: Arial; 
+            background: #f4f6f8; 
+            margin: 0;
+        }
         .form-container {
-            background: white; padding: 20px; margin: 50px auto;
-            width: 400px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: white; 
+            padding: 20px; 
+            margin: 50px auto;
+            width: 400px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         label { display: block; margin-top: 10px; }
         input, select {
-            width: 100%; padding: 8px; margin-top: 5px;
-            border: 1px solid #ccc; border-radius: 5px;
+            width: 100%; 
+            padding: 8px; 
+            margin-top: 5px;
+            border: 1px solid #ccc; 
+            border-radius: 5px;
         }
-        button { margin-top: 15px; width: 100%; padding: 10px;
-            background: #007bff; color: white; border: none; border-radius: 5px; }
+        button { 
+            margin-top: 15px; 
+            width: 100%; 
+            padding: 10px;
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+        }
     </style>
 </head>
 <body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-logo">Cloth Shop</div>
+    <ul class="navbar-links">
+      <li><a th:href="@{/}">Home</a></li>
+       <!-- Show Admin button only if logged-in user type is Admin -->
+    <li th:if="${session.user != null and session.user.type == 'Admin'}">
+        <a th:href="@{/admin}">Admin</a>
+    </li>
+      <li><a th:href="@{/shop}">Shop</a></li>
+      <li th:if="${session.user != null}">
+  <a th:href="@{/orders}">Orders</a>
+</li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Pricing</a></li>
+      <li><a href="#">About Us</a></li>
+      <li><a href="#">Contact Us</a></li>
+      
+      <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+      
+    </ul>
+  </nav>
+
     <div class="form-container">
         <h2>Add Category</h2>
         <form th:action="@{/admin/add-category}" method="post" enctype="multipart/form-data">

@@ -1,2 +1,86 @@
-<h2>Delete Product Page</h2>
-<p>Option to delete a product will go here.</p>
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Admin - Delete Product</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+        }
+        .page-content {
+            padding: 20px;
+        }
+        .delete-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-logo">Cloth Shop</div>
+    <ul class="navbar-links">
+      <li><a th:href="@{/}">Home</a></li>
+       <!-- Show Admin button only if logged-in user type is Admin -->
+    <li th:if="${session.user != null and session.user.type == 'Admin'}">
+        <a th:href="@{/admin}">Admin</a>
+    </li>
+      <li><a th:href="@{/shop}">Shop</a></li>
+      <li th:if="${session.user != null}">
+  <a th:href="@{/orders}">Orders</a>
+</li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Pricing</a></li>
+      <li><a href="#">About Us</a></li>
+      <li><a href="#">Contact Us</a></li>
+      
+      <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+      
+    </ul>
+  </nav>
+
+  <div class="page-content">
+    <div class="delete-container">
+        <a th:href="@{/admin}" class="back-link">← Back to Admin Panel</a>
+        <h1>Delete Product</h1>
+        <div class="warning">
+            <strong>Warning:</strong> This action cannot be undone. Please be careful when deleting products.
+        </div>
+        <p>Product deletion functionality will be implemented here.</p>
+        <!-- Add product deletion functionality here -->
+    </div>
+  </div>
+</body>
+</html>

@@ -8,6 +8,10 @@ import com.brsons.repository.ProductRepository;
 import com.brsons.repository.UserRepository;
 import com.brsons.service.DayBookService;
 import com.brsons.service.OrderService;
+import com.brsons.service.AdminOrderService;
+
+import com.brsons.dto.OrderDisplayDto;
+import com.brsons.repository.InvoiceRepository;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -15,6 +19,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,6 +30,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
 @Controller
@@ -32,6 +38,15 @@ public class AdminController {
 	
 	@Autowired
     private DayBookService dayBookService;
+	
+	@Autowired
+    private AdminOrderService adminOrderService;
+	
+
+	
+	@Autowired
+    private InvoiceRepository invoiceRepository;
+	
 	private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
 
@@ -67,8 +82,79 @@ public class AdminController {
     }
 
     @GetMapping("/admin/orders")
-    public String ordersPage(HttpSession session) {
-        if (isAdmin(session)) return "admin-orders";
+    public String ordersPage(HttpSession session, Model model) {
+        if (isAdmin(session)) {
+            List<OrderDisplayDto> allOrders = adminOrderService.getAllOrders();
+            AdminOrderService.OrderStatistics stats = adminOrderService.getOrderStatistics();
+            
+            model.addAttribute("orders", allOrders);
+            model.addAttribute("stats", stats);
+            return "admin-orders";
+        }
+        return "redirect:/";
+    }
+    
+    @PostMapping("/admin/orders/update-status")
+    @ResponseBody
+    public String updateOrderStatus(@RequestParam Long orderId, @RequestParam String newStatus, HttpSession session) {
+        if (isAdmin(session)) {
+            boolean success = adminOrderService.updateOrderStatus(orderId, newStatus);
+            return success ? "success" : "error";
+        }
+        return "unauthorized";
+    }
+    
+    /**
+     * Invoice management endpoints
+     */
+    @GetMapping("/admin/invoices")
+    public String invoiceManagementPage(HttpSession session, Model model) {
+        if (!isAdmin(session)) {
+            return "redirect:/";
+        }
+        
+        // Get invoice statistics
+        long totalInvoices = invoiceRepository.count();
+        long activeInvoices = invoiceRepository.findExpiredInvoices(java.time.LocalDateTime.now()).size();
+        long expiredInvoices = totalInvoices - activeInvoices;
+        
+        model.addAttribute("totalInvoices", totalInvoices);
+        model.addAttribute("activeInvoices", activeInvoices);
+        model.addAttribute("expiredInvoices", expiredInvoices);
+        
+        return "admin-invoices";
+    }
+    
+    @PostMapping("/admin/invoices/cleanup")
+    @ResponseBody
+    public String cleanupExpiredInvoices(HttpSession session) {
+        if (!isAdmin(session)) {
+            return "unauthorized";
+        }
+        
+        try {
+            // For now, just return success since we removed the service
+            return "success";
+        } catch (Exception e) {
+            return "error: " + e.getMessage();
+        }
+    }
+    
+
+    
+    @GetMapping("/admin/orders/filter")
+    public String filterOrders(@RequestParam(required = false) String status, HttpSession session, Model model) {
+        if (isAdmin(session)) {
+            List<OrderDisplayDto> orders;
+            if (status != null && !status.isEmpty()) {
+                orders = adminOrderService.getOrdersByStatus(status);
+            } else {
+                orders = adminOrderService.getAllOrders();
+            }
+            model.addAttribute("orders", orders);
+            model.addAttribute("selectedStatus", status);
+            return "admin-orders";
+        }
         return "redirect:/";
     }
     

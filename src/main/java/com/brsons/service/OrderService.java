@@ -15,4 +15,12 @@ public class OrderService {
     public List<Order> getOrdersByUserPhone(String userPhone) {
         return orderRepository.findByUserPhone(userPhone);
     }
+    
+    public Order getOrderById(Long orderId) {
+        return orderRepository.findById(orderId).orElse(null);
+    }
+    
+    public Order updateOrder(Order order) {
+        return orderRepository.save(order);
+    }
 }

@@ -102,10 +102,18 @@
         <a th:href="@{/admin}">Admin</a>
     </li>
             <li><a th:href="@{/shop}">Shop</a></li>
+            <li th:if="${session.user != null}">
+  <a th:href="@{/orders}">Orders</a>
+</li>
             <li><a href="#">Services</a></li>
             <li><a href="#">Pricing</a></li>
             <li><a href="#">About Us</a></li>
             <li><a href="#">Contact Us</a></li>
+            
+            <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+           
         </ul>
     </nav>
     <div class="top-bar">

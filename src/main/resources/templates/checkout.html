@@ -2,43 +2,132 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Checkout</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .page-content {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+    </style>
 </head>
 <body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-logo">Cloth Shop</div>
+    <ul class="navbar-links">
+      <li><a th:href="@{/}">Home</a></li>
+       <!-- Show Admin button only if logged-in user type is Admin -->
+    <li th:if="${session.user != null and session.user.type == 'Admin'}">
+        <a th:href="@{/admin}">Admin</a>
+    </li>
+      <li><a th:href="@{/shop}">Shop</a></li>
+      <li th:if="${session.user != null}">
+  <a th:href="@{/orders}">Orders</a>
+</li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Pricing</a></li>
+      <li><a href="#">About Us</a></li>
+      <li><a href="#">Contact Us</a></li>
+      
+      <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+      
+    </ul>
+  </nav>
+
+  <div class="page-content">
     <h1>Checkout</h1>
 
     <form th:action="@{/checkout}" method="post">
-        <label>Name:</label><br>
-        <input type="text" name="name" required><br><br>
+        <div class="form-group">
+            <label>Name:</label>
+            <input type="text" name="name" required>
+        </div>
 
-        <label>Phone:</label><br>
-        <input type="text" name="phone" th:value="${userPhone}" readonly><br><br>
+        <div class="form-group">
+            <label>Phone:</label>
+            <input type="text" name="phone" th:value="${userPhone}" readonly>
+        </div>
 
-        <label>Address Line 1:</label><br>
-        <input type="text" name="addressLine1" required><br><br>
+        <div class="form-group">
+            <label>Address Line 1:</label>
+            <input type="text" name="addressLine1" required>
+        </div>
 
-        <label>Address Line 2:</label><br>
-        <input type="text" name="addressLine2"><br><br>
+        <div class="form-group">
+            <label>Address Line 2:</label>
+            <input type="text" name="addressLine2">
+        </div>
 
-        <label>City:</label><br>
-        <input type="text" name="city" required><br><br>
+        <div class="form-group">
+            <label>City:</label>
+            <input type="text" name="city" required>
+        </div>
 
-        <label>State:</label><br>
-        <input type="text" name="state" required><br><br>
+        <div class="form-group">
+            <label>State:</label>
+            <input type="text" name="state" required>
+        </div>
 
-        <label>Zip Code:</label><br>
-        <input type="text" name="zipCode" required><br><br>
+        <div class="form-group">
+            <label>Zip Code:</label>
+            <input type="text" name="zipCode" required>
+        </div>
         
-        <label>Bill Type:</label><br>
-<select name="billType">
-  <option value="Pakka">Pakka (with GST)</option>
-  <option value="Kaccha">Kaccha</option>
-</select><br><br>
+        <div class="form-group">
+            <label>Bill Type:</label>
+            <select name="billType">
+              <option value="Pakka">Pakka (with GST)</option>
+              <option value="Kaccha">Kaccha</option>
+            </select>
+        </div>
 
-<label>Buyer GSTIN (optional):</label><br>
-<input type="text" name="buyerGstin"><br><br>
+        <div class="form-group">
+            <label>Buyer GSTIN (optional):</label>
+            <input type="text" name="buyerGstin">
+        </div>
 
-        <button type="submit">Confirm</button>
-        <a th:href="@{/}"><button type="button">Cancel</button></a>
+        <div class="form-group">
+            <button type="submit">Confirm Order</button>
+            <a th:href="@{/}"><button type="button" class="btn-secondary">Cancel</button></a>
+        </div>
     </form>
+  </div>
 </body>
 </html>

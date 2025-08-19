@@ -2,6 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Daybook</title>
+    <link rel="stylesheet" href="/css/style.css">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -9,12 +10,15 @@
             margin: 0;
             padding: 0;
         }
+        .page-content {
+            padding: 20px;
+        }
         .container {
             padding: 30px;
             max-width: 600px;
             margin: auto;
             background: white;
-            margin-top: 50px;
+            margin-top: 20px;
             border-radius: 10px;
             box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
         }
@@ -53,7 +57,33 @@
     </style>
 </head>
 <body>
-<div class="container">
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-logo">Cloth Shop</div>
+    <ul class="navbar-links">
+      <li><a th:href="@{/}">Home</a></li>
+       <!-- Show Admin button only if logged-in user type is Admin -->
+    <li th:if="${session.user != null and session.user.type == 'Admin'}">
+        <a th:href="@{/admin}">Admin</a>
+    </li>
+      <li><a th:href="@{/shop}">Shop</a></li>
+      <li th:if="${session.user != null}">
+  <a th:href="@{/orders}">Orders</a>
+</li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Pricing</a></li>
+      <li><a href="#">About Us</a></li>
+      <li><a href="#">Contact Us</a></li>
+      
+      <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+      
+    </ul>
+  </nav>
+
+  <div class="page-content">
+    <div class="container">
     <h2>Daybook</h2>
     <form th:action="@{/admin/daybook}" method="get">
         <label>Select Date:</label>

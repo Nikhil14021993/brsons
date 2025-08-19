@@ -2,86 +2,205 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Admin Panel</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             margin: 0;
-        }
-        /* Navbar */
-        .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: #007bff;
-            padding: 15px 30px;
-            color: white;
-        }
-        .navbar a {
-            color: white;
-            text-decoration: none;
-            margin-left: 20px;
-        }
-        .navbar a:hover {
-            text-decoration: underline;
+            min-height: 100vh;
         }
         /* Content */
         .container {
             padding: 30px;
             text-align: center;
+            max-width: 1200px;
+            margin: 0 auto;
         }
         h2 {
-            color: #007bff;
+            color: white;
             margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         /* Buttons */
         .admin-buttons {
-            display: flex;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
-            flex-wrap: wrap;
+            max-width: 1000px;
+            margin: 0 auto;
         }
         .admin-buttons a {
-            background-color: #007bff;
-            color: white;
-            padding: 15px 25px;
-            border-radius: 8px;
+            background: white;
+            color: #2c3e50;
+            padding: 25px 20px;
+            border-radius: 15px;
             text-decoration: none;
-            font-weight: bold;
-            transition: background 0.3s;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
         }
         .admin-buttons a:hover {
-            background-color: #0056b3;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+        .admin-buttons a i {
+            font-size: 2rem;
+            color: #667eea;
+        }
+        
+        .orders-btn {
+            background: linear-gradient(135deg, #27ae60, #2ecc71) !important;
+            color: white !important;
+        }
+        
+        .orders-btn i {
+            color: white !important;
+        }
+        
+        .orders-btn:hover {
+            background: linear-gradient(135deg, #229954, #27ae60) !important;
+        }
+        
+        .test-data-section {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .test-data-section h3 {
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        .test-btn {
+            background: #e74c3c;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+        
+        .test-btn:hover {
+            background: #c0392b;
         }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar">
-        <div>Cloth Shop - Admin</div>
-        <div>
-            <a th:href="@{/}">Home</a>
-            <a th:href="@{/shop}">Shop</a>
-            <a th:href="@{/logout}">Logout</a>
-        </div>
-    </nav>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-logo">Cloth Shop</div>
+    <ul class="navbar-links">
+      <li><a th:href="@{/}">Home</a></li>
+       <!-- Show Admin button only if logged-in user type is Admin -->
+    <li th:if="${session.user != null and session.user.type == 'Admin'}">
+        <a th:href="@{/admin}">Admin</a>
+    </li>
+      <li><a th:href="@{/shop}">Shop</a></li>
+      <li th:if="${session.user != null}">
+  <a th:href="@{/orders}">Orders</a>
+</li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Pricing</a></li>
+      <li><a href="#">About Us</a></li>
+      <li><a href="#">Contact Us</a></li>
+      
+      <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+      
+    </ul>
+  </nav>
 
     <!-- Admin Content -->
     <div class="container">
-        <h2>Welcome Admin! Manage Your Store</h2>
+        <h2><i class="fas fa-cog"></i> Welcome Admin! Manage Your Store</h2>
 
         <div class="admin-buttons">
-            <a th:href="@{/admin/add-product}">Add Product</a>
-            <a th:href="@{/admin/add-category}">Add Category</a>
-            <a th:href="@{/admin/delete-product}">Delete Product</a>
-            <a th:href="@{/admin/update-product}">Update Product</a>
-            <a th:href="@{/admin/orders}">Show Orders</a>
-            <a th:href="@{/admin/daybook}">Daybook</a> 
-            <a th:href="@{/admin/vouchers/new}">Vouchers</a>
-            <a th:href="@{/accounting/trial-balance-ui}">TrialBalance</a>
-             <a th:href="@{/accounting/balance-sheet-ui}">Balance Sheet</a>
-            <a th:href="@{/accounting/pnl-ui}">PNL</a>
+            <a th:href="@{/admin/add-product}">
+                <i class="fas fa-plus-circle"></i>
+                Add Product
+            </a>
+            <a th:href="@{/admin/add-category}">
+                <i class="fas fa-tags"></i>
+                Add Category
+            </a>
+            <a th:href="@{/admin/delete-product}">
+                <i class="fas fa-trash"></i>
+                Delete Product
+            </a>
+            <a th:href="@{/admin/update-product}">
+                <i class="fas fa-edit"></i>
+                Update Product
+            </a>
+            <a th:href="@{/admin/orders}" class="orders-btn">
+                <i class="fas fa-shopping-cart"></i>
+                Show Orders
+            </a>
+            <a th:href="@{/admin/invoices}">
+                <i class="fas fa-file-invoice"></i>
+                Invoice Management
+            </a>
+            <a th:href="@{/admin/daybook}">
+                <i class="fas fa-calendar-day"></i>
+                Daybook
+            </a> 
+            <a th:href="@{/admin/vouchers/new}">
+                <i class="fas fa-receipt"></i>
+                Vouchers
+            </a>
+            <a th:href="@{/accounting/trial-balance-ui}">
+                <i class="fas fa-balance-scale"></i>
+                Trial Balance
+            </a>
+            <a th:href="@{/accounting/balance-sheet-ui}">
+                <i class="fas fa-chart-line"></i>
+                Balance Sheet
+            </a>
+            <a th:href="@{/accounting/pnl-ui}">
+                <i class="fas fa-chart-pie"></i>
+                PNL
+            </a>
+        </div>
+        
+        <!-- Test Data Section -->
+        <div class="test-data-section">
+            <h3><i class="fas fa-database"></i> Test Data</h3>
+            <p style="color: white; margin-bottom: 15px;">Add sample orders to test the orders management system</p>
+            <button class="test-btn" onclick="addSampleOrders()">
+                <i class="fas fa-plus"></i> Add Sample Orders
+            </button>
         </div>
     </div>
+    
+    <script>
+        function addSampleOrders() {
+            fetch('/test/add-sample-orders')
+                .then(response => response.text())
+                .then(result => {
+                    alert(result);
+                    if (result.includes('successfully')) {
+                        // Optionally redirect to orders page
+                        // window.location.href = '/admin/orders';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error adding sample orders');
+                });
+        }
+    </script>
 </body>
 </html>

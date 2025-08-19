@@ -10,6 +10,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -128,8 +129,6 @@ public class Order {
 
     private String orderStatus = "Not Confirmed"; // Default value
     
-    
-    
     // ===== GST / invoice fields =====
     // Kaccha or Pakka
     @Column(length = 10)
@@ -159,10 +158,17 @@ public class Order {
     @Column(precision = 12, scale = 2)
     private BigDecimal total;      // subTotal + gstAmount
 
-   
+    private LocalDateTime createdAt;
 
-  
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
     
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItem> orderItems;
+    
+    // Getters and setters for GST and invoice fields
     public String getBillType() {
 		return billType;
 	}
@@ -234,22 +240,6 @@ public class Order {
 	public void setTotal(BigDecimal total) {
 		this.total = total;
 	}
-
-	
-
-	
-
-	
-
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<OrderItem> orderItems;
-    // Getters and setters
 
 	public List<OrderItem> getOrderItems() {
 		return orderItems;

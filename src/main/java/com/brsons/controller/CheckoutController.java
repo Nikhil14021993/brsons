@@ -25,7 +25,7 @@ import com.brsons.repository.CartProductEntryRepo;
 import com.brsons.repository.OrderItemRepository;
 import com.brsons.repository.OrderRepository;
 import com.brsons.service.CheckoutService;
-import com.brsons.service.InvoicePdfService;
+// import com.brsons.service.EnhancedInvoiceService;
 import com.brsons.service.OrderAccountingService;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -43,8 +43,9 @@ public class CheckoutController {
     OrderItemRepository orderItemRepository;
     @Autowired
     OrderAccountingService orderAccountingService;
-    @Autowired
-    InvoicePdfService invoiceService;
+    // Temporarily disabled EnhancedInvoiceService to fix database issues
+    // @Autowired
+    // EnhancedInvoiceService enhancedInvoiceService;
 
     @GetMapping("/checkout")
     public String checkoutPage(HttpSession session, Model model, HttpServletResponse response) throws IOException {
@@ -114,20 +115,23 @@ public class CheckoutController {
         // ✅ Save order with items
         orderRepository.save(order);
         
-     // ✅ Finalize GST + invoice + ledger
+        // ✅ Finalize GST + invoice + ledger
         orderAccountingService.finalizeTotalsAndInvoice(order, new BigDecimal("5.00"),  order.getBillType());
+        
+        // Temporarily disabled invoice generation to fix database issues
+        // TODO: Re-enable after database schema is updated
 
         // ✅ Mark cart items checked_out = 'yes' (you already added this)
         //checkoutService.markCheckedOut(user.getPhone());
 
         // ✅ Optionally clear cart from DB
        // cartRepo.deleteAll(cartItems);
-        // ✅ Generate invoice PDF and send as response
-        response.setContentType("application/pdf");
-        response.setHeader("Content-Disposition", "attachment; filename=invoice.pdf");
-        invoiceService.generateInvoicePdf(user.getPhone(), response.getOutputStream());
+        
+        // ✅ Clear cart and redirect
         checkoutService.clearCart(user.getPhone());
-        return "redirect:/";
+        return "redirect:/orders/" + order.getId() + "/invoice";
+
+        //return "redirect:/?success=Order+placed+successfully!+Invoice+has+been+generated.";
     }
 
 }

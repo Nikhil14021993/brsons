@@ -2,14 +2,11 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Sign Up</title>
+    <link rel="stylesheet" href="/css/style.css">
     <style>
         body {
             font-family: Arial, sans-serif;
             background: linear-gradient(to right, #f8bbd0, #f48fb1);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
             margin: 0;
         }
         .form-container {
@@ -19,6 +16,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             width: 350px;
             text-align: center;
+            margin: 50px auto;
         }
         h2 {
             margin-bottom: 20px;
@@ -47,6 +45,31 @@
     </style>
 </head>
 <body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-logo">Cloth Shop</div>
+    <ul class="navbar-links">
+      <li><a th:href="@{/}">Home</a></li>
+       <!-- Show Admin button only if logged-in user type is Admin -->
+    <li th:if="${session.user != null and session.user.type == 'Admin'}">
+        <a th:href="@{/admin}">Admin</a>
+    </li>
+      <li><a th:href="@{/shop}">Shop</a></li>
+      <li th:if="${session.user != null}">
+  <a th:href="@{/orders}">Orders</a>
+</li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Pricing</a></li>
+      <li><a href="#">About Us</a></li>
+      <li><a href="#">Contact Us</a></li>
+      
+      <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+      
+    </ul>
+  </nav>
+
     <div class="form-container">
         <h2>Create Account</h2>
 

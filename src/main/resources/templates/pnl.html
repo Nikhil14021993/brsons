@@ -3,36 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <title>Profit & Loss</title>
+    <link rel="stylesheet" href="/css/style.css">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 8px 12px; border: 1px solid #ccc; text-align: left; }
-        th { background-color: #f2f2f2; }
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0;
+            background: #f4f6f8;
+        }
+        .page-content {
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .form-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .form-container label {
+            margin: 0 10px;
+            font-weight: bold;
+        }
+        .form-container input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 0 10px;
+        }
+        .form-container button {
+            background: #007bff;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .form-container button:hover {
+            background: #0056b3;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+        }
+        th, td { 
+            padding: 12px; 
+            border: 1px solid #ddd; 
+            text-align: left; 
+        }
+        th { 
+            background-color: #007bff; 
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        tr:hover {
+            background-color: #e9ecef;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-logo">Cloth Shop</div>
+    <ul class="navbar-links">
+      <li><a th:href="@{/}">Home</a></li>
+       <!-- Show Admin button only if logged-in user type is Admin -->
+    <li th:if="${session.user != null and session.user.type == 'Admin'}">
+        <a th:href="@{/admin}">Admin</a>
+    </li>
+      <li><a th:href="@{/shop}">Shop</a></li>
+      <li th:if="${session.user != null}">
+  <a th:href="@{/orders}">Orders</a>
+</li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Pricing</a></li>
+      <li><a href="#">About Us</a></li>
+      <li><a href="#">Contact Us</a></li>
+      
+      <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+      
+    </ul>
+  </nav>
 
-<h1>Profit & Loss (P&L)</h1>
+  <div class="page-content">
+    <div class="container">
+        <a th:href="@{/admin}" class="back-link">← Back to Admin Panel</a>
+        <h1>Profit & Loss (P&L)</h1>
 
-<form id="pnlForm">
-    <label>Start Date:</label>
-    <input type="date" id="startDate" required>
-    <label>End Date:</label>
-    <input type="date" id="endDate" required>
-    <button type="submit">Get P&L</button>
-</form>
+        <div class="form-container">
+            <form id="pnlForm">
+                <label>Start Date:</label>
+                <input type="date" id="startDate" required>
+                <label>End Date:</label>
+                <input type="date" id="endDate" required>
+                <button type="submit">Get P&L</button>
+            </form>
+        </div>
 
-<table id="pnlTable">
-    <thead>
-        <tr>
-            <th>Account Name</th>
-            <th>Amount</th>
-        </tr>
-    </thead>
-    <tbody>
-        <!-- Data will be injected here -->
-    </tbody>
-</table>
+        <table id="pnlTable">
+            <thead>
+                <tr>
+                    <th>Account Name</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data will be injected here -->
+            </tbody>
+        </table>
+    </div>
+  </div>
 
 <script>
 document.getElementById("pnlForm").addEventListener("submit", function(e) {

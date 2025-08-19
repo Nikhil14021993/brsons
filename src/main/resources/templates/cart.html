@@ -2,6 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Your Cart</title>
+    <link rel="stylesheet" href="/css/style.css">
     <style>
         table {
             width: 100%;
@@ -23,46 +24,74 @@
             padding: 10px 20px;
             margin-left: 10px;
         }
+        .page-content {
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-logo">Cloth Shop</div>
+    <ul class="navbar-links">
+      <li><a th:href="@{/}">Home</a></li>
+       <!-- Show Admin button only if logged-in user type is Admin -->
+    <li th:if="${session.user != null and session.user.type == 'Admin'}">
+        <a th:href="@{/admin}">Admin</a>
+    </li>
+      <li><a th:href="@{/shop}">Shop</a></li>
+      <li th:if="${session.user != null}">
+  <a th:href="@{/orders}">Orders</a>
+</li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Pricing</a></li>
+      <li><a href="#">About Us</a></li>
+      <li><a href="#">Contact Us</a></li>
+      
+      <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+      
+    </ul>
+  </nav>
 
-<h2>Your Shopping Cart</h2>
+  <div class="page-content">
+    <h2>Your Shopping Cart</h2>
 
-<div th:if="${message}">
-    <p th:text="${message}"></p>
-</div>
+    <div th:if="${message}">
+        <p th:text="${message}"></p>
+    </div>
 
-<table th:if="${cartItems}">
-    <thead>
-        <tr>
-            <th>Sr No</th>
-            <th>Photo</th>
-            <th>Product Name</th>
-            <th>Quantity</th>
-            <th>Total Amount</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr th:each="item, iterStat : ${cartItems}">
-            <td th:text="${iterStat.count}">1</td>
-            <td><img th:src="@{${item.product.mainPhoto}}" alt="Product Image"/></td>
-            <td th:text="${item.product.productName}">Product Name</td>
-            <td th:text="${item.quantity}">1</td>
-            <td th:text="${item.totalPrice}">100.00</td>
-        </tr>
-    </tbody>
-</table>
+    <table th:if="${cartItems}">
+        <thead>
+            <tr>
+                <th>Sr No</th>
+                <th>Photo</th>
+                <th>Product Name</th>
+                <th>Quantity</th>
+                <th>Total Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="item, iterStat : ${cartItems}">
+                <td th:text="${iterStat.count}">1</td>
+                <td><img th:src="@{${item.product.mainPhoto}}" alt="Product Image"/></td>
+                <td th:text="${item.product.productName}">Product Name</td>
+                <td th:text="${item.quantity}">1</td>
+                <td th:text="${item.totalPrice}">100.00</td>
+            </tr>
+        </tbody>
+    </table>
 
-<div class="actions" th:if="${cartItems}">
-    <h3>Total: ₹<span th:text="${grandTotal}">0.00</span></h3>
-    <form action="/checkout" method="get" style="display:inline;">
-    <button type="submit">Checkout</button>
-</form>
-    <form action="/" method="get" style="display:inline;">
-        <button type="submit">Cancel</button>
+    <div class="actions" th:if="${cartItems}">
+        <h3>Total: ₹<span th:text="${grandTotal}">0.00</span></h3>
+        <form action="/checkout" method="get" style="display:inline;">
+        <button type="submit">Checkout</button>
     </form>
-</div>
-
+        <form action="/" method="get" style="display:inline;">
+            <button type="submit">Cancel</button>
+        </form>
+    </div>
+  </div>
 </body>
 </html>

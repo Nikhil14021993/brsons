@@ -2,42 +2,147 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>New Voucher Entry</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+        }
+        .page-content {
+            padding: 20px;
+        }
+        .form-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
-<h1>New Voucher Entry</h1>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-logo">Cloth Shop</div>
+    <ul class="navbar-links">
+      <li><a th:href="@{/}">Home</a></li>
+       <!-- Show Admin button only if logged-in user type is Admin -->
+    <li th:if="${session.user != null and session.user.type == 'Admin'}">
+        <a th:href="@{/admin}">Admin</a>
+    </li>
+      <li><a th:href="@{/shop}">Shop</a></li>
+      <li th:if="${session.user != null}">
+  <a th:href="@{/orders}">Orders</a>
+</li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Pricing</a></li>
+      <li><a href="#">About Us</a></li>
+      <li><a href="#">Contact Us</a></li>
+      
+      <!-- Dynamic Login/Logout -->
+    <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+    <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+      
+    </ul>
+  </nav>
 
-<form th:action="@{/admin/vouchers/save}" method="post">
-    <label>Date:</label>
-    <input type="date" name="date" required><br><br>
+  <div class="page-content">
+    <div class="form-container">
+        <a th:href="@{/admin}" class="back-link">← Back to Admin Panel</a>
+        <h1>New Voucher Entry</h1>
 
-    <label>Narration:</label>
-    <input type="text" name="narration" required><br><br>
+        <form th:action="@{/admin/vouchers/save}" method="post">
+            <div class="form-group">
+                <label>Date:</label>
+                <input type="date" name="date" required>
+            </div>
 
-    <label>Type:</label>
-    <select name="type" required>
-        <option value="Payment">Payment</option>
-        <option value="Receipt">Receipt</option>
-        <option value="Sales">Sales</option>
-        <option value="Purchase">Purchase</option>
-        <option value="Journal">Journal</option>
-    </select><br><br>
+            <div class="form-group">
+                <label>Narration:</label>
+                <input type="text" name="narration" required>
+            </div>
 
-    <label>Debit Account:</label>
-    <select name="debitAccount" required>
-        <option th:each="acc : ${accounts}" th:value="${acc.id}" th:text="${acc.name}"></option>
-    </select><br><br>
+            <div class="form-group">
+                <label>Type:</label>
+                <select name="type" required>
+                    <option value="Payment">Payment</option>
+                    <option value="Receipt">Receipt</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Purchase">Purchase</option>
+                    <option value="Journal">Journal</option>
+                </select>
+            </div>
 
-    <label>Credit Account:</label>
-    <select name="creditAccount" required>
-        <option th:each="acc : ${accounts}" th:value="${acc.id}" th:text="${acc.name}"></option>
-    </select><br><br>
+            <div class="form-group">
+                <label>Debit Account:</label>
+                <select name="debitAccount" required>
+                    <option th:each="acc : ${accounts}" th:value="${acc.id}" th:text="${acc.name}"></option>
+                </select>
+            </div>
 
-    <label>Amount:</label>
-    <input type="number" step="0.01" name="amount" required><br><br>
+            <div class="form-group">
+                <label>Credit Account:</label>
+                <select name="creditAccount" required>
+                    <option th:each="acc : ${accounts}" th:value="${acc.id}" th:text="${acc.name}"></option>
+                </select>
+            </div>
 
-    <button type="submit">Save Voucher</button>
-</form>
+            <div class="form-group">
+                <label>Amount:</label>
+                <input type="number" step="0.01" name="amount" required>
+            </div>
 
-
+            <button type="submit">Save Voucher</button>
+        </form>
+    </div>
+  </div>
 </body>
 </html>

@@ -18,5 +18,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	@Query("SELECT o FROM Order o WHERE DATE(o.createdAt) = :date")
 	List<Order> findOrdersByDate(@Param("date") LocalDate date);
 
+	// New methods for admin order management
+	List<Order> findAllByOrderByCreatedAtDesc();
+	
+	List<Order> findByOrderStatusOrderByCreatedAtDesc(String orderStatus);
+	
+	@Query("SELECT o FROM Order o WHERE o.orderStatus = :status ORDER BY o.createdAt DESC")
+	List<Order> findOrdersByStatusOrderByCreatedAtDesc(@Param("status") String status);
 	
 }
