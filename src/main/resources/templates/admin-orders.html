@@ -20,6 +20,13 @@
             max-width: 1400px;
             margin: 0 auto;
         }
+        
+        /* Ensure proper spacing on mobile */
+        @media (max-width: 768px) {
+            .page-content {
+                padding: 10px;
+            }
+        }
 
         .page-header {
             background: white;
@@ -165,6 +172,33 @@
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             overflow: hidden;
+            position: relative;
+        }
+        
+        /* Mobile-friendly table wrapper */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: #667eea #f1f1f1;
+        }
+        
+        .table-wrapper::-webkit-scrollbar {
+            height: 6px;
+        }
+        
+        .table-wrapper::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .table-wrapper::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 3px;
+        }
+        
+        .table-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #5a6fd8;
         }
 
         .orders-table {
@@ -198,6 +232,8 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            display: inline-block;
+            white-space: nowrap;
         }
 
         .status-pending {
@@ -243,6 +279,24 @@
 
         .btn-edit:hover {
             background: #2980b9;
+        }
+        
+        /* Touch-friendly improvements for mobile */
+        @media (hover: none) and (pointer: coarse) {
+            .btn-edit:hover,
+            .btn-view:hover {
+                background: inherit; /* Remove hover effects on touch devices */
+            }
+            
+            .stat-card:hover {
+                transform: none; /* Remove hover animations on touch devices */
+            }
+            
+            .page-btn:hover {
+                background: inherit;
+                color: inherit;
+                border-color: inherit;
+            }
         }
 
         .btn-view {
@@ -297,28 +351,254 @@
             border-color: #667eea;
         }
 
+        /* Mobile-First Responsive Design */
         @media (max-width: 768px) {
+            .page-content {
+                padding: 10px;
+            }
+            
+            .page-header {
+                padding: 20px 15px;
+                margin-bottom: 20px;
+            }
+            
+            .page-title {
+                font-size: 1.8rem;
+            }
+            
+            .page-subtitle {
+                font-size: 1rem;
+            }
+            
+            .stats-cards {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .stat-card {
+                padding: 20px 15px;
+            }
+            
+            .stat-icon {
+                font-size: 2rem;
+            }
+            
+            .stat-number {
+                font-size: 1.5rem;
+            }
+            
+            .stat-label {
+                font-size: 0.9rem;
+            }
+            
             .controls-section {
                 flex-direction: column;
                 align-items: stretch;
+                padding: 20px 15px;
+                margin-bottom: 20px;
             }
             
             .search-box {
                 min-width: auto;
+                margin-bottom: 15px;
+            }
+            
+            .filter-controls {
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+            
+            .filter-select {
+                width: 100%;
+                padding: 12px 15px;
+            }
+            
+            .export-btn {
+                width: 100%;
+                text-align: center;
+                padding: 15px 25px;
+            }
+            
+            /* Mobile Table Layout */
+            .orders-table-container {
+                overflow-x: auto;
+                border-radius: 10px;
             }
             
             .orders-table {
+                min-width: 800px; /* Ensure table doesn't get too cramped */
                 font-size: 0.85rem;
             }
             
             .orders-table th,
             .orders-table td {
                 padding: 12px 8px;
+                white-space: nowrap;
+            }
+            
+            .orders-table th:nth-child(3),
+            .orders-table td:nth-child(3),
+            .orders-table th:nth-child(6),
+            .orders-table td:nth-child(6) {
+                display: none; /* Hide less important columns on mobile */
             }
             
             .action-buttons {
                 flex-direction: column;
-                gap: 5px;
+                gap: 8px;
+                min-width: 120px;
+            }
+            
+            .btn-edit,
+            .btn-view {
+                padding: 10px 12px;
+                font-size: 0.8rem;
+                width: 100%;
+                text-align: center;
+            }
+            
+            /* Mobile Modal */
+            #statusModal > div {
+                min-width: 90vw !important;
+                max-width: 90vw !important;
+                margin: 20px;
+                padding: 20px;
+            }
+            
+            /* Mobile Pagination */
+            .pagination {
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: center;
+            }
+            
+            .page-btn {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .page-title {
+                font-size: 1.5rem;
+            }
+            
+            .orders-table {
+                min-width: 700px;
+                font-size: 0.8rem;
+            }
+            
+            .orders-table th:nth-child(2),
+            .orders-table td:nth-child(2),
+            .orders-table th:nth-child(7),
+            .orders-table td:nth-child(7) {
+                display: none; /* Hide more columns on very small screens */
+            }
+            
+            .mobile-fab {
+                bottom: 15px;
+                right: 15px;
+            }
+            
+            .mobile-fab button {
+                width: 50px;
+                height: 50px;
+                font-size: 1rem;
+            }
+        }
+        
+        /* Additional mobile improvements */
+        @media (max-width: 768px) {
+            /* Improve touch targets */
+            .btn-edit,
+            .btn-view {
+                min-height: 44px; /* Apple's recommended minimum touch target size */
+            }
+            
+            /* Better spacing for mobile */
+            .orders-table td {
+                padding: 15px 8px;
+            }
+            
+            /* Improve modal positioning on mobile */
+            #statusModal > div {
+                top: 20px !important;
+                transform: none !important;
+                left: 20px !important;
+                right: 20px !important;
+                width: auto !important;
+            }
+        }
+        
+        /* Navbar styles */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .navbar-logo {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .navbar-links {
+            list-style: none;
+            display: flex;
+            gap: 25px;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .navbar-links li a {
+            color: #333;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+        
+        .navbar-links li a:hover {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        /* Mobile navbar improvements */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 10px 15px;
+            }
+            
+            .navbar-logo {
+                font-size: 20px;
+            }
+            
+            .navbar-links {
+                gap: 15px;
+            }
+            
+            .navbar-links li a {
+                padding: 6px 12px;
+                font-size: 0.9rem;
             }
         }
     </style>
@@ -409,7 +689,13 @@
 
         <!-- Orders Table -->
         <div class="orders-table-container">
-            <table class="orders-table" id="ordersTable">
+            <!-- Mobile scroll indicator -->
+            <div class="mobile-scroll-indicator" style="display: none; text-align: center; padding: 10px; background: #f8f9fa; color: #6c757d; font-size: 0.9rem; border-bottom: 1px solid #dee2e6;">
+                <i class="fas fa-arrows-alt-h"></i> Scroll horizontally to see more details
+            </div>
+            
+            <div class="table-wrapper">
+                <table class="orders-table" id="ordersTable">
                 <thead>
                     <tr>
                         <th>Sr No</th>
@@ -470,9 +756,17 @@
                     </tr>
                 </tbody>
             </table>
-        </div>
+            </div>
+                </div>
     </div>
-
+    
+    <!-- Mobile Floating Action Button -->
+    <div class="mobile-fab" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+        <button onclick="scrollToTop()" style="width: 56px; height: 56px; border-radius: 50%; background: #667eea; color: white; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); cursor: pointer; font-size: 1.2rem;">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+    </div>
+    
     <!-- Status Update Modal -->
     <div id="statusModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 15px; min-width: 400px;">
@@ -504,6 +798,82 @@ document.getElementById("statusFilter").addEventListener("change", function () {
     <script>
         let currentOrderId = null;
         let searchTimeout = null;
+        
+        // Mobile detection and scroll indicator
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+        
+        function showMobileScrollIndicator() {
+            const indicator = document.querySelector('.mobile-scroll-indicator');
+            if (indicator && isMobile()) {
+                indicator.style.display = 'block';
+            }
+        }
+        
+        function hideMobileScrollIndicator() {
+            const indicator = document.querySelector('.mobile-scroll-indicator');
+            if (indicator) {
+                indicator.style.display = 'none';
+            }
+        }
+        
+        // Show mobile indicator on page load if mobile
+        document.addEventListener('DOMContentLoaded', function() {
+            if (isMobile()) {
+                showMobileScrollIndicator();
+            }
+            
+            // Hide indicator after 5 seconds
+            setTimeout(hideMobileScrollIndicator, 5000);
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (isMobile()) {
+                showMobileScrollIndicator();
+                showMobileFab();
+            } else {
+                hideMobileScrollIndicator();
+                hideMobileFab();
+            }
+        });
+        
+        // Mobile floating action button
+        function showMobileFab() {
+            const fab = document.querySelector('.mobile-fab');
+            if (fab) {
+                fab.style.display = 'block';
+            }
+        }
+        
+        function hideMobileFab() {
+            const fab = document.querySelector('.mobile-fab');
+            if (fab) {
+                fab.style.display = 'none';
+            }
+        }
+        
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+        
+        // Show/hide FAB based on scroll position
+        window.addEventListener('scroll', function() {
+            if (isMobile()) {
+                const fab = document.querySelector('.mobile-fab');
+                if (fab) {
+                    if (window.pageYOffset > 300) {
+                        fab.style.display = 'block';
+                    } else {
+                        fab.style.display = 'none';
+                    }
+                }
+            }
+        });
 
         // Search functionality
         document.getElementById('searchInput').addEventListener('input', function() {
