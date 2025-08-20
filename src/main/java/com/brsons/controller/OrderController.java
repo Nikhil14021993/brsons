@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import com.brsons.model.User;
 import com.brsons.repository.InvoiceRepository;
 import com.brsons.repository.OrderRepository;
+import com.brsons.repository.OrderItemRepository;
 import com.brsons.repository.ProductRepository;
 import com.brsons.model.Invoice;
 import com.brsons.model.Order;
@@ -81,6 +82,7 @@ private ProductRepository productRepository;
 
 @Autowired private InvoiceRepository invoiceRepository;
 @Autowired private OrderRepository orderRepository;
+@Autowired private OrderItemRepository orderItemRepository;
 
 @Value("${invoice.storage.dir:/opt/brsons/invoices}")
 private String invoiceStorageDir;
@@ -155,6 +157,26 @@ private String invoiceStorageDir;
 	        if (order.getOrderStatus() != null && 
 	            (order.getOrderStatus().equals("Delivered") || order.getOrderStatus().equals("Cancelled"))) {
 	            return ResponseEntity.badRequest().body("Order cannot be cancelled");
+	        }
+	        
+	        // Restore stock quantities for all items in the order
+	        List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
+	        for (OrderItem item : orderItems) {
+	            Product product = productRepository.findById(item.getProductId()).orElse(null);
+	            if (product != null) {
+	                // Restore the quantity that was ordered
+	                int currentStock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
+	                int restoredStock = currentStock + item.getQuantity();
+	                product.setStockQuantity(restoredStock);
+	                
+	                // Update product status if it was "Out of Stock" and now has stock
+	                if ("Out of Stock".equals(product.getStatus()) && restoredStock > 0) {
+	                    product.setStatus("Active");
+	                }
+	                
+	                // Save updated product
+	                productRepository.save(product);
+	            }
 	        }
 	        
 	        // Update order status to cancelled

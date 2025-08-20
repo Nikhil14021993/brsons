@@ -103,12 +103,18 @@ public class CheckoutController {
         
         
 
-        // ✅ Create Order Items with price information
+        // ✅ Create Order Items with price information and stock management
         List<OrderItem> orderItems = new ArrayList<>();
         for (CartProductEntry1 cartItem : cartItems) {
-            // Get product to determine pricing
+            // Get product to determine pricing and check stock
             Product product = productRepository.findById(cartItem.getProductId()).orElse(null);
             if (product != null) {
+                // Check if product has sufficient stock
+                if (product.getStockQuantity() == null || product.getStockQuantity() < cartItem.getQuantity()) {
+                    // Insufficient stock - redirect back with error
+                    return "redirect:/cart?error=Insufficient+stock+for+product+" + product.getProductName();
+                }
+                
                 OrderItem item = new OrderItem();
                 item.setProductId(cartItem.getProductId());
                 item.setQuantity(cartItem.getQuantity());
@@ -133,6 +139,18 @@ public class CheckoutController {
                 item.calculateTotalPrice(); // Calculate total price
                 
                 orderItems.add(item);
+                
+                // Reduce stock quantity
+                int newStockQuantity = product.getStockQuantity() - cartItem.getQuantity();
+                product.setStockQuantity(newStockQuantity);
+                
+                // Update product status to "Out of Stock" if stock becomes 0
+                if (newStockQuantity <= 0) {
+                    product.setStatus("Out of Stock");
+                }
+                
+                // Save updated product
+                productRepository.save(product);
             }
         }
        
