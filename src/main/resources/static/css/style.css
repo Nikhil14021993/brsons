@@ -294,3 +294,164 @@ h1 {
     }
 }
 
+/* Stock Issue Popup Styles */
+.stock-issue-popup {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.stock-issue-content {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    text-align: center;
+}
+
+.stock-issue-header {
+    color: #dc3545;
+    font-size: 24px;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+.stock-issue-icon {
+    font-size: 48px;
+    color: #dc3545;
+    margin-bottom: 20px;
+}
+
+.stock-issue-message {
+    color: #666;
+    font-size: 16px;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+.stock-issue-details {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    text-align: left;
+}
+
+.stock-issue-item {
+    border-bottom: 1px solid #dee2e6;
+    padding: 10px 0;
+    margin-bottom: 10px;
+}
+
+.stock-issue-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.stock-issue-item .product-name {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.stock-issue-item .stock-details {
+    color: #666;
+    font-size: 14px;
+}
+
+.stock-issue-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.stock-issue-actions .btn-primary {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.stock-issue-actions .btn-primary:hover {
+    background: #0056b3;
+}
+
+.stock-issue-actions .btn-outline {
+    background: transparent;
+    color: #6c757d;
+    border: 2px solid #6c757d;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.stock-issue-actions .btn-outline:hover {
+    background: #6c757d;
+    color: white;
+}
+
+/* Loading spinner for checkout */
+.checkout-loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 20px;
+}
+
+.checkout-loading-spinner .spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Success and Error messages for checkout */
+.checkout-success-message {
+    display: none;
+    background: #d4edda;
+    color: #155724;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    text-align: center;
+    border: 1px solid #c3e6cb;
+}
+
+.checkout-error-message {
+    display: none;
+    background: #f8d7da;
+    color: #721c24;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    text-align: center;
+    border: 1px solid #f5c6cb;
+}
+

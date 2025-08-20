@@ -44,7 +44,11 @@ public class TestDataController {
             // Create a product
             Product product = new Product();
             product.setProductName("Test T-Shirt");
-            product.setPrice(500.0);
+            product.setRetailPrice(500.0);
+            product.setB2bPrice(450.0);
+            product.setDescription("A test t-shirt for testing purposes");
+            product.setDiscount(0.0);
+            product.setStockQuantity(100);
             product.setCategory(category);
             product.setStatus("Active");
             productRepository.save(product);
