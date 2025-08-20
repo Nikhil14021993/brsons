@@ -107,9 +107,9 @@ private String invoiceStorageDir;
 	
 	@GetMapping("/orders/{orderId}")
 	public String getOrderDetails(@PathVariable Long orderId, Model model) {
-	    // Fetch order item details (photo, quantity, price, subtotal)
+	    // Fetch order item details (photo, quantity, unit_price, total_price) from OrderItem
 		List<Object[]> items = entityManager.createQuery(
-		        "SELECT p.id, p.mainPhoto, i.quantity, p.price, (i.quantity * p.price) " +
+		        "SELECT p.id, p.mainPhoto, i.quantity, i.unitPrice, i.totalPrice " +
 		        "FROM OrderItem i JOIN Product p ON i.productId = p.id " +
 		        "WHERE i.order.id = :orderId", Object[].class)
 		        .setParameter("orderId", orderId)
@@ -117,9 +117,18 @@ private String invoiceStorageDir;
 
 	    model.addAttribute("items", items);
 
-	    // Calculate subtotal
+	    // Calculate subtotal from stored total prices
 	    Double subtotal = items.stream()
-	            .mapToDouble(r -> ((Number) r[4]).doubleValue())
+	            .mapToDouble(r -> {
+	                if (r[4] != null) {
+	                    // Use stored total price if available
+	                    return ((Number) r[4]).doubleValue();
+	                } else if (r[3] != null) {
+	                    // Fallback: calculate from unit price and quantity
+	                    return ((Number) r[3]).doubleValue() * ((Number) r[2]).doubleValue();
+	                }
+	                return 0.0;
+	            })
 	            .sum();
 
 	    model.addAttribute("subtotal", subtotal);
@@ -299,10 +308,14 @@ private String invoiceStorageDir;
 	        Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found for ID: " + item.getProductId()));
 	        productTable.addCell(new PdfPCell(new Phrase(product.getProductName(), normalFont)));
-	        productTable.addCell(new PdfPCell(new Phrase("₹" + product.getPrice(), normalFont)));
-	        productTable.addCell(new PdfPCell(new Phrase(String.valueOf(item.getQuantity()), normalFont)));
-	        BigDecimal price = BigDecimal.valueOf(product.getPrice());
-	        productTable.addCell(new PdfPCell(new Phrase("₹" + (price.multiply(BigDecimal.valueOf(item.getQuantity()))), normalFont)));
+	        
+	                // Use the stored unit price from OrderItem
+        BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
+        productTable.addCell(new PdfPCell(new Phrase("₹" + unitPrice, normalFont)));
+        productTable.addCell(new PdfPCell(new Phrase(String.valueOf(item.getQuantity()), normalFont)));
+        // Use the stored total price from OrderItem
+        BigDecimal itemTotal = item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO;
+        productTable.addCell(new PdfPCell(new Phrase("₹" + itemTotal, normalFont)));
 	    }
 
 	   // document.add(productTable);

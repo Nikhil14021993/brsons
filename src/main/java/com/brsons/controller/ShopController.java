@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -66,26 +67,62 @@ public class ShopController {
 	
 	@GetMapping("/shop/category/{id}")
 	public String viewProductsByCategory(@PathVariable Long id, Model model, HttpSession session) {
+	    System.out.println("=== CATEGORY PRODUCTS ENDPOINT HIT ===");
+	    System.out.println("Category ID: " + id);
+	    System.out.println("Session ID: " + session.getId());
+	    
 	    Category category = categoryRepository.findById(id).orElse(null);
-	    if (category != null) {
-	        List<Product> products = productRepository.findByCategoryIdAndStatus(id, "active");
-	        model.addAttribute("category", category);
-	        model.addAttribute("products", products);
-	        
-	        // Set cart count in session for navbar display
-	        User user = (User) session.getAttribute("user");
-	        if (user != null) {
-	            AddToCart cart = addToCartRepository.findByUserId(user.getId()).orElse(null);
-	            if (cart != null && !cart.getProductQuantities().isEmpty()) {
-	                int totalItems = cart.getProductQuantities().stream()
-	                        .mapToInt(CartProductEntry::getQuantity)
-	                        .sum();
-	                session.setAttribute("cartCount", totalItems);
-	            } else {
-	                session.setAttribute("cartCount", 0);
-	            }
+	    if (category == null) {
+	        System.out.println("Category not found for ID: " + id);
+	        return "redirect:/shop";
+	    }
+	    
+	    System.out.println("Found category: " + category.getCategoryName());
+	    
+	    // Try different status values to find products
+	    List<Product> products = new ArrayList<>();
+	    
+	    // First try with "Active" (proper case)
+	    products = productRepository.findByCategoryIdAndStatus(id, "Active");
+	    System.out.println("Products with 'Active' status: " + products.size());
+	    
+	    // If no products found, try with "active" (lowercase)
+	    if (products.isEmpty()) {
+	        products = productRepository.findByCategoryIdAndStatus(id, "active");
+	        System.out.println("Products with 'active' status: " + products.size());
+	    }
+	    
+	    // If still no products, try without status filter
+	    if (products.isEmpty()) {
+	        System.out.println("No products found with status filter, trying without status...");
+	        products = productRepository.findByCategoryId(id);
+	        System.out.println("Products found without status filter: " + products.size());
+	    }
+	    
+	    System.out.println("Total products found: " + products.size());
+	    if (!products.isEmpty()) {
+	        System.out.println("First product: " + products.get(0).getProductName());
+	        System.out.println("First product status: " + products.get(0).getStatus());
+	        System.out.println("First product category: " + (products.get(0).getCategory() != null ? products.get(0).getCategory().getCategoryName() : "null"));
+	    }
+	    
+	    model.addAttribute("category", category);
+	    model.addAttribute("products", products);
+	    
+	    // Set cart count in session for navbar display
+	    User user = (User) session.getAttribute("user");
+	    if (user != null) {
+	        AddToCart cart = addToCartRepository.findByUserId(user.getId()).orElse(null);
+	        if (cart != null && !cart.getProductQuantities().isEmpty()) {
+	            int totalItems = cart.getProductQuantities().stream()
+	                    .mapToInt(CartProductEntry::getQuantity)
+	                    .sum();
+	            session.setAttribute("cartCount", totalItems);
+	        } else {
+	            session.setAttribute("cartCount", 0);
 	        }
 	    }
+	    
 	    return "shop-products";
 	}
 	@GetMapping("/product/{id}")
@@ -299,11 +336,11 @@ public class ShopController {
 	        Product product = productRepository.findByIdWithCategory(entry.getProductId()).orElse(null);
 
 	        if (product != null) {
-	            System.out.println("Product found: " + product.getProductName() + ", Price: " + product.getPrice());
+	            System.out.println("Product found: " + product.getProductName() + ", Price: " + product.getRetailPrice());
 	            System.out.println("Product category: " + (product.getCategory() != null ? product.getCategory().getCategoryName() : "NULL"));
 	            
 	            int quantity = entry.getQuantity();
-	            double totalPrice = product.getPrice() * quantity;
+	            double totalPrice = product.getRetailPrice() * quantity;
 
 	            grandTotal += totalPrice;
 

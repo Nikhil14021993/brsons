@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>User Management - Admin Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        /* Navbar */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .navbar-logo {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .navbar-links {
+            list-style: none;
+            display: flex;
+            gap: 25px;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar-links li a {
+            color: #333;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+
+        .navbar-links li a:hover {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        /* Main Content */
+        .main-container {
+            max-width: 1400px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .page-header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .page-header h1 {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .page-header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        /* Search Section */
+        .search-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .search-form {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 300px;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .search-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-message {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 15px;
+            color: #667eea;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        /* No Users Container */
+        .no-users-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 60px 40px;
+            margin-top: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .no-users-content {
+            color: #666;
+        }
+
+        .no-users-content h3 {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .no-users-content p {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            color: #666;
+        }
+
+        /* No Results Popup */
+        .no-results-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .popup-content {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+            overflow: hidden;
+            animation: slideIn 0.3s ease;
+        }
+
+        .popup-header {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .popup-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: background 0.3s ease;
+        }
+
+        .popup-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .popup-body {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .popup-body p {
+            margin-bottom: 15px;
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .popup-footer {
+            padding: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .popup-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 140px;
+        }
+
+        .popup-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .popup-btn-secondary {
+            background: #6c757d;
+        }
+
+        .popup-btn-secondary:hover {
+            background: #5a6268;
+            box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Users Table */
+        .users-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .users-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .users-title {
+            font-size: 1.8rem;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .users-count {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .users-table th {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .users-table td {
+            padding: 20px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+
+        .users-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .users-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* User Type Badges */
+        .user-type {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .type-admin {
+            background: #dc3545;
+            color: white;
+        }
+
+        .type-retail {
+            background: #28a745;
+            color: white;
+        }
+
+        .type-b2b {
+            background: #007bff;
+            color: white;
+        }
+
+        /* Status Badges */
+        .user-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-edit {
+            background: #ffc107;
+            color: #212529;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-edit:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+        }
+
+        .btn-toggle-status {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-toggle-status:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        /* Success/Error Messages */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Back Button */
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .users-table {
+                font-size: 0.9rem;
+            }
+
+            .users-table th,
+            .users-table td {
+                padding: 15px 10px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .search-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-input {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">Brsons Fashion</div>
+        <ul class="navbar-links">
+            <li><a th:href="@{/}"><i class="fas fa-home"></i> Home</a></li>
+            <li th:if="${session.user != null and session.user.type == 'Admin'}">
+                <a th:href="@{/admin}"><i class="fas fa-cog"></i> Admin</a>
+            </li>
+            <li><a th:href="@{/shop}"><i class="fas fa-shopping-bag"></i> Shop</a></li>
+            <li th:if="${session.user != null}">
+                <a th:href="@{/orders}"><i class="fas fa-list"></i> Orders</a>
+            </li>
+            <li><a href="#"><i class="fas fa-star"></i> Services</a></li>
+            <li><a href="#"><i class="fas fa-tags"></i> Pricing</a></li>
+            <li><a href="#"><i class="fas fa-info-circle"></i> About</a></li>
+            <li><a href="#"><i class="fas fa-envelope"></i> Contact</a></li>
+            <li th:if="${session.user == null}"><a th:href="@{/login}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+            <li th:if="${session.user != null}"><a th:href="@{/logout}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <div class="page-header">
+            <h1><i class="fas fa-users"></i> User Management</h1>
+            <p>Manage all users, update information, and control access</p>
+        </div>
+
+        <!-- Back Button -->
+        <a th:href="@{/admin}" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Admin Panel
+        </a>
+
+        <!-- Success/Error Messages -->
+        <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+        <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <form th:action="@{/admin/users/search}" method="get" class="search-form">
+                <input type="text" 
+                       name="query" 
+                       th:value="${searchQuery}" 
+                       class="search-input" 
+                       placeholder="Search users by name, email, or phone number...">
+                <button type="submit" class="search-btn">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </form>
+            
+            <!-- Search Message -->
+            <div th:if="${searchMessage}" class="search-message" th:text="${searchMessage}"></div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="users-container" th:if="${!#lists.isEmpty(users)}">
+            <div class="users-header">
+                <h2 class="users-title">All Users</h2>
+                <div class="users-count" th:text="${'Total: ' + #lists.size(users)}">Total: 0</div>
+            </div>
+
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="user : ${users}">
+                        <td th:text="${user.id}">1</td>
+                        <td th:text="${user.name}">User Name</td>
+                        <td th:text="${user.email}">user@email.com</td>
+                        <td th:text="${user.phone}">1234567890</td>
+                        <td>
+                            <span class="user-type" 
+                                  th:classappend="${'type-' + #strings.toLowerCase(user.type)}"
+                                  th:text="${user.type}">Retail</span>
+                        </td>
+                        <td>
+                            <span class="user-status" 
+                                  th:classappend="${'status-' + #strings.toLowerCase(user.status)}"
+                                  th:text="${user.status}">Active</span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a th:href="@{/admin/users/edit/{id}(id=${user.id})}" class="btn-edit">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                                <button class="btn-toggle-status" 
+                                        th:onclick="'toggleUserStatus(' + ${user.id} + ')'"
+                                        th:text="${user.status == 'ACTIVE' ? 'Deactivate' : 'Activate'}">
+                                    Toggle
+                                </button>
+                                <button class="btn-delete" 
+                                        th:onclick="'deleteUser(' + ${user.id} + ')'"
+                                        th:disabled="${user.type == 'Admin'}">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- No Users Message -->
+        <div th:if="${#lists.isEmpty(users)}" class="no-users-container">
+            <div class="no-users-content">
+                <i class="fas fa-search" style="font-size: 4rem; margin-bottom: 20px; color: #ddd;"></i>
+                <h3 th:if="${searchQuery and searchQuery != ''}">No users found</h3>
+                <h3 th:unless="${searchQuery and searchQuery != ''}">No users registered</h3>
+                <p th:if="${searchQuery and searchQuery != ''}">No users match your search criteria: "<span th:text="${searchQuery}" style="font-weight: bold; color: #667eea;"></span>"</p>
+                <p th:unless="${searchQuery and searchQuery != ''}">No users have been registered yet.</p>
+                <div th:if="${searchQuery and searchQuery != ''}" style="margin-top: 20px;">
+                    <a th:href="@{/admin/users}" class="btn-edit" style="text-decoration: none;">
+                        <i class="fas fa-arrow-left"></i> View All Users
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle user status
+        async function toggleUserStatus(userId) {
+            if (confirm('Are you sure you want to change this user\'s status?')) {
+                try {
+                    const response = await fetch(`/admin/users/toggle-status/${userId}`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.text();
+                        if (result.startsWith('success:')) {
+                            const newStatus = result.split(':')[1];
+                            alert(`User status updated to: ${newStatus}`);
+                            location.reload();
+                        } else {
+                            alert('Error: ' + result);
+                        }
+                    } else {
+                        alert('Error updating user status');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error updating user status');
+                }
+            }
+        }
+
+        // Delete user
+        async function deleteUser(userId) {
+            if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+                try {
+                    const response = await fetch(`/admin/users/delete/${userId}`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.text();
+                        if (result === 'success') {
+                            alert('User deleted successfully');
+                            location.reload();
+                        } else {
+                            alert('Error: ' + result);
+                        }
+                    } else {
+                        alert('Error deleting user');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error deleting user');
+                }
+            }
+        }
+
+        // Auto-hide alerts after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    alert.style.opacity = '0';
+                    setTimeout(() => alert.remove(), 300);
+                }, 5000);
+            });
+            
+            // Show search result notification
+            const searchMessage = document.querySelector('.search-message');
+            if (searchMessage) {
+                const messageText = searchMessage.textContent;
+                if (messageText.includes('No users found')) {
+                    // Add a subtle animation for no results
+                    searchMessage.style.background = 'rgba(220, 53, 69, 0.1)';
+                    searchMessage.style.borderColor = 'rgba(220, 53, 69, 0.3)';
+                    searchMessage.style.color = '#dc3545';
+                    
+                    // Add a small icon
+                    searchMessage.innerHTML = '<i class="fas fa-info-circle" style="margin-right: 8px;"></i>' + messageText;
+                    
+                    // Show popup notification
+                    showNoResultsPopup();
+                } else if (messageText.includes('Found')) {
+                    // Add success styling for found results
+                    searchMessage.style.background = 'rgba(40, 167, 69, 0.1)';
+                    searchMessage.style.borderColor = 'rgba(40, 167, 69, 0.3)';
+                    searchMessage.style.color = '#28a745';
+                    
+                    // Add a small icon
+                    searchMessage.innerHTML = '<i class="fas fa-check-circle" style="margin-right: 8px;"></i>' + messageText;
+                }
+            }
+        });
+
+        // Function to show no results popup
+        function showNoResultsPopup() {
+            // Create popup element
+            const popup = document.createElement('div');
+            popup.className = 'no-results-popup';
+            popup.innerHTML = `
+                <div class="popup-content">
+                    <div class="popup-header">
+                        <i class="fas fa-search" style="color: #dc3545; margin-right: 10px;"></i>
+                        <span>No Results Found</span>
+                        <button class="popup-close" onclick="this.parentElement.parentElement.parentElement.remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="popup-body">
+                        <p>Your search didn't return any results.</p>
+                        <p>Try searching with different keywords or browse all users.</p>
+                    </div>
+                    <div class="popup-footer">
+                        <button class="popup-btn" onclick="document.querySelector('.search-input').focus()">
+                            <i class="fas fa-search"></i> Search Again
+                        </button>
+                        <button class="popup-btn popup-btn-secondary" onclick="window.location.href='/admin/users'">
+                            <i class="fas fa-users"></i> View All Users
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Add popup to body
+            document.body.appendChild(popup);
+            
+            // Auto-remove popup after 8 seconds
+            setTimeout(() => {
+                if (popup.parentElement) {
+                    popup.remove();
+                }
+            }, 8000);
+        }
+    </script>
+</body>
+</html>

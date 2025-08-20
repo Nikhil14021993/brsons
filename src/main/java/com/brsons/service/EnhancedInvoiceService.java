@@ -247,12 +247,12 @@ public class EnhancedInvoiceService {
                 // Quantity
                 addTableCell(table, String.valueOf(item.getQuantity()), dataFont, Element.ALIGN_CENTER);
                 
-                // Unit Price
-                BigDecimal unitPrice = BigDecimal.valueOf(product.getPrice());
+                // Unit Price - use stored price from OrderItem
+                BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
                 addTableCell(table, "₹" + unitPrice.toString(), dataFont, Element.ALIGN_RIGHT);
                 
-                // Total
-                BigDecimal total = unitPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
+                // Total - use stored total from OrderItem
+                BigDecimal total = item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO;
                 addTableCell(table, "₹" + total.toString(), dataFont, Element.ALIGN_RIGHT);
                 
                 subTotal = subTotal.add(total);

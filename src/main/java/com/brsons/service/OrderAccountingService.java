@@ -33,17 +33,23 @@ public class OrderAccountingService {
     }
 
     @Transactional
-    public void finalizeTotalsAndInvoice(Order order, BigDecimal gstRatePct, String billType) {
-        // 1) compute subTotal from items
+    public void finalizeTotalsAndInvoice(Order order, BigDecimal gstRatePct, String billType, String userType) {
+        // 1) compute subTotal from items using stored prices in OrderItems
         BigDecimal sub = BigDecimal.ZERO;
         List<OrderItem> items = order.getOrderItems();
         if (items != null) {
             for (OrderItem it : items) {
-                // you need product price; assume Product has getPrice()
-                Product p = productRepository.findById(it.getProductId()).orElse(null);
-                if (p != null && p.getPrice() != null) {
-                    BigDecimal line = BigDecimal.valueOf(p.getPrice()).multiply(BigDecimal.valueOf(it.getQuantity()));
-                    sub = sub.add(line);
+                // Use the stored price from OrderItem (already calculated with correct user pricing)
+                if (it.getTotalPrice() != null) {
+                    sub = sub.add(it.getTotalPrice());
+                } else {
+                    // Fallback: calculate from unit price if total price is not set
+                    if (it.getUnitPrice() != null) {
+                        BigDecimal line = it.getUnitPrice().multiply(BigDecimal.valueOf(it.getQuantity()));
+                        sub = sub.add(line);
+                        // Update the total price for this item
+                        it.setTotalPrice(line);
+                    }
                 }
             }
         }

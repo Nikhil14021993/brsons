@@ -539,13 +539,13 @@
     </div>
     <div class="product-grid">
       <div th:each="p : ${featured}" class="product-card">
-        <div class="sale-badge" th:if="${p.price > 2000}">30% OFF</div>
+                                <div class="sale-badge" th:if="${p.retailPrice > 2000}">30% OFF</div>
         <a th:href="@{'/product/' + ${p.id}}">
           <img th:src="@{${p.imageUrl}}" alt="" class="product-image">
         </a>
         <div class="product-info">
           <h3 class="product-name" th:text="${p.name}"></h3>
-          <div class="product-price">₹<span th:text="${p.price}"></span></div>
+                                  <div class="product-price">₹<span th:text="${p.retailPrice}"></span></div>
           <button class="add-to-cart-btn">Add to Cart</button>
         </div>
       </div>

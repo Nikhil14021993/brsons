@@ -25,7 +25,7 @@
         <div th:each="product : ${products}" class="product-card">
             <img th:src="@{${product.imageUrl}}" alt="Image" width="150">
             <h3 th:text="${product.name}"></h3>
-            <p>Price: ₹<span th:text="${product.price}"></span></p>
+                            <p>Price: ₹<span th:text="${product.retailPrice}"></span></p>
         </div>
     </div>
 </body>

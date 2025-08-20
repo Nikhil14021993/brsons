@@ -19,11 +19,13 @@ import com.brsons.model.CartProductEntry;
 import com.brsons.model.CartProductEntry1;
 import com.brsons.model.Order;
 import com.brsons.model.OrderItem;
+import com.brsons.model.Product;
 import com.brsons.model.User;
 import com.brsons.repository.AddToCartRepository;
 import com.brsons.repository.CartProductEntryRepo;
 import com.brsons.repository.OrderItemRepository;
 import com.brsons.repository.OrderRepository;
+import com.brsons.repository.ProductRepository;
 import com.brsons.service.CheckoutService;
 // import com.brsons.service.EnhancedInvoiceService;
 import com.brsons.service.OrderAccountingService;
@@ -43,6 +45,8 @@ public class CheckoutController {
     OrderItemRepository orderItemRepository;
     @Autowired
     OrderAccountingService orderAccountingService;
+    @Autowired
+    private ProductRepository productRepository;
     // Temporarily disabled EnhancedInvoiceService to fix database issues
     // @Autowired
     // EnhancedInvoiceService enhancedInvoiceService;
@@ -99,14 +103,37 @@ public class CheckoutController {
         
         
 
-        // ✅ Create Order Items
+        // ✅ Create Order Items with price information
         List<OrderItem> orderItems = new ArrayList<>();
         for (CartProductEntry1 cartItem : cartItems) {
-            OrderItem item = new OrderItem();
-            item.setProductId(cartItem.getProductId());
-            item.setQuantity(cartItem.getQuantity());
-            item.setOrder(order);
-            orderItems.add(item);
+            // Get product to determine pricing
+            Product product = productRepository.findById(cartItem.getProductId()).orElse(null);
+            if (product != null) {
+                OrderItem item = new OrderItem();
+                item.setProductId(cartItem.getProductId());
+                item.setQuantity(cartItem.getQuantity());
+                item.setOrder(order);
+                
+                // Store the actual price at order time based on user type
+                BigDecimal unitPrice;
+                String priceType;
+                
+                if ("B2B".equalsIgnoreCase(user.getType()) && product.getB2bPrice() != null) {
+                    unitPrice = BigDecimal.valueOf(product.getB2bPrice());
+                    priceType = "b2b";
+                } else {
+                    // Use retail price for retail users and admin users
+                    unitPrice = BigDecimal.valueOf(product.getRetailPrice() != null ? product.getRetailPrice() : 0.0);
+                    priceType = "retail";
+                }
+                
+                item.setUnitPrice(unitPrice);
+                item.setUserType(user.getType());
+                item.setPriceType(priceType);
+                item.calculateTotalPrice(); // Calculate total price
+                
+                orderItems.add(item);
+            }
         }
        
         order.setOrderItems(orderItems);
@@ -115,8 +142,8 @@ public class CheckoutController {
         // ✅ Save order with items
         orderRepository.save(order);
         
-        // ✅ Finalize GST + invoice + ledger
-        orderAccountingService.finalizeTotalsAndInvoice(order, new BigDecimal("5.00"),  order.getBillType());
+        // ✅ Finalize GST + invoice + ledger with dynamic pricing based on user type
+        orderAccountingService.finalizeTotalsAndInvoice(order, new BigDecimal("5.00"), order.getBillType(), user.getType());
         
         // Temporarily disabled invoice generation to fix database issues
         // TODO: Re-enable after database schema is updated

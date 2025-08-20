@@ -678,12 +678,12 @@
                         <div class="product-details">
                             <h4 th:text="${item.product.productName}">Product Name</h4>
                             <p th:text="${item.product.category != null ? item.product.category.categoryName : 'N/A'}">Category</p>
-                            <span class="product-color" th:text="'Color: ' + ${item.product.colour != null ? item.product.colour : 'N/A'}">Color</span>
-                            <span class="product-size" th:text="'Size: ' + ${item.product.size != null ? item.product.size : 'N/A'}">Size</span>
+                            <span class="product-color" th:text="'Status: ' + ${item.product.status != null ? item.product.status : 'N/A'}">Status</span>
+                            <span class="product-size" th:text="'Stock: ' + ${item.product.stockQuantity != null ? item.product.stockQuantity : 'N/A'}">Stock</span>
                         </div>
                     </div>
                     
-                    <div class="item-price" th:text="'₹' + ${item.product.price}">₹0</div>
+                    <div class="item-price" th:text="'₹' + ${item.product.retailPrice}">₹0</div>
                     
                     <div class="quantity-controls">
                         <button class="quantity-btn" th:onclick="'updateQuantity(' + ${item.id} + ', -1)'" th:disabled="${item.quantity <= 1}">-</button>

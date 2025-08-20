@@ -625,7 +625,14 @@
 
                     <h1 class="product-title" th:text="${product.productName}">Product Name</h1>
                     <div class="product-category" th:text="${category.categoryName}">Category</div>
-                    <div class="product-price" th:text="'₹' + ${product.price}">₹0</div>
+                    <div class="product-price">
+                    <span th:if="${session.user != null and session.user.type == 'B2B'}" th:text="'₹' + ${product.b2bPrice}" style="font-size: 2.5rem; font-weight: bold; color: #2c3e50;">₹0</span>
+                    <span th:if="${session.user == null or session.user.type != 'B2B'}" th:text="'₹' + ${product.retailPrice}" style="font-size: 2.5rem; font-weight: bold; color: #2c3e50;">₹0</span>
+                    <div style="margin-top: 5px;">
+                        <small th:if="${session.user != null and session.user.type == 'B2B'}" style="color: #666; font-size: 14px;">B2B Price</small>
+                        <small th:if="${session.user == null or session.user.type != 'B2B'}" style="color: #666; font-size: 14px;">Retail Price</small>
+                    </div>
+                </div>
                     
                     <p class="product-description">
                         Discover the perfect blend of style and comfort with this exceptional product. 
@@ -638,8 +645,8 @@
                                 <i class="fas fa-palette"></i>
                             </div>
                             <div class="spec-details">
-                                <h4>Color</h4>
-                                <p th:text="${product.colour}">Color</p>
+                                                                  <h4>Status</h4>
+                                <p th:text="${product.status}">Status</p>
                             </div>
                         </div>
                         <div class="spec-item">
@@ -647,8 +654,8 @@
                                 <i class="fas fa-ruler"></i>
                             </div>
                             <div class="spec-details">
-                                <h4>Size</h4>
-                                <p th:text="${product.size}">Size</p>
+                                                                  <h4>Stock</h4>
+                                <p th:text="${product.stockQuantity}">Stock</p>
                             </div>
                         </div>
                     </div>

@@ -96,7 +96,6 @@ public class InvoicePdfService {
             // Table Data
             List<OrderItem> items = order.getOrderItems();
             int count = 1;
-            BigDecimal subTotal = BigDecimal.ZERO;
             for (OrderItem item : items) {
                 Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found for ID: " + item.getProductId()));
@@ -104,22 +103,20 @@ public class InvoicePdfService {
                 table.addCell(body(product.getProductName())); // Product Name
                 table.addCell(body(String.valueOf(item.getQuantity()))); // Quantity
 
-                // Convert price to BigDecimal
-                BigDecimal price = BigDecimal.valueOf(product.getPrice());
+                // Use the stored unit price from OrderItem
+                BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
+                table.addCell(body(unitPrice.toString())); // Unit Price
 
-                table.addCell(body(price.toString())); // Unit Price
-
-                // Calculate total price = unit price * quantity
-                BigDecimal total = price.multiply(BigDecimal.valueOf(item.getQuantity()));
-                table.addCell(body(total.toString())); // Total Price
-                subTotal = subTotal.add(total);
+                // Use the stored total price from OrderItem
+                BigDecimal itemTotal = item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO;
+                table.addCell(body(itemTotal.toString())); // Total Price
                 count++;
             }
 
-
-            // GST & Total
-            BigDecimal gstAmount = subTotal.multiply(new BigDecimal("0.05")); // 5% GST
-            BigDecimal grandTotal = subTotal.add(gstAmount);
+            // Use the already calculated totals from the order
+            BigDecimal subTotal = order.getSubTotal();
+            BigDecimal gstAmount = order.getGstAmount();
+            BigDecimal grandTotal = order.getTotal();
 
             PdfPCell emptyCell = new PdfPCell(new Phrase(""));
             emptyCell.setColspan(3);
@@ -222,30 +219,27 @@ public class InvoicePdfService {
             // Fetch order items from DB
             List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
 
-            BigDecimal subTotal = BigDecimal.ZERO;
+            // Use the already calculated totals from the order
+            BigDecimal subTotal = order.getSubTotal();
+            BigDecimal gstAmount = order.getGstAmount();
+            BigDecimal grandTotal = order.getTotal();
 
             for (OrderItem item : orderItems) {
                 Product product = productRepository.findById(item.getProductId())
                         .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
 
-                // Unit price as BigDecimal
-                BigDecimal price = BigDecimal.valueOf(product.getPrice());
+                // Use the stored unit price from OrderItem
+                BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
 
-                // Total = price * qty
-                BigDecimal total = price.multiply(BigDecimal.valueOf(item.getQuantity()));
+                // Use the stored total price from OrderItem
+                BigDecimal total = item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO;
 
                 // Add cells
                 table.addCell(body(product.getProductName()));
                 table.addCell(body(String.valueOf(item.getQuantity())));
-                table.addCell(body(price.toString()));
+                table.addCell(body(unitPrice.toString()));
                 table.addCell(body(total.toString()));
-
-                subTotal = subTotal.add(total);
             }
-            
-         // GST & Total
-            BigDecimal gstAmount = subTotal.multiply(new BigDecimal("0.05")); // 5% GST
-            BigDecimal grandTotal = subTotal.add(gstAmount);
 
             // Grand total row
             PdfPCell emptyCell = new PdfPCell(new Phrase(""));

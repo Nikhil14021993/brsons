@@ -586,16 +586,34 @@
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <div class="hero-section">
-        <div class="breadcrumb">
-            <a th:href="@{/shop}">Shop</a>
-            <i class="fas fa-chevron-right"></i>
-            <span th:text="${category.categoryName}">Category</span>
+    <div class="main-container">
+        <!-- Debug Information -->
+        <div style="background: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #dee2e6;">
+            <h4>Debug Information</h4>
+            <p><strong>Category:</strong> <span th:text="${category != null ? category.categoryName : 'NULL'}">Category Name</span></p>
+            <p><strong>Products Count:</strong> <span th:text="${products != null ? products.size() : 'NULL'}">0</span></p>
+            <p><strong>User Type:</strong> <span th:text="${session.user != null ? session.user.type : 'Not Logged In'}">User Type</span></p>
+            <p><strong>Session ID:</strong> <span th:text="${session.id}">Session ID</span></p>
+            <div th:if="${products != null and !products.isEmpty()}">
+                <p><strong>First Product:</strong></p>
+                <ul>
+                    <li>ID: <span th:text="${products[0].id}">ID</span></li>
+                    <li>Name: <span th:text="${products[0].productName}">Name</span></li>
+                    <li>Retail Price: <span th:text="${products[0].retailPrice}">Price</span></li>
+                    <li>B2B Price: <span th:text="${products[0].b2bPrice}">B2B Price</span></li>
+                    <li>Status: <span th:text="${products[0].status}">Status</span></li>
+                    <li>Stock: <span th:text="${products[0].stockQuantity}">Stock</span></li>
+                </ul>
+            </div>
         </div>
-        <h1 th:text="${category.categoryName}">Category Name</h1>
-        <p>Discover amazing products in this category</p>
-    </div>
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <h1 th:text="${category.categoryName}">Category Name</h1>
+                <p>Discover amazing products in this category</p>
+            </div>
+        </div>
 
     <!-- Filter and Sort Section -->
     <div class="filter-sort-section">
@@ -669,14 +687,14 @@
         <!-- Products Grid -->
         <div class="product-grid" id="productGrid">
             <div th:each="prod : ${products}" class="product-card" 
-                 th:data-price="${prod.price}" 
-                 th:data-color="${prod.colour}" 
-                 th:data-size="${prod.size}"
+                 th:data-price="${prod.retailPrice}" 
+                 th:data-color="${prod.status}" 
+                 th:data-size="${prod.stockQuantity}"
                  th:data-name="${prod.productName}">
                 
                 <div class="product-image-container">
                     <img th:src="${prod.mainPhoto}" th:alt="${prod.productName}" loading="lazy">
-                    <div class="product-badge" th:if="${prod.price < 1000}">Sale</div>
+                    <div class="product-badge" th:if="${prod.retailPrice < 1000}">Sale</div>
                     <div class="product-actions">
                         <button class="action-btn" th:onclick="'quickView(' + ${prod.id} + ')'" title="Quick View">
                             <i class="fas fa-eye"></i>
@@ -695,10 +713,15 @@
                         </a>
                     </h3>
                     <div class="product-details">
-                        <span class="product-color" th:text="'Color: ' + ${prod.colour}">Color</span>
-                        <span class="product-size" th:text="'Size: ' + ${prod.size}">Size</span>
+                        <span class="product-color" th:text="'Status: ' + ${prod.status}">Status</span>
+                        <span class="product-size" th:text="'Stock: ' + ${prod.stockQuantity}">Stock</span>
                     </div>
-                    <div class="product-price" th:text="'₹' + ${prod.price}">₹0</div>
+                    <div class="product-price">
+                        <span th:if="${session.user != null and session.user.type == 'B2B'}" th:text="'₹' + ${prod.b2bPrice}">₹0</span>
+                        <span th:if="${session.user == null or session.user.type != 'B2B'}" th:text="'₹' + ${prod.retailPrice}">₹0</span>
+                        <small th:if="${session.user != null and session.user.type == 'B2B'}" style="color: #666; font-size: 12px;">B2B Price</small>
+                        <small th:if="${session.user == null or session.user.type != 'B2B'}" style="color: #666; font-size: 12px;">Retail Price</small>
+                    </div>
                     
                     <!-- Add to Cart Button (initially visible) -->
                     <button class="add-to-cart-btn" th:id="'addToCartBtn_' + ${prod.id}" th:onclick="'addToCartFromProductList(' + ${prod.id} + ')'">
