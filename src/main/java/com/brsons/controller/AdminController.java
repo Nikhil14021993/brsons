@@ -26,6 +26,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.time.ZoneId;
+import java.util.Date;
+import java.io.ByteArrayOutputStream;
+
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -548,6 +558,313 @@ public class AdminController {
     	return "daybook"; // daybook.html
     	 }
     	 return "redirect:/";
+    }
+
+    // Inventory Management Endpoints
+    @GetMapping("/admin/inventory")
+    public String showInventory(Model model, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null || !"Admin".equalsIgnoreCase(user.getType())) {
+            return "redirect:/login";
+        }
+
+        // Get all products with categories for inventory view
+        List<Product> products = productRepository.findAllWithCategory();
+        
+        // Get categories for filter dropdown
+        List<Category> categories = categoryRepository.findAll();
+        
+        // Calculate inventory statistics
+        long totalProducts = products.size();
+        long lowStockProducts = products.stream()
+            .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() <= 10)
+            .count();
+        long outOfStockProducts = products.stream()
+            .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() <= 0)
+            .count();
+        long activeProducts = products.stream()
+            .filter(p -> "Active".equalsIgnoreCase(p.getStatus()))
+            .count();
+
+        model.addAttribute("products", products);
+        model.addAttribute("categories", categories);
+        model.addAttribute("totalProducts", totalProducts);
+        model.addAttribute("lowStockProducts", lowStockProducts);
+        model.addAttribute("outOfStockProducts", outOfStockProducts);
+        model.addAttribute("activeProducts", activeProducts);
+        
+        return "admin-inventory";
+    }
+
+    @GetMapping("/admin/inventory/filter")
+    public String filterInventory(
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categoryStatus,
+            @RequestParam(required = false) String productStatus,
+            @RequestParam(required = false) String stockFilter,
+            @RequestParam(required = false) String searchQuery,
+            Model model, 
+            HttpSession session) {
+        
+        User user = (User) session.getAttribute("user");
+        if (user == null || !"Admin".equalsIgnoreCase(user.getType())) {
+            return "redirect:/login";
+        }
+
+        List<Product> filteredProducts = productRepository.findAllWithCategory();
+        
+        // Apply filters
+        if (categoryId != null) {
+            filteredProducts = filteredProducts.stream()
+                .filter(p -> p.getCategory() != null && p.getCategory().getId().equals(categoryId))
+                .collect(Collectors.toList());
+        }
+        
+        if (categoryStatus != null && !categoryStatus.isEmpty()) {
+            filteredProducts = filteredProducts.stream()
+                .filter(p -> p.getCategory() != null && categoryStatus.equalsIgnoreCase(p.getCategory().getStatus()))
+                .collect(Collectors.toList());
+        }
+        
+        if (productStatus != null && !productStatus.isEmpty()) {
+            filteredProducts = filteredProducts.stream()
+                .filter(p -> productStatus.equalsIgnoreCase(p.getStatus()))
+                .collect(Collectors.toList());
+        }
+        
+        if (stockFilter != null && !stockFilter.isEmpty()) {
+            switch (stockFilter.toLowerCase()) {
+                case "out_of_stock":
+                    filteredProducts = filteredProducts.stream()
+                        .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() <= 0)
+                        .collect(Collectors.toList());
+                    break;
+                case "low_stock":
+                    filteredProducts = filteredProducts.stream()
+                        .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() > 0 && p.getStockQuantity() <= 10)
+                        .collect(Collectors.toList());
+                    break;
+                case "in_stock":
+                    filteredProducts = filteredProducts.stream()
+                        .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() > 10)
+                        .collect(Collectors.toList());
+                    break;
+            }
+        }
+        
+        if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+            String query = searchQuery.toLowerCase().trim();
+            filteredProducts = filteredProducts.stream()
+                .filter(p -> p.getProductName().toLowerCase().contains(query) ||
+                           (p.getDescription() != null && p.getDescription().toLowerCase().contains(query)))
+                .collect(Collectors.toList());
+        }
+
+        // Get categories for filter dropdown
+        List<Category> categories = categoryRepository.findAll();
+        
+        // Calculate filtered statistics
+        long totalProducts = filteredProducts.size();
+        long lowStockProducts = filteredProducts.stream()
+            .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() <= 10)
+            .count();
+        long outOfStockProducts = filteredProducts.stream()
+            .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() <= 0)
+            .count();
+        long activeProducts = filteredProducts.stream()
+            .filter(p -> "Active".equalsIgnoreCase(p.getStatus()))
+            .count();
+
+        model.addAttribute("products", filteredProducts);
+        model.addAttribute("categories", categories);
+        model.addAttribute("totalProducts", totalProducts);
+        model.addAttribute("lowStockProducts", lowStockProducts);
+        model.addAttribute("outOfStockProducts", outOfStockProducts);
+        model.addAttribute("activeProducts", activeProducts);
+        
+        // Add filter values for form persistence
+        model.addAttribute("selectedCategoryId", categoryId);
+        model.addAttribute("selectedCategoryStatus", categoryStatus);
+        model.addAttribute("selectedProductStatus", productStatus);
+        model.addAttribute("selectedStockFilter", stockFilter);
+        model.addAttribute("searchQuery", searchQuery);
+        
+        return "admin-inventory";
+    }
+
+    @GetMapping("/admin/inventory/export")
+    public ResponseEntity<byte[]> exportInventoryToExcel(
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categoryStatus,
+            @RequestParam(required = false) String productStatus,
+            @RequestParam(required = false) String stockFilter,
+            @RequestParam(required = false) String searchQuery,
+            HttpSession session) {
+        
+        User user = (User) session.getAttribute("user");
+        if (user == null || !"Admin".equalsIgnoreCase(user.getType())) {
+            return ResponseEntity.status(401).build();
+        }
+
+        try {
+            List<Product> products = productRepository.findAllWithCategory();
+            
+            // Apply the same filters as the view
+            if (categoryId != null) {
+                products = products.stream()
+                    .filter(p -> p.getCategory() != null && p.getCategory().getId().equals(categoryId))
+                    .collect(Collectors.toList());
+            }
+            
+            if (categoryStatus != null && !categoryStatus.isEmpty()) {
+                products = products.stream()
+                    .filter(p -> p.getCategory() != null && categoryStatus.equalsIgnoreCase(p.getCategory().getStatus()))
+                    .collect(Collectors.toList());
+            }
+            
+            if (productStatus != null && !productStatus.isEmpty()) {
+                products = products.stream()
+                    .filter(p -> productStatus.equalsIgnoreCase(p.getStatus()))
+                    .collect(Collectors.toList());
+            }
+            
+            if (stockFilter != null && !stockFilter.isEmpty()) {
+                switch (stockFilter.toLowerCase()) {
+                    case "out_of_stock":
+                        products = products.stream()
+                            .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() <= 0)
+                            .collect(Collectors.toList());
+                        break;
+                    case "low_stock":
+                        products = products.stream()
+                            .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() > 0 && p.getStockQuantity() <= 10)
+                            .collect(Collectors.toList());
+                        break;
+                    case "in_stock":
+                        products = products.stream()
+                            .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() > 10)
+                            .collect(Collectors.toList());
+                        break;
+                }
+            }
+            
+            if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+                String query = searchQuery.toLowerCase().trim();
+                products = products.stream()
+                    .filter(p -> p.getProductName().toLowerCase().contains(query) ||
+                               (p.getDescription() != null && p.getDescription().toLowerCase().contains(query)))
+                    .collect(Collectors.toList());
+            }
+
+            // Generate Excel file
+            byte[] excelContent = generateInventoryExcel(products);
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", "inventory_report.xlsx");
+            
+            return ResponseEntity.ok()
+                .headers(headers)
+                .body(excelContent);
+                
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    private byte[] generateInventoryExcel(List<Product> products) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Inventory Report");
+            
+            // Create header row
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {
+                "Product ID", "Product Name", "Description", "Category", "Category Status",
+                "Retail Price", "B2B Price", "Discount (%)", "Stock Quantity", "Product Status",
+                "Created Date", "Last Updated"
+            };
+            
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+            
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 4000);
+            }
+            
+            // Create data rows
+            CellStyle dataStyle = workbook.createCellStyle();
+            dataStyle.setAlignment(HorizontalAlignment.LEFT);
+            
+            CellStyle numberStyle = workbook.createCellStyle();
+            numberStyle.setAlignment(HorizontalAlignment.RIGHT);
+            
+            CellStyle dateStyle = workbook.createCellStyle();
+            dateStyle.setAlignment(HorizontalAlignment.CENTER);
+            CreationHelper createHelper = workbook.getCreationHelper();
+            dateStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd/mm/yyyy hh:mm"));
+            
+            int rowNum = 1;
+            for (Product product : products) {
+                Row row = sheet.createRow(rowNum++);
+                
+                row.createCell(0).setCellValue(product.getId() != null ? product.getId() : 0);
+                row.createCell(1).setCellValue(product.getProductName() != null ? product.getProductName() : "");
+                row.createCell(2).setCellValue(product.getDescription() != null ? product.getDescription() : "");
+                row.createCell(3).setCellValue(product.getCategory() != null ? product.getCategory().getCategoryName() : "");
+                row.createCell(4).setCellValue(product.getCategory() != null ? product.getCategory().getStatus() : "");
+                
+                Cell retailPriceCell = row.createCell(5);
+                retailPriceCell.setCellValue(product.getRetailPrice() != null ? product.getRetailPrice() : 0.0);
+                retailPriceCell.setCellStyle(numberStyle);
+                
+                Cell b2bPriceCell = row.createCell(6);
+                b2bPriceCell.setCellValue(product.getB2bPrice() != null ? product.getB2bPrice() : 0.0);
+                b2bPriceCell.setCellStyle(numberStyle);
+                
+                Cell discountCell = row.createCell(7);
+                discountCell.setCellValue(product.getDiscount() != null ? product.getDiscount() : 0.0);
+                discountCell.setCellStyle(numberStyle);
+                
+                Cell stockCell = row.createCell(8);
+                stockCell.setCellValue(product.getStockQuantity() != null ? product.getStockQuantity() : 0);
+                stockCell.setCellStyle(numberStyle);
+                
+                row.createCell(9).setCellValue(product.getStatus() != null ? product.getStatus() : "");
+                
+                Cell createdCell = row.createCell(10);
+                if (product.getCreatedAt() != null) {
+                    createdCell.setCellValue(Date.from(product.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant()));
+                    createdCell.setCellStyle(dateStyle);
+                }
+                
+                Cell updatedCell = row.createCell(11);
+                if (product.getUpdatedAt() != null) {
+                    updatedCell.setCellValue(Date.from(product.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant()));
+                    updatedCell.setCellStyle(dateStyle);
+                }
+            }
+            
+            // Auto-size columns
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+            
+            // Convert to byte array
+            try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                workbook.write(baos);
+                return baos.toByteArray();
+            }
+        }
     }
 
 }

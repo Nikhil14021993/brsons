@@ -20,4 +20,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // Find products by category ID only (without status filter)
     @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE p.category.id = :categoryId")
     List<Product> findByCategoryId(@Param("categoryId") Long categoryId);
+    
+    // Find all products with categories for inventory management
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category")
+    List<Product> findAllWithCategory();
 }
