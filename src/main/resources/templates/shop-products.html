@@ -604,27 +604,7 @@
         </div>
     </nav>
 
-    <div class="main-container">
-        <!-- Debug Information -->
-        <div style="background: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #dee2e6;">
-            <h4>Debug Information</h4>
-            <p><strong>Category:</strong> <span th:text="${category != null ? category.categoryName : 'NULL'}">Category Name</span></p>
-            <p><strong>Products Count:</strong> <span th:text="${products != null ? products.size() : 'NULL'}">0</span></p>
-            <p><strong>User Type:</strong> <span th:text="${session.user != null ? session.user.type : 'Not Logged In'}">User Type</span></p>
-            <p><strong>Session ID:</strong> <span th:text="${session.id}">Session ID</span></p>
-            <div th:if="${products != null and !products.isEmpty()}">
-                <p><strong>First Product:</strong></p>
-                <ul>
-                    <li>ID: <span th:text="${products[0].id}">ID</span></li>
-                    <li>Name: <span th:text="${products[0].productName}">Name</span></li>
-                    <li>Retail Price: <span th:text="${products[0].retailPrice}">Price</span></li>
-                    <li>B2B Price: <span th:text="${products[0].b2bPrice}">B2B Price</span></li>
-                    <li>Status: <span th:text="${products[0].status}">Status</span></li>
-                    <li>Stock: <span th:text="${products[0].stockQuantity}">Stock</span></li>
-                </ul>
-            </div>
-        </div>
-
+    
         <!-- Page Header -->
         <div class="page-header">
             <div class="header-content">

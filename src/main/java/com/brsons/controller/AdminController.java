@@ -867,4 +867,130 @@ public class AdminController {
         }
     }
 
+    // Product Management Endpoints
+    @GetMapping("/admin/products/edit/{id}")
+    public String editProduct(@PathVariable Long id, Model model, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null || !"Admin".equalsIgnoreCase(user.getType())) {
+            return "redirect:/login";
+        }
+
+        try {
+            Product product = productRepository.findByIdWithCategory(id)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+            
+            List<Category> categories = categoryRepository.findAll();
+            List<ProductVariant> variants = productVariantRepository.findByProductId(id);
+            
+            model.addAttribute("product", product);
+            model.addAttribute("categories", categories);
+            model.addAttribute("variants", variants);
+            model.addAttribute("isEdit", true);
+            
+            return "admin-edit-product";
+            
+        } catch (Exception e) {
+            model.addAttribute("error", "Error loading product: " + e.getMessage());
+            return "redirect:/admin/inventory";
+        }
+    }
+
+    @PostMapping("/admin/products/update/{id}")
+    public String updateProduct(@PathVariable Long id, 
+                               @RequestParam String productName,
+                               @RequestParam String description,
+                               @RequestParam Double retailPrice,
+                               @RequestParam Double b2bPrice,
+                               @RequestParam Double discount,
+                               @RequestParam Integer stockQuantity,
+                               @RequestParam String status,
+                               @RequestParam Long categoryId,
+                               @RequestParam(required = false) List<String> variantSizes,
+                               @RequestParam(required = false) List<String> variantColors,
+                               @RequestParam(required = false) List<Integer> variantStockQuantities,
+                               @RequestParam(required = false) List<Long> variantIds,
+                               HttpSession session,
+                               Model model) {
+        
+        User user = (User) session.getAttribute("user");
+        if (user == null || !"Admin".equalsIgnoreCase(user.getType())) {
+            return "redirect:/login";
+        }
+
+        try {
+            Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+            
+            Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
+            
+            // Update product details
+            product.setProductName(productName);
+            product.setDescription(description);
+            product.setRetailPrice(retailPrice);
+            product.setB2bPrice(b2bPrice);
+            product.setDiscount(discount);
+            product.setStockQuantity(stockQuantity);
+            product.setStatus(status);
+            product.setCategory(category);
+            product.setUpdatedAt(LocalDateTime.now());
+            
+            // Save the updated product
+            productRepository.save(product);
+            
+            // Handle product variants
+            if (variantSizes != null && variantColors != null && variantStockQuantities != null) {
+                // Update existing variants
+                if (variantIds != null) {
+                    for (int i = 0; i < variantIds.size(); i++) {
+                        if (i < variantSizes.size() && i < variantColors.size() && i < variantStockQuantities.size()) {
+                            Long variantId = variantIds.get(i);
+                            if (variantId != null && variantId > 0) {
+                                // Update existing variant
+                                ProductVariant variant = productVariantRepository.findById(variantId).orElse(null);
+                                if (variant != null) {
+                                    variant.setSize(variantSizes.get(i));
+                                    variant.setColor(variantColors.get(i));
+                                    variant.setStockQuantity(variantStockQuantities.get(i));
+                                    productVariantRepository.save(variant);
+                                }
+                            } else {
+                                // Create new variant
+                                ProductVariant newVariant = new ProductVariant();
+                                newVariant.setProduct(product);
+                                newVariant.setSize(variantSizes.get(i));
+                                newVariant.setColor(variantColors.get(i));
+                                newVariant.setStockQuantity(variantStockQuantities.get(i));
+                                productVariantRepository.save(newVariant);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            model.addAttribute("success", "Product updated successfully!");
+            return "redirect:/admin/inventory";
+            
+        } catch (Exception e) {
+            model.addAttribute("error", "Error updating product: " + e.getMessage());
+            return "redirect:/admin/products/edit/" + id;
+        }
+    }
+
+    @PostMapping("/admin/products/delete-variant/{variantId}")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> deleteVariant(@PathVariable Long variantId, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null || !"Admin".equalsIgnoreCase(user.getType())) {
+            return ResponseEntity.status(401).body(Map.of("success", false, "message", "Unauthorized"));
+        }
+
+        try {
+            productVariantRepository.deleteById(variantId);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Variant deleted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("success", false, "message", "Error deleting variant: " + e.getMessage()));
+        }
+    }
+
 }

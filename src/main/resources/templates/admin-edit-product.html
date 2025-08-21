@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Edit Product - Admin Panel</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .edit-product-container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .page-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .page-header h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .page-header p {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+        
+        .edit-form-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .form-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        
+        .form-header h2 {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+        
+        .form-content {
+            padding: 30px;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            font-weight: 600;
+            color: #34495e;
+            margin-bottom: 8px;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .variants-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .variants-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .add-variant-btn {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .add-variant-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+        }
+        
+        .variant-item {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #e9ecef;
+            position: relative;
+        }
+        
+        .variant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .variant-title {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .delete-variant-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+        
+        .delete-variant-btn:hover {
+            background: #c0392b;
+        }
+        
+        .variant-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .save-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .cancel-btn {
+            background: #95a5a6;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .cancel-btn:hover {
+            background: #7f8c8d;
+            transform: translateY(-2px);
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .product-image {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .image-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .edit-product-container {
+                padding: 15px;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .variant-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">BRSONS Admin</div>
+        <ul class="navbar-links">
+            <li><a th:href="@{/admin}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+            <li><a th:href="@{/admin/users}"><i class="fas fa-users"></i> Users</a></li>
+            <li><a th:href="@{/admin/inventory}" class="active"><i class="fas fa-boxes"></i> Inventory</a></li>
+            <li><a th:href="@{/admin/orders}"><i class="fas fa-shopping-bag"></i> Orders</a></li>
+            <li><a th:href="@{/}"><i class="fas fa-home"></i> Home</a></li>
+            <li><a th:href="@{/logout}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+        </ul>
+    </nav>
+
+    <div class="edit-product-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-edit"></i> Edit Product</h1>
+            <p>Update product information, pricing, and variants</p>
+        </div>
+
+        <!-- Success/Error Messages -->
+        <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+        <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+        <!-- Edit Form -->
+        <div class="edit-form-container">
+            <div class="form-header">
+                <h2><i class="fas fa-box"></i> Product Details</h2>
+            </div>
+            
+            <form th:action="@{/admin/products/update/{id}(id=${product.id})}" method="post" class="form-content">
+                <!-- Product Image Section -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-image"></i> Product Image
+                    </div>
+                    <div class="image-section">
+                        <img th:if="${product.mainPhoto != null}" th:src="${product.mainPhoto}" alt="Product Image" class="product-image">
+                        <div th:if="${product.mainPhoto == null}" style="color: #95a5a6; font-style: italic;">
+                            No image available
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Basic Information -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-info-circle"></i> Basic Information
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="productName">Product Name *</label>
+                            <input type="text" id="productName" name="productName" 
+                                   th:value="${product.productName}" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="categoryId">Category *</label>
+                            <select id="categoryId" name="categoryId" required>
+                                <option value="">Select Category</option>
+                                <option th:each="cat : ${categories}" 
+                                        th:value="${cat.id}" 
+                                        th:text="${cat.categoryName}"
+                                        th:selected="${cat.id == product.category.id}">
+                                    Category Name
+                                </option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="description">Description</label>
+                            <textarea id="description" name="description" 
+                                      placeholder="Enter product description..."
+                                      th:text="${product.description}"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pricing Information -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-tags"></i> Pricing Information
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="retailPrice">Retail Price (₹) *</label>
+                            <input type="number" id="retailPrice" name="retailPrice" 
+                                   step="0.01" min="0" 
+                                   th:value="${product.retailPrice}" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="b2bPrice">B2B Price (₹) *</label>
+                            <input type="number" id="b2bPrice" name="b2bPrice" 
+                                   step="0.01" min="0" 
+                                   th:value="${product.b2bPrice}" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="discount">Discount (%)</label>
+                            <input type="number" id="discount" name="discount" 
+                                   step="0.01" min="0" max="100" 
+                                   th:value="${product.discount != null ? product.discount : 0}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stock & Status -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-warehouse"></i> Stock & Status
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="stockQuantity">Stock Quantity *</label>
+                            <input type="number" id="stockQuantity" name="stockQuantity" 
+                                   min="0" 
+                                   th:value="${product.stockQuantity}" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="status">Product Status *</label>
+                            <select id="status" name="status" required>
+                                <option value="Active" th:selected="${product.status == 'Active'}">Active</option>
+                                <option value="Inactive" th:selected="${product.status == 'Inactive'}">Inactive</option>
+                                <option value="Out of Stock" th:selected="${product.status == 'Out of Stock'}">Out of Stock</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Variants -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-palette"></i> Product Variants
+                    </div>
+                    
+                    <div class="variants-section">
+                        <div class="variants-header">
+                            <h3>Variants (Size, Color, Stock)</h3>
+                            <button type="button" class="add-variant-btn" onclick="addVariant()">
+                                <i class="fas fa-plus"></i> Add Variant
+                            </button>
+                        </div>
+                        
+                        <div id="variants-container">
+                            <!-- Existing Variants -->
+                            <div th:each="variant, iterStat : ${variants}" class="variant-item">
+                                <div class="variant-header">
+                                    <span class="variant-title">Variant <span th:text="${iterStat.count}">1</span></span>
+                                    <button type="button" class="delete-variant-btn" 
+                                            th:onclick="'deleteVariant(' + ${variant.id} + ', this)'">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                                
+                                <div class="variant-grid">
+                                    <div class="form-group">
+                                        <label>Size</label>
+                                        <input type="text" name="variantSizes" 
+                                               th:value="${variant.size}" placeholder="e.g., S, M, L, XL">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Color</label>
+                                        <input type="text" name="variantColors" 
+                                               th:value="${variant.color}" placeholder="e.g., Red, Blue, Black">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Stock Quantity</label>
+                                        <input type="number" name="variantStockQuantities" 
+                                               th:value="${variant.stockQuantity}" min="0" placeholder="0">
+                                    </div>
+                                    
+                                    <input type="hidden" name="variantIds" th:value="${variant.id}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="save-btn">
+                        <i class="fas fa-save"></i> Update Product
+                    </button>
+                    <a th:href="@{/admin/inventory}" class="cancel-btn">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let variantCounter = 0;
+        
+        function addVariant() {
+            variantCounter++;
+            const container = document.getElementById('variants-container');
+            
+            const variantHtml = `
+                <div class="variant-item">
+                    <div class="variant-header">
+                        <span class="variant-title">New Variant</span>
+                        <button type="button" class="delete-variant-btn" onclick="removeVariant(this)">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                    
+                    <div class="variant-grid">
+                        <div class="form-group">
+                            <label>Size</label>
+                            <input type="text" name="variantSizes" placeholder="e.g., S, M, L, XL">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Color</label>
+                            <input type="text" name="variantColors" placeholder="e.g., Red, Blue, Black">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Stock Quantity</label>
+                            <input type="number" name="variantStockQuantities" min="0" placeholder="0">
+                        </div>
+                        
+                        <input type="hidden" name="variantIds" value="0">
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', variantHtml);
+        }
+        
+        function removeVariant(button) {
+            button.closest('.variant-item').remove();
+        }
+        
+        function deleteVariant(variantId, button) {
+            if (confirm('Are you sure you want to delete this variant?')) {
+                fetch(`/admin/products/delete-variant/${variantId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        button.closest('.variant-item').remove();
+                        // Show success message
+                        showAlert('Variant deleted successfully!', 'success');
+                    } else {
+                        showAlert('Error deleting variant: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error deleting variant: ' + error.message, 'error');
+                });
+            }
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            const container = document.querySelector('.edit-product-container');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+        
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const requiredFields = this.querySelectorAll('[required]');
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    field.style.borderColor = '#e74c3c';
+                    isValid = false;
+                } else {
+                    field.style.borderColor = '#e1e8ed';
+                }
+            });
+            
+            if (!isValid) {
+                e.preventDefault();
+                showAlert('Please fill in all required fields.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
