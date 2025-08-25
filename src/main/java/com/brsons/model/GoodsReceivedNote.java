@@ -2,6 +2,7 @@ package com.brsons.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -24,8 +25,8 @@ public class GoodsReceivedNote {
     @JoinColumn(name = "supplier_id", nullable = false)
     private Supplier supplier;
     
-    @Column(name = "received_date", nullable = false)
-    private LocalDateTime receivedDate;
+    @Column(name = "received_date")
+    private LocalDate receivedDate;
     
     @Column(name = "delivery_note_number")
     private String deliveryNoteNumber;
@@ -78,7 +79,7 @@ public class GoodsReceivedNote {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
         this.status = GRNStatus.DRAFT;
-        this.receivedDate = LocalDateTime.now();
+        this.receivedDate = LocalDate.now();
         this.subtotal = BigDecimal.ZERO;
         this.taxAmount = BigDecimal.ZERO;
         this.totalAmount = BigDecimal.ZERO;
@@ -97,8 +98,8 @@ public class GoodsReceivedNote {
     public Supplier getSupplier() { return supplier; }
     public void setSupplier(Supplier supplier) { this.supplier = supplier; }
     
-    public LocalDateTime getReceivedDate() { return receivedDate; }
-    public void setReceivedDate(LocalDateTime receivedDate) { this.receivedDate = receivedDate; }
+    public LocalDate getReceivedDate() { return receivedDate; }
+    public void setReceivedDate(LocalDate receivedDate) { this.receivedDate = receivedDate; }
     
     public String getDeliveryNoteNumber() { return deliveryNoteNumber; }
     public void setDeliveryNoteNumber(String deliveryNoteNumber) { this.deliveryNoteNumber = deliveryNoteNumber; }
@@ -137,8 +138,12 @@ public class GoodsReceivedNote {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     
     public List<GRNItem> getGrnItems() { return grnItems; }
-    public void setGrnItems(List<GRNItem> grnItems) { this.grnItems = grnItems; }
-    
+    public void setGrnItems(List<GRNItem> items) {
+        this.grnItems = items;
+        if (this.grnItems != null) {
+            for (GRNItem it : this.grnItems) it.setGrn(this);
+        }
+    }    
     // Business Methods
     @PreUpdate
     public void preUpdate() {

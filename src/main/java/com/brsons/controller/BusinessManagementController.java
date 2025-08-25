@@ -6,6 +6,7 @@ package com.brsons.controller;
 import com.brsons.model.*;
 import com.brsons.service.SupplierService;
 import com.brsons.service.PurchaseOrderService;
+import com.brsons.service.GRNService;
 import com.brsons.repository.ProductRepository;
 import com.brsons.repository.SupplierRepository;
 
@@ -43,6 +44,9 @@ public class BusinessManagementController {
     
     @Autowired
     private com.brsons.util.PurchaseOrderUtils poUtils;
+    
+    @Autowired
+    private GRNService grnService;
     
     @Autowired
     private SupplierRepository supplierRepository;
@@ -609,9 +613,213 @@ public class BusinessManagementController {
             return "redirect:/login";
         }
         
-        // TODO: Implement GRN service and repository
+        List<GoodsReceivedNote> grns = grnService.getAllGRNs();
+        GRNService.GRNStatistics stats = grnService.getGRNStatistics();
+        
+        model.addAttribute("grns", grns);
+        model.addAttribute("grnStats", stats);
         model.addAttribute("user", user);
-        model.addAttribute("message", "GRN management coming soon!");
+        
+        // Ensure message attributes are always present in the model to prevent Thymeleaf errors
+        model.addAttribute("successMessage", model.getAttribute("successMessage") != null ? model.getAttribute("successMessage") : "");
+        model.addAttribute("errorMessage", model.getAttribute("errorMessage") != null ? model.getAttribute("errorMessage") : "");
+        
+        return "admin-grn";
+    }
+    
+    @GetMapping("/grn/new")
+    public String showAddGRNForm(Model model, HttpSession session) {
+        // auth checks omitted here (keep your original)
+        List<PurchaseOrder> purchaseOrders = purchaseOrderService.getAllWithItems();
+        List<Supplier> suppliers = supplierService.getAllSuppliers();
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        String purchaseOrdersJson = "[]";
+        try {
+            List<Map<String,Object>> poData = new ArrayList<>();
+            for (PurchaseOrder po : purchaseOrders) {
+                Map<String,Object> m = new HashMap<>();
+                m.put("id", po.getId());
+                m.put("poNumber", po.getPoNumber());
+                m.put("supplierId", po.getSupplier() != null ? po.getSupplier().getId() : null);
+                m.put("supplierName", po.getSupplier() != null ? po.getSupplier().getCompanyName() : null);
+
+                List<Map<String,Object>> items = new ArrayList<>();
+                if (po.getOrderItems() != null) {
+                    for (PurchaseOrderItem it : po.getOrderItems()) {
+                        Map<String,Object> im = new HashMap<>();
+                        im.put("productId", it.getProduct().getId());
+                        im.put("productName", it.getProduct().getProductName());
+                        im.put("orderedQuantity", it.getOrderedQuantity());
+                        im.put("unitPrice", it.getUnitPrice());
+                        im.put("discountPercentage", it.getDiscountPercentage());
+                        im.put("taxPercentage", it.getTaxPercentage());
+                        items.add(im);
+                    }
+                }
+                m.put("items", items);
+                poData.add(m);
+            }
+            purchaseOrdersJson = objectMapper.writeValueAsString(poData);
+        } catch (Exception ex) {
+            purchaseOrdersJson = "[]";
+        }
+
+        model.addAttribute("grn", new GoodsReceivedNote());
+        model.addAttribute("purchaseOrders", purchaseOrders);
+        model.addAttribute("suppliers", suppliers);
+        model.addAttribute("purchaseOrdersJson", purchaseOrdersJson);
+        model.addAttribute("user", session.getAttribute("user"));
+        model.addAttribute("grnStatuses", GoodsReceivedNote.GRNStatus.values());
+        return "admin-add-grn";
+    }
+
+    
+    @PostMapping("/grn/new")
+    public String createGRN(
+            @ModelAttribute GoodsReceivedNote grn,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receivedDate,
+            RedirectAttributes redirectAttributes) {
+
+        try {
+            // 1) If the form sent receivedDate as date, set it (to LocalDateTime)
+        	  grn.setReceivedDate(receivedDate);
+        	  
+            // 2) Resolve purchaseOrder (the form has purchaseOrder.id)
+            Long poId = (grn.getPurchaseOrder() != null) ? grn.getPurchaseOrder().getId() : null;
+            if (poId == null) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Purchase Order is required");
+                return "redirect:/admin/business/grn/new";
+            }
+            PurchaseOrder po = purchaseOrderService.getByIdWithItems(poId)
+                    .orElseThrow(() -> new RuntimeException("Purchase Order not found"));
+            grn.setPurchaseOrder(po);
+
+            // 3) Set supplier from PO (safer than trusting what the form sent)
+            grn.setSupplier(po.getSupplier());
+
+            // 4) Resolve each GRN item: the binder created product objects with only ID set;
+            //    we must fetch the real Product entity and set grn reference and calculate totals.
+            if (grn.getGrnItems() != null) {
+                for (GRNItem gi : grn.getGrnItems()) {
+                    Long prodId = (gi.getProduct() != null) ? gi.getProduct().getId() : null;
+                    if (prodId == null) continue;
+                    Product p = productRepository.findById(prodId)
+                            .orElseThrow(() -> new RuntimeException("Product not found: " + prodId));
+                    gi.setProduct(p);
+                    gi.setGrn(grn);
+                    gi.calculateTotals();
+                }
+            }
+
+            // 5) Calculate totals for GRN
+            grn.calculateTotals();
+
+            // 6) Save via service
+            grnService.createGRN(grn);
+
+            redirectAttributes.addFlashAttribute("successMessage", "GRN created successfully");
+            return "redirect:/admin/business/grn";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Error creating GRN: " + e.getMessage());
+            return "redirect:/admin/business/grn/new";
+        }
+    }
+
+    @GetMapping("/grn/edit/{id}")
+    public String showEditGRNForm(@PathVariable Long id, Model model, HttpSession session) {
+        // Check if user is logged in and is admin
+        User user = (User) session.getAttribute("user");
+        if (user == null || !"Admin".equals(user.getType())) {
+            return "redirect:/login";
+        }
+        
+        Optional<GoodsReceivedNote> grn = grnService.getGRNById(id);
+        if (grn.isPresent()) {
+            List<PurchaseOrder> purchaseOrders = purchaseOrderService.getAllPurchaseOrders();
+            List<Supplier> suppliers = supplierService.getAllSuppliers();
+            
+            // We don't need to fetch all products anymore since we only show PO-specific products
+            
+            model.addAttribute("grn", grn.get());
+            model.addAttribute("purchaseOrders", purchaseOrders);
+            model.addAttribute("suppliers", suppliers);
+            model.addAttribute("user", user);
+            model.addAttribute("grnStatuses", GoodsReceivedNote.GRNStatus.values());
+            
+            // Ensure message attributes are always present in the model to prevent Thymeleaf errors
+            model.addAttribute("successMessage", model.getAttribute("successMessage") != null ? model.getAttribute("successMessage") : "");
+            model.addAttribute("errorMessage", model.getAttribute("errorMessage") != null ? model.getAttribute("errorMessage") : "");
+            
+            return "admin-edit-grn";
+        }
+        
+        return "redirect:/admin/business/grn";
+    }
+    
+    @PostMapping("/grn/edit/{id}")
+    public String updateGRN(@PathVariable Long id, 
+                           @ModelAttribute GoodsReceivedNote grn, 
+                           HttpSession session, 
+                           RedirectAttributes redirectAttributes) {
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null || !"Admin".equals(user.getType())) {
+                return "redirect:/login";
+            }
+            
+            GoodsReceivedNote updatedGRN = grnService.updateGRN(id, grn);
+            
+            redirectAttributes.addFlashAttribute("successMessage", 
+                "GRN '" + updatedGRN.getGrnNumber() + "' updated successfully!");
+            
+            return "redirect:/admin/business/grn";
+            
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", 
+                "Error updating GRN: " + e.getMessage());
+            return "redirect:/admin/business/grn/edit/" + id;
+        }
+    }
+    
+    @PostMapping("/grn/status/{id}")
+    @ResponseBody
+    public Map<String, Object> updateGRNStatus(@PathVariable Long id, 
+                                              @RequestParam String status, 
+                                              HttpSession session) {
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null || !"Admin".equals(user.getType())) {
+                return Map.of("success", false, "message", "Unauthorized");
+            }
+            
+            GoodsReceivedNote.GRNStatus newStatus = GoodsReceivedNote.GRNStatus.valueOf(status);
+            grnService.updateGRNStatus(id, newStatus);
+            
+            return Map.of("success", true, "message", "GRN status updated successfully");
+            
+        } catch (Exception e) {
+            return Map.of("success", false, "message", "Error: " + e.getMessage());
+        }
+    }
+    
+    @GetMapping("/grn/search")
+    public String searchGRNs(@RequestParam(required = false) String query, 
+                            Model model, 
+                            HttpSession session) {
+        // Check if user is logged in and is admin
+        User user = (User) session.getAttribute("user");
+        if (user == null || !"Admin".equals(user.getType())) {
+            return "redirect:/login";
+        }
+        
+        List<GoodsReceivedNote> grns = grnService.getAllGRNs(); // TODO: Implement search
+        GRNService.GRNStatistics stats = grnService.getGRNStatistics();
+        
+        model.addAttribute("grns", grns);
+        model.addAttribute("grnStats", stats);
+        model.addAttribute("user", user);
+        model.addAttribute("searchQuery", query);
         
         return "admin-grn";
     }
@@ -649,14 +857,17 @@ public class BusinessManagementController {
         // Get purchase order statistics
         PurchaseOrderService.PurchaseOrderStatistics poStats = purchaseOrderService.getPurchaseOrderStatistics();
         
+        // Get GRN statistics
+        GRNService.GRNStatistics grnStats = grnService.getGRNStatistics();
+        
         // TODO: Get other business statistics
-        // - GRN statistics
         // - Credit Note statistics
         // - Financial summaries
         
         model.addAttribute("user", user);
         model.addAttribute("supplierStats", supplierStats);
         model.addAttribute("poStats", poStats);
+        model.addAttribute("grnStats", grnStats);
         
         return "admin-business-dashboard";
     }

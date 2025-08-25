@@ -101,6 +101,7 @@ public interface GRNRepository extends JpaRepository<GoodsReceivedNote, Long> {
     @Query("SELECT DISTINCT grn FROM GoodsReceivedNote grn LEFT JOIN FETCH grn.grnItems LEFT JOIN FETCH grn.supplier WHERE grn.id = :grnId")
     Optional<GoodsReceivedNote> findByIdWithItemsAndSupplier(@Param("grnId") Long grnId);
     
+    
     // Find all GRNs with items and supplier
     @Query("SELECT DISTINCT grn FROM GoodsReceivedNote grn LEFT JOIN FETCH grn.grnItems LEFT JOIN FETCH grn.supplier")
     List<GoodsReceivedNote> findAllWithItemsAndSupplier();

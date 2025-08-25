@@ -61,6 +61,14 @@ public class PurchaseOrderService {
         return purchaseOrderRepository.save(purchaseOrder);
     }
 
+
+    public List<PurchaseOrder> getAllWithItems() {
+        return purchaseOrderRepository.findAllWithItems();
+    }
+    
+    public Optional<PurchaseOrder> getByIdWithItems(Long id) {
+        return purchaseOrderRepository.findByIdWithItems(id);
+    }
     
     // Create new purchase order with items (separate method for controller use)
     public PurchaseOrder createPurchaseOrderWithItems(PurchaseOrder purchaseOrder, List<PurchaseOrderItem> orderItems) {

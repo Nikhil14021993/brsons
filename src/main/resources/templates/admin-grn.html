@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goods Received Notes - Admin Panel</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .grn-container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+            color: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .page-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .page-header p {
+            margin: 10px 0 0 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #388E3C;
+            transform: translateY(-2px);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 5px solid #FF9800;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #FF9800;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .search-filter {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .grn-table {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .table-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 1.3rem;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-draft { background: #e3f2fd; color: #1976d2; }
+        .status-received { background: #e8f5e8; color: #388e3c; }
+        .status-inspected { background: #fff3e0; color: #f57c00; }
+        .status-approved { background: #e8f5e8; color: #2e7d32; }
+        .status-rejected { background: #ffebee; color: #d32f2f; }
+        .status-cancelled { background: #fafafa; color: #616161; }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+        
+        .btn-warning {
+            background: #FF9800;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #F57C00;
+        }
+        
+        .btn-danger {
+            background: #F44336;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #D32F2F;
+        }
+        
+        .back-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: #5a6268;
+            color: white;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grn-container {
+                padding: 15px;
+            }
+            
+            .page-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 20px;
+            }
+            
+            .page-header h1 {
+                font-size: 2rem;
+            }
+            
+            .search-form {
+                flex-direction: column;
+            }
+            
+            .form-group {
+                min-width: 100%;
+            }
+            
+            .table-container {
+                font-size: 0.9rem;
+            }
+            
+            th, td {
+                padding: 10px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="grn-container">
+        <!-- Back Button -->
+        <a th:href="@{/admin/business/dashboard}" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1><i class="fas fa-truck-loading"></i> Goods Received Notes</h1>
+                <p>Manage and track incoming goods from suppliers</p>
+            </div>
+            <div class="header-actions">
+                <a th:href="@{/admin/business/grn}" class="btn btn-primary">
+                    <i class="fas fa-list"></i> View All GRN
+                </a>
+                <a th:href="@{/admin/business/grn/new}" class="btn btn-success">
+                    <i class="fas fa-plus"></i> Create New GRN
+                </a>
+            </div>
+        </div>
+        
+        <!-- Statistics Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" th:text="${grnStats.totalGRNs}">0</div>
+                <div class="stat-label">Total GRN</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" th:text="${grnStats.draftGRNs}">0</div>
+                <div class="stat-label">Draft</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" th:text="${grnStats.receivedGRNs}">0</div>
+                <div class="stat-label">Received</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" th:text="${grnStats.inspectedGRNs}">0</div>
+                <div class="stat-label">Inspected</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" th:text="${grnStats.approvedGRNs}">0</div>
+                <div class="stat-label">Approved</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" th:text="${grnStats.rejectedGRNs}">0</div>
+                <div class="stat-label">Rejected</div>
+            </div>
+        </div>
+        
+        <!-- Search and Filter -->
+        <div class="search-filter">
+            <form th:action="@{/admin/business/grn/search}" method="get" class="search-form">
+                <div class="form-group">
+                    <label for="query">Search GRN</label>
+                    <input type="text" id="query" name="query" 
+                           th:value="${searchQuery}" 
+                           placeholder="Search by GRN number, supplier, or PO number">
+                </div>
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="">All Statuses</option>
+                        <option value="DRAFT">Draft</option>
+                        <option value="RECEIVED">Received</option>
+                        <option value="INSPECTED">Inspected</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="REJECTED">Rejected</option>
+                        <option value="CANCELLED">Cancelled</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- GRN Table -->
+        <div class="grn-table">
+            <div class="table-header">
+                <h3><i class="fas fa-table"></i> Goods Received Notes</h3>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>GRN Number</th>
+                            <th>Purchase Order</th>
+                            <th>Supplier</th>
+                            <th>Received Date</th>
+                            <th>Status</th>
+                            <th>Total Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:if="${#lists.isEmpty(grns)}">
+                            <td colspan="7">
+                                <div class="empty-state">
+                                    <i class="fas fa-truck-loading"></i>
+                                    <h3>No GRN Found</h3>
+                                    <p>Start by creating your first Goods Received Note</p>
+                                    <a th:href="@{/admin/business/grn/new}" class="btn btn-success">
+                                        <i class="fas fa-plus"></i> Create New GRN
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <tr th:each="grn : ${grns}">
+                            <td>
+                                <strong th:text="${grn.grnNumber}">GRN001</strong>
+                            </td>
+                            <td th:text="${grn.purchaseOrder.poNumber}">PO001</td>
+                            <td th:text="${grn.supplier.companyName}">Supplier Name</td>
+                            <td th:text="${#temporals.format(grn.receivedDate, 'dd/MM/yyyy')}">01/01/2024</td>
+                            <td>
+                                <span class="status-badge" 
+                                      th:classappend="'status-' + ${#strings.toLowerCase(grn.status)}"
+                                      th:text="${grn.status}">DRAFT</span>
+                            </td>
+                            <td th:text="${'₹' + #numbers.formatDecimal(grn.totalAmount, 1, 2)}">₹0.00</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a th:href="@{/admin/business/grn/edit/{id}(id=${grn.id})}" 
+                                       class="btn btn-warning btn-sm">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button class="btn btn-primary btn-sm" 
+                                            th:onclick="'updateStatus(' + ${grn.id} + ', \'RECEIVED\')'"
+                                            th:if="${grn.status == T(com.brsons.model.GoodsReceivedNote.GRNStatus).DRAFT}">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn btn-success btn-sm" 
+                                            th:onclick="'updateStatus(' + ${grn.id} + ', \'INSPECTED\')'"
+                                            th:if="${grn.status == T(com.brsons.model.GoodsReceivedNote.GRNStatus).RECEIVED}">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" 
+                                            th:onclick="'updateStatus(' + ${grn.id} + ', \'APPROVED\')'"
+                                            th:if="${grn.status == T(com.brsons.model.GoodsReceivedNote.GRNStatus).INSPECTED}">
+                                        <i class="fas fa-thumbs-up"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" 
+                                            th:onclick="'updateStatus(' + ${grn.id} + ', \'REJECTED\')'"
+                                            th:if="${grn.status == T(com.brsons.model.GoodsReceivedNote.GRNStatus).INSPECTED}">
+                                        <i class="fas fa-thumbs-down"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function updateStatus(grnId, newStatus) {
+            if (confirm('Are you sure you want to update the status to ' + newStatus + '?')) {
+                fetch('/admin/business/grn/status/' + grnId, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'status=' + newStatus
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Status updated successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error updating status');
+                });
+            }
+        }
+        
+        // Set selected status in filter dropdown
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const status = urlParams.get('status');
+            if (status) {
+                document.getElementById('status').value = status;
+            }
+        });
+    </script>
+</body>
+</html>

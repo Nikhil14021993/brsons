@@ -351,7 +351,7 @@
                 <div class="stat-icon">
                     <i class="fas fa-truck-loading"></i>
                 </div>
-                <div class="stat-number">0</div>
+                <div class="stat-number" th:text="${grnStats.totalGRNs}">0</div>
                 <div class="stat-label">Goods Received</div>
             </div>
             
@@ -420,7 +420,7 @@
                     <a th:href="@{/admin/business/grn}" class="btn btn-primary">
                         <i class="fas fa-list"></i> View GRN
                     </a>
-                    <a href="#" class="btn btn-success">
+                    <a th:href="@{/admin/business/grn/new}" class="btn btn-success">
                         <i class="fas fa-plus"></i> Create New GRN
                     </a>
                 </div>

@@ -78,13 +78,22 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
     // Count POs by supplier
     long countBySupplier(Supplier supplier);
     
-    // Find POs with items
-    @Query("SELECT DISTINCT po FROM PurchaseOrder po LEFT JOIN FETCH po.orderItems WHERE po.id = :poId")
-    Optional<PurchaseOrder> findByIdWithItems(@Param("poId") Long poId);
+    @Query("select po from PurchaseOrder po " +
+            "left join fetch po.orderItems oi " +
+            "left join fetch oi.product p " +
+            "left join fetch po.supplier s " +
+            "where po.id = :id")
+     Optional<PurchaseOrder> findByIdWithItems(@Param("id") Long id);
     
     // Find POs with items and supplier
     @Query("SELECT DISTINCT po FROM PurchaseOrder po LEFT JOIN FETCH po.orderItems LEFT JOIN FETCH po.supplier WHERE po.id = :poId")
     Optional<PurchaseOrder> findByIdWithItemsAndSupplier(@Param("poId") Long poId);
+    
+    @Query("select distinct po from PurchaseOrder po " +
+            "left join fetch po.orderItems oi " +
+            "left join fetch oi.product p " +
+            "left join fetch po.supplier s")
+     List<PurchaseOrder> findAllWithItems();
     
     // Find all POs with items and supplier
     @Query("SELECT DISTINCT po FROM PurchaseOrder po LEFT JOIN FETCH po.orderItems LEFT JOIN FETCH po.supplier")

@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create GRN - Admin Panel</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .add-grn-container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .back-link {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: #5a6268;
+            color: white;
+        }
+        
+        .page-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+            color: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .page-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .page-header p {
+            margin: 10px 0 0 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .form-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #FF9800;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #FF9800;
+            box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.1);
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .grn-items {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        
+        .items-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .items-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .add-item-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.3s ease;
+        }
+        
+        .add-item-btn:hover {
+            background: #388E3C;
+        }
+        
+        .item-row {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .item-number {
+            font-weight: 600;
+            color: #FF9800;
+        }
+        
+        .remove-item-btn {
+            background: #F44336;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.3s ease;
+        }
+        
+        .remove-item-btn:hover {
+            background: #D32F2F;
+        }
+        
+        .item-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .totals-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .total-row:last-child {
+            border-bottom: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #FF9800;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #388E3C;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .messages {
+            margin-bottom: 20px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        @media (max-width: 768px) {
+            .add-grn-container {
+                padding: 15px;
+            }
+            
+            .page-header h1 {
+                font-size: 2rem;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .item-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="add-grn-container">
+        <!-- Back Link -->
+        <a th:href="@{/admin/business/grn}" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to GRN List
+        </a>
+        
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-truck-loading"></i> Create Goods Received Note</h1>
+            <p>Record incoming goods from suppliers</p>
+        </div>
+        
+        <!-- Messages -->
+        <div class="messages" th:if="${successMessage != null and successMessage != '' or errorMessage != null and errorMessage != ''}">
+            <div class="alert alert-success" th:if="${successMessage != null and successMessage != ''}" th:text="${successMessage}"></div>
+            <div class="alert alert-error" th:if="${errorMessage != null and errorMessage != ''}" th:text="${errorMessage}"></div>
+        </div>
+        
+        <!-- GRN Form -->
+        <form id="grnForm" th:action="@{/admin/business/grn/new}" th:object="${grn}" method="post" class="form-container">
+            
+            <!-- Basic Information -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-info-circle"></i> Basic Information
+                </h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="grnNumber">GRN Number</label>
+                        <input type="text" id="grnNumber" name="grnNumber" 
+                               th:field="*{grnNumber}" 
+                               placeholder="Auto-generated if left empty">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="receivedDate">Received Date</label>
+                        <input type="date" id="receivedDate" name="receivedDate" 
+                               th:field="*{receivedDate}">
+                    </div>
+                </div>
+                
+                                 <div class="form-row">
+                     <div class="form-group">
+                         <label for="purchaseOrder">Purchase Order</label>
+                         <select id="purchaseOrder" name="purchaseOrder.id" required onchange="onPurchaseOrderChange()">
+                             <option value="">Select Purchase Order</option>
+                             <option th:each="po : ${purchaseOrders}" 
+                                     th:value="${po.id}" 
+                                     th:text="${po.poNumber + ' - ' + po.supplier.companyName}">
+                                 PO001 - Supplier Name
+                             </option>
+                         </select>
+                     </div>
+                     
+                     <div class="form-group">
+                         <label for="supplier">Supplier</label>
+                         <select id="supplier" name="supplier.id" required>
+                             <option value="">Select Supplier</option>
+                             <option th:each="supplier : ${suppliers}" 
+                                     th:value="${supplier.id}" 
+                                     th:text="${supplier.companyName}">
+                                 Supplier Name
+                             </option>
+                         </select>
+                     </div>
+                 </div>
+            </div>
+            
+            <!-- Delivery Information -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-truck"></i> Delivery Information
+                </h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="deliveryNoteNumber">Delivery Note Number</label>
+                        <input type="text" id="deliveryNoteNumber" name="deliveryNoteNumber" 
+                               th:field="*{deliveryNoteNumber}" 
+                               placeholder="Supplier's delivery note number">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="vehicleNumber">Vehicle Number</label>
+                        <input type="text" id="vehicleNumber" name="vehicleNumber" 
+                               th:field="*{vehicleNumber}" 
+                               placeholder="Vehicle registration number">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="receivedBy">Received By</label>
+                        <input type="text" id="receivedBy" name="receivedBy" 
+                               th:field="*{receivedBy}" 
+                               th:value="${user.name}" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="inspectedBy">Inspected By</label>
+                        <input type="text" id="inspectedBy" name="inspectedBy" 
+                               th:field="*{inspectedBy}" 
+                               placeholder="Quality inspector name">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- GRN Items -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-boxes"></i> GRN Items
+                </h3>
+                
+                <div class="grn-items">
+                                         <div class="items-header">
+                         <h4 class="items-title">Items Received</h4>
+                         <button type="button" class="add-item-btn" onclick="addItem()" id="addItemBtn">
+                             <i class="fas fa-plus"></i> Add Item
+                         </button>
+                     </div>
+                    
+                    <div id="items-container">
+                        <!-- Items will be added here dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Totals -->
+            <div class="totals-section">
+                <h4>Totals</h4>
+                <div class="total-row">
+                    <span>Subtotal:</span>
+                    <span id="subtotal">₹0.00</span>
+                </div>
+                <div class="total-row">
+                    <span>Tax Amount:</span>
+                    <span id="taxAmount">₹0.00</span>
+                </div>
+                <div class="total-row">
+                    <span>Total Amount:</span>
+                    <span id="totalAmount">₹0.00</span>
+                </div>
+            </div>
+            
+            <!-- Additional Information -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-clipboard"></i> Additional Information
+                </h3>
+                
+                <div class="form-group">
+                    <label for="qualityRemarks">Quality Remarks</label>
+                    <textarea id="qualityRemarks" name="qualityRemarks" 
+                              th:field="*{qualityRemarks}" 
+                              placeholder="Quality inspection notes and remarks"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">General Notes</label>
+                    <textarea id="notes" name="notes" 
+                              th:field="*{notes}" 
+                              placeholder="Additional notes and comments"></textarea>
+                </div>
+            </div>
+            
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a th:href="@{/admin/business/grn}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Create GRN
+                </button>
+            </div>
+        </form>
+    </div>
+    
+         <script th:inline="javascript">
+         function reindexItems() {
+    const items = document.querySelectorAll('#items-container .item-row');
+    items.forEach((item, idx) => {
+        // update id
+        item.id = `item-${idx+1}`;
+        // update displayed number
+        const num = item.querySelector('.item-number');
+        if (num) num.textContent = `Item ${idx+1}`;
+
+        // update each input/select name that contains grnItems[<num>]
+        item.querySelectorAll('[name]').forEach(el => {
+            const name = el.getAttribute('name');
+            if (!name) return;
+            // replace the first occurrence of grnItems[<digits>]
+            const newName = name.replace(/grnItems\[\d+\]/, `grnItems[${idx}]`);
+            el.setAttribute('name', newName);
+        });
+    });
+}
+
+// Reindex just before submit
+document.getElementById('grnForm').addEventListener('submit', function (e) {
+    reindexItems();
+    // optional: run a final validation here
+});
+
+                             // Get purchase orders data from Thymeleaf
+           const purchaseOrders = JSON.parse(/*[[${purchaseOrdersJson}]]*/ '[]');
+           console.log('Purchase Orders loaded:', purchaseOrders); // Debug log
+           console.log('Purchase Orders JSON string:', /*[[${purchaseOrdersJson}]]*/ '');
+           console.log('Purchase Orders count:', purchaseOrders.length);
+           console.log('Purchase Orders type:', typeof purchaseOrders);
+           console.log('Purchase Orders is array:', Array.isArray(purchaseOrders));
+           if (purchaseOrders.length > 0) {
+               console.log('First PO:', purchaseOrders[0]);
+               console.log('First PO items:', purchaseOrders[0].items);
+           }
+         let itemCounter = 0;
+        
+                 let selectedPO = null;
+         
+                                       function onPurchaseOrderChange() {
+               const poSelect = document.getElementById('purchaseOrder');
+               const supplierSelect = document.getElementById('supplier');
+               const addItemBtn = document.getElementById('addItemBtn');
+               const selectedPOId = poSelect.value;
+               
+               console.log('=== PO Selection Changed ===');
+               console.log('PO Selection changed to:', selectedPOId);
+               console.log('Available POs:', purchaseOrders);
+               console.log('Available POs type:', typeof purchaseOrders);
+               console.log('Available POs length:', purchaseOrders.length);
+               
+               if (selectedPOId) {
+                   // Find the selected PO
+                   selectedPO = purchaseOrders.find(po => po.id == selectedPOId);
+                   console.log('Selected PO:', selectedPO);
+                   console.log('Selected PO type:', typeof selectedPO);
+                   
+                   if (selectedPO) {
+                       console.log('Selected PO items:', selectedPO.items);
+                       console.log('Selected PO items type:', typeof selectedPO.items);
+                       console.log('Selected PO items length:', selectedPO.items ? selectedPO.items.length : 'null');
+                       
+                       // Auto-select the supplier
+                       supplierSelect.value = selectedPO.supplierId;
+                       console.log('Auto-selected supplier:', selectedPO.supplierId);
+                       
+                       // Clear existing items and add new ones based on PO
+                       clearItems();
+                       console.log('Items cleared, now adding items from PO...');
+                       addItemsFromPO(selectedPO);
+                       
+                       // Always show the Add Item button when a PO is selected
+                       addItemBtn.style.display = 'inline-block';
+                       console.log('Add Item button shown');
+                   }
+               } else {
+                   selectedPO = null;
+                   supplierSelect.value = '';
+                   clearItems();
+                   addItemBtn.style.display = 'none';
+                   console.log('PO cleared, Add Item button hidden');
+               }
+           }
+         
+         function clearItems() {
+             const container = document.getElementById('items-container');
+             container.innerHTML = '';
+             itemCounter = 0;
+         }
+         
+         function addItemsFromPO(po) {
+             console.log('=== addItemsFromPO called ===');
+             console.log('Adding items from PO:', po);
+             console.log('PO items:', po.items);
+             console.log('PO items length:', po.items ? po.items.length : 'null');
+             
+             if (po.items && po.items.length > 0) {
+                 console.log('PO has items, processing them...');
+                 po.items.forEach((poItem, index) => {
+                     console.log('Processing PO item:', poItem);
+                     console.log('Item details - ID:', poItem.productId, 'Name:', poItem.productName, 'Qty:', poItem.orderedQuantity);
+                     itemCounter++;
+                     const container = document.getElementById('items-container');
+                     console.log('Container found:', container);
+                     
+                     const itemHtml = `
+                         <div class="item-row" id="item-${itemCounter}">
+                             <div class="item-header">
+                                 <span class="item-number">Item ${itemCounter}</span>
+                                 <button type="button" class="remove-item-btn" onclick="removeItem(${itemCounter})">
+                                     <i class="fas fa-trash"></i> Remove
+                                 </button>
+                             </div>
+                             <div class="item-grid">
+                                 <div class="form-group">
+                                     <label>Product</label>
+                                     <select name="grnItems[${itemCounter-1}].product.id" required onchange="onProductChange(${itemCounter})">
+                                         <option value="">Select Product</option>
+                                         <option value="${poItem.productId}" selected>${poItem.productName}</option>
+                                     </select>
+                                 </div>
+                                 <div class="form-group">
+                                     <label>Ordered Quantity</label>
+                                     <input type="number" name="grnItems[${itemCounter-1}].orderedQuantity" 
+                                            min="0" step="1" placeholder="0" required 
+                                            value="${poItem.orderedQuantity || 0}" readonly>
+                                 </div>
+                                 <div class="form-group">
+                                     <label>Received Quantity</label>
+                                     <input type="number" name="grnItems[${itemCounter-1}].receivedQuantity" 
+                                            min="0" step="1" placeholder="0" required 
+                                            onchange="calculateItemTotal(${itemCounter})">
+                                 </div>
+                                 <div class="form-group">
+                                     <label>Accepted Quantity</label>
+                                     <input type="number" name="grnItems[${itemCounter-1}].acceptedQuantity" 
+                                            min="0" step="1" placeholder="0" required 
+                                            onchange="calculateItemTotal(${itemCounter})">
+                                 </div>
+                                 <div class="form-group">
+                                     <label>Rejected Quantity</label>
+                                     <input type="number" name="grnItems[${itemCounter-1}].rejectedQuantity" 
+                                            min="0" step="1" placeholder="0" required 
+                                            onchange="calculateItemTotal(${itemCounter})">
+                                 </div>
+                                 <div class="form-group">
+                                     <label>Unit Price</label>
+                                     <input type="number" name="grnItems[${itemCounter-1}].unitPrice" 
+                                            min="0" step="0.01" placeholder="0.00" required 
+                                            value="${poItem.unitPrice || 0}" 
+                                            onchange="calculateItemTotal(${itemCounter})">
+                                 </div>
+                                 <div class="form-group">
+                                     <label>Discount %</label>
+                                     <input type="number" name="grnItems[${itemCounter-1}].discountPercentage" 
+                                            min="0" max="100" step="0.01" placeholder="0.00" 
+                                            value="${poItem.discountPercentage || 0}"
+                                            onchange="calculateItemTotal(${itemCounter})">
+                                 </div>
+                                 <div class="form-group">
+                                     <label>Tax %</label>
+                                     <input type="number" name="grnItems[${itemCounter-1}].taxPercentage" 
+                                            min="0" max="100" step="0.01" placeholder="0.00" 
+                                            value="${poItem.taxPercentage || 0}"
+                                            onchange="calculateItemTotal(${itemCounter})">
+                                 </div>
+                                 <div class="form-group">
+                                     <label>Total Amount</label>
+                                     <input type="number" name="grnItems[${itemCounter-1}].totalAmount" 
+                                            readonly placeholder="0.00">
+                                 </div>
+                             </div>
+                         </div>
+                     `;
+                     
+                     console.log('About to insert HTML for item:', itemCounter);
+                     container.insertAdjacentHTML('beforeend', itemHtml);
+                     console.log('HTML inserted successfully for item:', itemCounter);
+                 });
+                 
+                 // Calculate totals after adding items
+                 calculateTotals();
+                 console.log('Items added successfully, totals calculated');
+             }
+         }
+         
+         function generateProductOptions() {
+             console.log('generateProductOptions called, selectedPO:', selectedPO); // Debug log
+             let options = '';
+             
+             // If a PO is selected, only show products from that PO
+             if (selectedPO && selectedPO.items && selectedPO.items.length > 0) {
+                 console.log('PO has items, generating product options');
+                 selectedPO.items.forEach(poItem => {
+                     console.log('Adding product option:', poItem.productName, 'ID:', poItem.productId);
+                     options += `<option value="${poItem.productId}">${poItem.productName}</option>`;
+                 });
+             } else {
+                 // If no PO is selected, show a message
+                 console.log('No PO selected or PO has no items');
+                 options = '<option value="">No products available - please select a Purchase Order first</option>';
+             }
+             
+             console.log('Generated options:', options); // Debug log
+             return options;
+         }
+        
+                 function onProductChange(itemId) {
+             const item = document.getElementById(`item-${itemId}`);
+             const productSelect = item.querySelector('select[name*="product.id"]');
+             const unitPriceInput = item.querySelector('input[name*="unitPrice"]');
+             const discountInput = item.querySelector('input[name*="discountPercentage"]');
+             const taxInput = item.querySelector('input[name*="taxPercentage"]');
+             const orderedQtyInput = item.querySelector('input[name*="orderedQuantity"]');
+             
+             if (productSelect.value && selectedPO && selectedPO.items) {
+                 // Find the PO item for this product
+                 const poItem = selectedPO.items.find(poItem => poItem.productId == productSelect.value);
+                 if (poItem) {
+                     // Auto-fill all the PO details
+                     unitPriceInput.value = poItem.unitPrice || 0;
+                     discountInput.value = poItem.discountPercentage || 0;
+                     taxInput.value = poItem.taxPercentage || 0;
+                     orderedQtyInput.value = poItem.orderedQuantity || 0;
+                     
+                     // Make ordered quantity readonly since it comes from PO
+                     orderedQtyInput.readOnly = true;
+                     
+                     calculateItemTotal(itemId);
+                 }
+             }
+         }
+        
+                 function addItem() {
+             console.log('addItem called, itemCounter:', itemCounter); // Debug log
+             console.log('addItem called, selectedPO:', selectedPO); // Debug log
+             
+             // Only allow adding items if a PO is selected
+             if (!selectedPO || !selectedPO.items || selectedPO.items.length === 0) {
+                 console.log('No PO selected or PO has no items, cannot add item');
+                 return;
+             }
+             
+             itemCounter++;
+             const container = document.getElementById('items-container');
+             console.log('Container found:', container); // Debug log
+             
+             // Create a full item with all fields
+             const itemHtml = `
+                 <div class="item-row" id="item-${itemCounter}">
+                     <div class="item-header">
+                         <span class="item-number">Item ${itemCounter}</span>
+                         <button type="button" class="remove-item-btn" onclick="removeItem(${itemCounter})">
+                             <i class="fas fa-trash"></i> Remove
+                         </button>
+                     </div>
+                     <div class="item-grid">
+                         <div class="form-group">
+                             <label>Product</label>
+                             <select name="grnItems[${itemCounter-1}].product.id" required onchange="onProductChange(${itemCounter})">
+                                 <option value="">Select Product</option>
+                                 ${generateProductOptions()}
+                             </select>
+                         </div>
+                         <div class="form-group">
+                             <label>Ordered Quantity</label>
+                             <input type="number" name="grnItems[${itemCounter-1}].orderedQuantity" 
+                                    min="0" step="1" placeholder="0" required>
+                         </div>
+                         <div class="form-group">
+                             <label>Received Quantity</label>
+                             <input type="number" name="grnItems[${itemCounter-1}].receivedQuantity" 
+                                    min="0" step="1" placeholder="0" required 
+                                    onchange="calculateItemTotal(${itemCounter})">
+                         </div>
+                         <div class="form-group">
+                             <label>Accepted Quantity</label>
+                             <input type="number" name="grnItems[${itemCounter-1}].acceptedQuantity" 
+                                    min="0" step="1" placeholder="0" required 
+                                    onchange="calculateItemTotal(${itemCounter})">
+                         </div>
+                         <div class="form-group">
+                             <label>Rejected Quantity</label>
+                             <input type="number" name="grnItems[${itemCounter-1}].rejectedQuantity" 
+                                    min="0" step="1" placeholder="0" required 
+                                    onchange="calculateItemTotal(${itemCounter})">
+                         </div>
+                         <div class="form-group">
+                             <label>Unit Price</label>
+                             <input type="number" name="grnItems[${itemCounter-1}].unitPrice" 
+                                    min="0" step="0.01" placeholder="0.00" required 
+                                    onchange="calculateItemTotal(${itemCounter})">
+                         </div>
+                         <div class="form-group">
+                             <label>Discount %</label>
+                             <input type="number" name="grnItems[${itemCounter-1}].discountPercentage" 
+                                    min="0" max="100" step="0.01" placeholder="0.00" 
+                                    onchange="calculateItemTotal(${itemCounter})">
+                         </div>
+                         <div class="form-group">
+                             <label>Tax %</label>
+                             <input type="number" name="grnItems[${itemCounter-1}].taxPercentage" 
+                                    min="0" max="100" step="0.01" placeholder="0.00" 
+                                    onchange="calculateItemTotal(${itemCounter})">
+                         </div>
+                         <div class="form-group">
+                             <label>Total Amount</label>
+                             <input type="number" name="grnItems[${itemCounter-1}].totalAmount" 
+                                    readonly placeholder="0.00">
+                         </div>
+                     </div>
+                 </div>
+             `;
+             
+             console.log('About to insert HTML:', itemHtml); // Debug log
+             container.insertAdjacentHTML('beforeend', itemHtml);
+             console.log('HTML inserted successfully'); // Debug log
+         }
+        
+        function removeItem(itemId) {
+            const item = document.getElementById(`item-${itemId}`);
+            item.remove();
+            calculateTotals();
+        }
+        
+        function calculateItemTotal(itemId) {
+            const item = document.getElementById(`item-${itemId}`);
+            const receivedQty = parseFloat(item.querySelector('input[name*="receivedQuantity"]').value) || 0;
+            const unitPrice = parseFloat(item.querySelector('input[name*="unitPrice"]').value) || 0;
+            const discountPercent = parseFloat(item.querySelector('input[name*="discountPercentage"]').value) || 0;
+            const taxPercent = parseFloat(item.querySelector('input[name*="taxPercentage"]').value) || 0;
+            
+            // Calculate subtotal
+            let subtotal = receivedQty * unitPrice;
+            
+            // Apply discount
+            const discountAmount = subtotal * (discountPercent / 100);
+            subtotal -= discountAmount;
+            
+            // Apply tax
+            const taxAmount = subtotal * (taxPercent / 100);
+            const total = subtotal + taxAmount;
+            
+            // Update total amount field
+            item.querySelector('input[name*="totalAmount"]').value = total.toFixed(2);
+            
+            calculateTotals();
+        }
+        
+        function calculateTotals() {
+            let subtotal = 0;
+            let totalTax = 0;
+            
+            // Calculate subtotal from all items
+            const totalAmountInputs = document.querySelectorAll('input[name*="totalAmount"]');
+            totalAmountInputs.forEach(input => {
+                const item = input.closest('.item-row');
+                const receivedQty = parseFloat(item.querySelector('input[name*="receivedQuantity"]').value) || 0;
+                const unitPrice = parseFloat(item.querySelector('input[name*="unitPrice"]').value) || 0;
+                const discountPercent = parseFloat(item.querySelector('input[name*="discountPercentage"]').value) || 0;
+                const taxPercent = parseFloat(item.querySelector('input[name*="taxPercentage"]').value) || 0;
+                
+                let itemSubtotal = receivedQty * unitPrice;
+                const discountAmount = itemSubtotal * (discountPercent / 100);
+                itemSubtotal -= discountAmount;
+                
+                subtotal += itemSubtotal;
+                totalTax += itemSubtotal * (taxPercent / 100);
+            });
+            
+            const totalAmount = subtotal + totalTax;
+            
+            // Update display
+            document.getElementById('subtotal').textContent = '₹' + subtotal.toFixed(2);
+            document.getElementById('taxAmount').textContent = '₹' + totalTax.toFixed(2);
+            document.getElementById('totalAmount').textContent = '₹' + totalAmount.toFixed(2);
+        }
+        
+                 // Don't add items automatically - wait for PO selection
+                   document.addEventListener('DOMContentLoaded', function() {
+              console.log('DOM loaded, waiting for PO selection'); // Debug log
+              
+              // Test if the page is working
+              console.log('Testing page functionality...');
+console.log('Items container found:', document.getElementById('items-container'));
+              
+             
+          });
+    </script>
+</body>
+</html>
