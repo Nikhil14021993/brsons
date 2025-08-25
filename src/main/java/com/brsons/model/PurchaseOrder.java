@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "purchase_orders")
@@ -154,8 +155,21 @@ public class PurchaseOrder {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     
     public List<PurchaseOrderItem> getOrderItems() { return orderItems; }
-    public void setOrderItems(List<PurchaseOrderItem> orderItems) { this.orderItems = orderItems; }
-    
+    public void setOrderItems(List<PurchaseOrderItem> items) {
+        // Reset and re-link every child to this parent
+        if (this.orderItems == null) {
+            this.orderItems = new ArrayList<>();
+        } else {
+            // orphanRemoval=true will delete them on flush
+            this.orderItems.clear();
+        }
+        if (items != null) {
+            for (PurchaseOrderItem i : items) {
+                this.addItem(i); // ensures i.setPurchaseOrder(this)
+            }
+        }
+    }
+        
     public List<GoodsReceivedNote> getGrnList() { return grnList; }
     public void setGrnList(List<GoodsReceivedNote> grnList) { this.grnList = grnList; }
     
@@ -163,6 +177,22 @@ public class PurchaseOrder {
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+    
+    // Bidirectional relationship management
+    public void addItem(PurchaseOrderItem item) {
+        if (orderItems == null) {
+            orderItems = new ArrayList<>();
+        }
+        orderItems.add(item);
+        item.setPurchaseOrder(this);
+    }
+    
+    public void removeItem(PurchaseOrderItem item) {
+        if (orderItems != null) {
+            orderItems.remove(item);
+            item.setPurchaseOrder(null);
+        }
     }
     
     public void calculateTotals() {

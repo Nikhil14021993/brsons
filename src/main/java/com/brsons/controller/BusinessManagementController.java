@@ -7,7 +7,10 @@ import com.brsons.model.*;
 import com.brsons.service.SupplierService;
 import com.brsons.service.PurchaseOrderService;
 import com.brsons.repository.ProductRepository;
+import com.brsons.repository.SupplierRepository;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -41,6 +44,8 @@ public class BusinessManagementController {
     @Autowired
     private com.brsons.util.PurchaseOrderUtils poUtils;
     
+    @Autowired
+    private SupplierRepository supplierRepository;
     // ==================== SUPPLIER MANAGEMENT ====================
     
     @GetMapping("/suppliers")
@@ -473,30 +478,82 @@ public class BusinessManagementController {
     }
     
     @PostMapping("/purchase-orders/edit/{id}")
-    public String updatePurchaseOrder(@PathVariable Long id, 
-                                    @ModelAttribute PurchaseOrder purchaseOrder, 
-                                    HttpSession session, 
-                                    RedirectAttributes redirectAttributes) {
+    public String updatePurchaseOrder(
+            @PathVariable Long id,
+            @RequestParam(required = false) String poNumber,
+            @RequestParam Long supplierId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expectedDeliveryDate,
+            @RequestParam(required = false) String deliveryAddress,
+            @RequestParam(required = false) String paymentTerms,
+            @RequestParam(required = false, defaultValue = "0") BigDecimal shippingCost,
+            @RequestParam(required = false) String notes,
+            @RequestParam(required = false) Long[] itemIds,              // 👈 NEW
+            @RequestParam(required = false) String[] productIds,
+            @RequestParam(required = false) Integer[] orderedQuantities,
+            @RequestParam(required = false) BigDecimal[] unitPrices,
+            @RequestParam(required = false) BigDecimal[] discountPercentages,
+            @RequestParam(required = false) BigDecimal[] taxPercentages,
+            @RequestParam(required = false) String[] itemNotes,
+            RedirectAttributes redirectAttributes) {
+        
         try {
-            User user = (User) session.getAttribute("user");
-            if (user == null || !"Admin".equals(user.getType())) {
-                return "redirect:/login";
+            Supplier supplier = supplierRepository.findById(supplierId)
+                    .orElseThrow(() -> new RuntimeException("Supplier not found"));
+
+            PurchaseOrder purchaseOrder = new PurchaseOrder();
+            purchaseOrder.setId(id);
+            purchaseOrder.setPoNumber(poNumber);
+            purchaseOrder.setSupplier(supplier);
+            if (expectedDeliveryDate != null) {
+                purchaseOrder.setExpectedDeliveryDate(expectedDeliveryDate.atStartOfDay());
+            }            purchaseOrder.setDeliveryAddress(deliveryAddress);
+            purchaseOrder.setPaymentTerms(paymentTerms);
+            purchaseOrder.setShippingCost(shippingCost);
+            purchaseOrder.setNotes(notes);
+
+            List<PurchaseOrderItem> orderItems = new ArrayList<>();
+
+            if (productIds != null) {
+                for (int i = 0; i < productIds.length; i++) {
+                    if (productIds[i] != null && !productIds[i].trim().isEmpty()) {
+                        Product product = productRepository.findById(Long.parseLong(productIds[i]))
+                                .orElse(null);
+                        if (product == null) continue;
+
+                        PurchaseOrderItem item = new PurchaseOrderItem();
+
+                        // 👇 If itemIds[] exists and has a value, set it (so JPA updates instead of insert)
+                        if (itemIds != null && i < itemIds.length && itemIds[i] != null) {
+                            item.setId(itemIds[i]);
+                        }
+
+                        item.setProduct(product);
+                        item.setOrderedQuantity(orderedQuantities != null && i < orderedQuantities.length ? orderedQuantities[i] : 0);
+                        item.setUnitPrice(unitPrices != null && i < unitPrices.length ? unitPrices[i] : BigDecimal.ZERO);
+                        item.setDiscountPercentage(discountPercentages != null && i < discountPercentages.length ? discountPercentages[i] : BigDecimal.ZERO);
+                        item.setTaxPercentage(taxPercentages != null && i < taxPercentages.length ? taxPercentages[i] : BigDecimal.ZERO);
+                        item.setNotes(itemNotes != null && i < itemNotes.length ? itemNotes[i] : "");
+                        item.calculateTotals();
+
+                        orderItems.add(item);
+                    }
+                }
             }
-            
-            PurchaseOrder updatedPO = purchaseOrderService.updatePurchaseOrder(id, purchaseOrder);
-            
-            redirectAttributes.addFlashAttribute("successMessage", 
-                "Purchase Order '" + updatedPO.getPoNumber() + "' updated successfully!");
-            
-            return "redirect:/admin/business/purchase-orders";
-            
+
+            purchaseOrder.setOrderItems(orderItems);
+            purchaseOrder.setUpdatedAt(LocalDateTime.now());
+            purchaseOrder.calculateTotals();
+
+            purchaseOrderService.updatePurchaseOrder(id, purchaseOrder);
+            redirectAttributes.addFlashAttribute("successMessage", "Purchase order updated successfully!");
+
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", 
-                "Error updating purchase order: " + e.getMessage());
-            return "redirect:/admin/business/purchase-orders/edit/" + id;
+            redirectAttributes.addFlashAttribute("errorMessage", "Error updating purchase order: " + e.getMessage());
         }
+
+        return "redirect:/admin/business/purchase-orders";
     }
-    
+   
     @PostMapping("/purchase-orders/status/{id}")
     @ResponseBody
     public Map<String, Object> updatePurchaseOrderStatus(@PathVariable Long id, 

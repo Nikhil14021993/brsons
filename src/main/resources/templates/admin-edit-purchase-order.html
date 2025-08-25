@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Purchase Order - Admin Panel</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="add-po-container">
+        <!-- Back Link -->
+        <a href="/admin/business/purchase-orders" class="back-link">← Back to Purchase Orders</a>
+        
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>Edit Purchase Order</h1>
+            <p>Edit purchase order: <span th:text="${purchaseOrder.poNumber}">PO001</span></p>
+        </div>
+        
+        <!-- Messages -->
+        <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+        
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="form-header">
+                <h2>Purchase Order Information</h2>
+            </div>
+            
+            <form th:action="@{/admin/business/purchase-orders/edit/{id}(id=${purchaseOrder.id})}" method="post" id="poForm" onsubmit="return validateForm(event)">
+                <div class="form-content">
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Basic Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="poNumber">PO Number</label>
+                                <input type="text" id="poNumber" name="poNumber" 
+                                       th:value="${purchaseOrder.poNumber}"
+                                       placeholder="Leave blank for auto-generation">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="supplier">Supplier <span class="required">*</span></label>
+                                <select id="supplier" name="supplierId" required>
+                                    <option value="">Select Supplier</option>
+                                    <option th:each="supplier : ${suppliers}" 
+                                            th:value="${supplier.id}" 
+                                            th:text="${supplier.companyName}"
+                                            th:selected="${supplier.id == purchaseOrder.supplier.id}">Supplier Name</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="expectedDeliveryDate">Expected Delivery Date</label>
+                                <input type="date" id="expectedDeliveryDate" name="expectedDeliveryDate"
+                                       th:value="${purchaseOrder.expectedDeliveryDate}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="paymentTerms">Payment Terms</label>
+                                <input type="text" id="paymentTerms" name="paymentTerms" 
+                                       th:value="${purchaseOrder.paymentTerms}"
+                                       placeholder="e.g., 30 days">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Delivery Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Delivery Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label for="deliveryAddress">Delivery Address</label>
+                                <textarea id="deliveryAddress" name="deliveryAddress" 
+                                          th:text="${purchaseOrder.deliveryAddress}"
+                                          placeholder="Enter delivery address..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Order Items -->
+                    <div class="form-section">
+                        <h3 class="section-title">Order Items</h3>
+                        <div id="orderItems">
+                            <div th:each="item, itemStat : ${purchaseOrder.orderItems}" class="order-item" th:data-item-id="${itemStat.index}">
+                                   <input type="hidden" name="itemIds" th:value="${item.id}" />
+
+                                <div class="item-header">
+                                    <h4>Item #<span th:text="${itemStat.count}">1</span></h4>
+                                    <button type="button" class="remove-item-btn" onclick="removeOrderItem(this)">Remove</button>
+                                </div>
+                                <div class="item-grid">
+                                    <div class="form-group">
+                                        <label>Product <span class="required">*</span></label>
+                                        <select name="productIds" required>
+                                            <option value="">Select Product</option>
+                                            <option th:each="product : ${products}" 
+                                                    th:value="${product.id}" 
+                                                    th:text="${product.productName}"
+                                                    th:selected="${product.id == item.product.id}">Product Name</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Quantity <span class="required">*</span></label>
+                                        <input type="number" name="orderedQuantities" 
+                                               min="1" required placeholder="1" 
+                                               th:value="${item.orderedQuantity}"
+                                               onchange="calculateTotals()">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Unit Price <span class="required">*</span></label>
+                                        <input type="number" name="unitPrices" 
+                                               step="0.01" min="0" required placeholder="0.00"
+                                               th:value="${item.unitPrice}"
+                                               onchange="calculateTotals()">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Discount %</label>
+                                        <input type="number" name="discountPercentages" 
+                                               step="0.01" min="0" max="100" placeholder="0.00"
+                                               th:value="${item.discountPercentage}"
+                                               onchange="calculateTotals()">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Tax %</label>
+                                        <input type="number" name="taxPercentages" 
+                                               step="0.01" min="0" max="100" placeholder="0.00"
+                                               th:value="${item.taxPercentage}"
+                                               onchange="calculateTotals()">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Notes</label>
+                                        <input type="text" name="itemNotes" 
+                                               th:value="${item.notes}"
+                                               placeholder="Optional notes for this item">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Total Amount</label>
+                                        <input type="text" class="item-total" readonly
+                                               th:value="${'₹' + #numbers.formatDecimal(item.totalAmount, 1, 2)}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="add-item-section">
+                            <button type="button" class="btn btn-secondary" onclick="addOrderItem()">
+                                <span>+</span> Add Another Item
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Additional Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="shippingCost">Shipping Cost</label>
+                                <input type="number" id="shippingCost" name="shippingCost" 
+                                       step="0.01" min="0" placeholder="0.00"
+                                       th:value="${purchaseOrder.shippingCost}"
+                                       onchange="calculateTotals()">
+                            </div>
+                            
+                            <!-- Discount is handled per item in the Order Items section -->
+                            
+                            <div class="form-group">
+                                <label for="notes">Notes</label>
+                                <textarea id="notes" name="notes" 
+                                          th:text="${purchaseOrder.notes}"
+                                          placeholder="Additional notes for this purchase order..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Totals Section -->
+                    <div class="form-section totals-section">
+                        <h3 class="section-title">Order Totals</h3>
+                        <div class="totals-grid">
+                            <div class="total-row">
+                                <span>Subtotal:</span>
+                                <span id="subtotal" th:text="${'₹' + #numbers.formatDecimal(purchaseOrder.subtotal, 1, 2)}">₹0.00</span>
+                            </div>
+                            <div class="total-row">
+                                <span>Shipping Cost:</span>
+                                <span id="shippingCostDisplay" th:text="${'₹' + #numbers.formatDecimal(purchaseOrder.shippingCost, 1, 2)}">₹0.00</span>
+                            </div>
+                            <!-- Discount is calculated per item -->
+                            <div class="total-row">
+                                <span>Tax:</span>
+                                <span id="taxAmountDisplay" th:text="${'₹' + #numbers.formatDecimal(purchaseOrder.taxAmount, 1, 2)}">₹0.00</span>
+                            </div>
+                            <div class="total-row total-final">
+                                <span>Total Amount:</span>
+                                <span id="totalAmount" th:text="${'₹' + #numbers.formatDecimal(purchaseOrder.totalAmount, 1, 2)}">₹0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Update Purchase Order</button>
+                    <a href="/admin/business/purchase-orders" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let itemCounter = document.querySelectorAll('.order-item').length;
+        
+        function addOrderItem() {
+            itemCounter++;
+            const orderItemsContainer = document.getElementById('orderItems');
+            const newItem = document.createElement('div');
+            newItem.className = 'order-item';
+            newItem.setAttribute('data-item-id', itemCounter - 1);
+            
+            newItem.innerHTML = `
+                <div class="item-header">
+                    <h4>Item #${itemCounter}</h4>
+                    <button type="button" class="remove-item-btn" onclick="removeOrderItem(this)">Remove</button>
+                </div>
+                <div class="item-grid">
+                    <div class="form-group">
+                        <label>Product <span class="required">*</span></label>
+                        <select name="productIds" required>
+                            <option value="">Select Product</option>
+                            <option th:each="product : ${products}" 
+                                    th:value="${product.id}" 
+                                    th:text="${product.productName}">Product Name</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Quantity <span class="required">*</span></label>
+                        <input type="number" name="orderedQuantities" 
+                               min="1" required placeholder="1" value="1" onchange="calculateTotals()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Unit Price <span class="required">*</span></label>
+                        <input type="number" name="unitPrices" 
+                               step="0.01" min="0" required placeholder="0.00"
+                               onchange="calculateTotals()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Discount %</label>
+                        <input type="number" name="discountPercentages" 
+                               step="0.01" min="0" max="100" placeholder="0.00"
+                               onchange="calculateTotals()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Tax %</label>
+                        <input type="number" name="taxPercentages" 
+                               step="0.01" min="0" max="100" placeholder="0.00"
+                               onchange="calculateTotals()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <input type="text" name="itemNotes" 
+                               placeholder="Optional notes for this item">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Total Amount</label>
+                        <input type="text" class="item-total" readonly value="₹0.00">
+                    </div>
+                </div>
+            `;
+            
+            orderItemsContainer.appendChild(newItem);
+        }
+        
+        function removeOrderItem(button) {
+            const orderItem = button.closest('.order-item');
+            orderItem.remove();
+            calculateTotals();
+        }
+        
+        function calculateTotals() {
+            let subtotal = 0;
+            let totalTax = 0;
+            
+            // Calculate item totals and subtotal
+            document.querySelectorAll('.order-item').forEach(item => {
+                const quantity = parseFloat(item.querySelector('input[name="orderedQuantities"]').value) || 0;
+                const unitPrice = parseFloat(item.querySelector('input[name="unitPrices"]').value) || 0;
+                const discountPercent = parseFloat(item.querySelector('input[name="discountPercentages"]').value) || 0;
+                const taxPercent = parseFloat(item.querySelector('input[name="taxPercentages"]').value) || 0;
+                
+                const itemSubtotal = quantity * unitPrice;
+                const discountAmount = itemSubtotal * (discountPercent / 100);
+                const itemTotal = itemSubtotal - discountAmount;
+                const itemTax = itemTotal * (taxPercent / 100);
+                
+                subtotal += itemTotal;
+                totalTax += itemTax;
+                
+                // Update item total display
+                const itemTotalInput = item.querySelector('.item-total');
+                itemTotalInput.value = '₹' + itemTotal.toFixed(2);
+            });
+            
+            // Get additional costs
+            const shippingCost = parseFloat(document.getElementById('shippingCost').value) || 0;
+            
+            // Calculate final total
+            const totalAmount = subtotal + shippingCost + totalTax;
+            
+            // Update displays
+            document.getElementById('subtotal').textContent = '₹' + subtotal.toFixed(2);
+            document.getElementById('shippingCostDisplay').textContent = '₹' + shippingCost.toFixed(2);
+            document.getElementById('taxAmountDisplay').textContent = '₹' + totalTax.toFixed(2);
+            document.getElementById('totalAmount').textContent = '₹' + totalAmount.toFixed(2);
+        }
+        
+        function validateForm(event) {
+            const requiredFields = document.querySelectorAll('[required]');
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    field.classList.add('error');
+                    isValid = false;
+                } else {
+                    field.classList.remove('error');
+                }
+            });
+            
+            if (!isValid) {
+                event.preventDefault();
+                alert('Please fill in all required fields.');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Initialize totals on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            calculateTotals();
+        });
+    </script>
+</body>
+</html>

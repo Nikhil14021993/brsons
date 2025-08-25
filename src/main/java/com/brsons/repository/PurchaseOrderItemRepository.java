@@ -24,4 +24,7 @@ public interface PurchaseOrderItemRepository extends JpaRepository<PurchaseOrder
     // Find items by purchase order with product details
     @Query("SELECT poi FROM PurchaseOrderItem poi JOIN FETCH poi.product WHERE poi.purchaseOrder.id = :poId")
     List<PurchaseOrderItem> findByPurchaseOrderWithProduct(@Param("poId") Long purchaseOrderId);
+    
+    // Delete items by purchase order ID
+    void deleteByPurchaseOrderId(Long purchaseOrderId);
 }

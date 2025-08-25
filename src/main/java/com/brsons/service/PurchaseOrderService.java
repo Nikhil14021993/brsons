@@ -36,111 +36,83 @@ public class PurchaseOrderService {
     
     // Create new purchase order
     public PurchaseOrder createPurchaseOrder(PurchaseOrder purchaseOrder) {
-        // Generate unique PO number if not provided
+        // Generate PO number if needed
         if (purchaseOrder.getPoNumber() == null || purchaseOrder.getPoNumber().trim().isEmpty()) {
             purchaseOrder.setPoNumber(generatePONumber());
         }
-        
-        // Set default values
+
         purchaseOrder.setCreatedAt(LocalDateTime.now());
         purchaseOrder.setUpdatedAt(LocalDateTime.now());
         purchaseOrder.setStatus(PurchaseOrder.POStatus.DRAFT);
         purchaseOrder.setOrderDate(LocalDateTime.now());
-        
-        // Calculate totals for each item first
-        if (purchaseOrder.getOrderItems() != null && !purchaseOrder.getOrderItems().isEmpty()) {
+
+        // Ensure children are linked to parent and totals calculated
+        if (purchaseOrder.getOrderItems() != null) {
+            // Re-link via setter so every item gets purchaseOrder set
+            purchaseOrder.setOrderItems(purchaseOrder.getOrderItems());
             for (PurchaseOrderItem item : purchaseOrder.getOrderItems()) {
                 item.calculateTotals();
             }
         }
-        
-        // Now calculate PO totals
+
         purchaseOrder.calculateTotals();
-        
-        // Save the purchase order first
-        PurchaseOrder savedPO = purchaseOrderRepository.save(purchaseOrder);
-        
-        // Save order items if they exist
-        if (purchaseOrder.getOrderItems() != null && !purchaseOrder.getOrderItems().isEmpty()) {
-            for (PurchaseOrderItem item : purchaseOrder.getOrderItems()) {
-                item.setPurchaseOrder(savedPO);
-                purchaseOrderItemRepository.save(item);
-            }
-        }
-        
-        return savedPO;
+
+        // Single save — cascade will persist items
+        return purchaseOrderRepository.save(purchaseOrder);
     }
+
     
     // Create new purchase order with items (separate method for controller use)
     public PurchaseOrder createPurchaseOrderWithItems(PurchaseOrder purchaseOrder, List<PurchaseOrderItem> orderItems) {
-        // Generate unique PO number if not provided
         if (purchaseOrder.getPoNumber() == null || purchaseOrder.getPoNumber().trim().isEmpty()) {
             purchaseOrder.setPoNumber(generatePONumber());
         }
-        
-        // Set default values
+
         purchaseOrder.setCreatedAt(LocalDateTime.now());
         purchaseOrder.setUpdatedAt(LocalDateTime.now());
         purchaseOrder.setStatus(PurchaseOrder.POStatus.DRAFT);
         purchaseOrder.setOrderDate(LocalDateTime.now());
-        
-        // Calculate totals for each item first
-        if (orderItems != null && !orderItems.isEmpty()) {
-            for (PurchaseOrderItem item : orderItems) {
+
+        // Attach items safely (links parent on each)
+        purchaseOrder.setOrderItems(orderItems);
+
+        if (purchaseOrder.getOrderItems() != null) {
+            for (PurchaseOrderItem item : purchaseOrder.getOrderItems()) {
                 item.calculateTotals();
             }
         }
-        
-        // Now calculate PO totals
+
         purchaseOrder.calculateTotals();
-        
-        // Save the purchase order first to get its ID
-        PurchaseOrder savedPO = purchaseOrderRepository.save(purchaseOrder);
-        
-        // Save order items if they exist, setting the purchase order reference
-        if (orderItems != null && !orderItems.isEmpty()) {
-            for (PurchaseOrderItem item : orderItems) {
-                item.setPurchaseOrder(savedPO);
-                purchaseOrderItemRepository.save(item);
-            }
-        }
-        
-        return savedPO;
+        return purchaseOrderRepository.save(purchaseOrder); // cascade persists items
     }
     
     // Update existing purchase order
-    public PurchaseOrder updatePurchaseOrder(Long id, PurchaseOrder purchaseOrderDetails) {
-        Optional<PurchaseOrder> existingPO = purchaseOrderRepository.findById(id);
-        if (existingPO.isPresent()) {
-            PurchaseOrder purchaseOrder = existingPO.get();
-            
-            // Update fields
-            purchaseOrder.setSupplier(purchaseOrderDetails.getSupplier());
-            purchaseOrder.setExpectedDeliveryDate(purchaseOrderDetails.getExpectedDeliveryDate());
-            purchaseOrder.setDeliveryAddress(purchaseOrderDetails.getDeliveryAddress());
-            purchaseOrder.setPaymentTerms(purchaseOrderDetails.getPaymentTerms());
-            purchaseOrder.setNotes(purchaseOrderDetails.getNotes());
-            purchaseOrder.setUpdatedAt(LocalDateTime.now());
-            
-            // Update order items
-            if (purchaseOrderDetails.getOrderItems() != null) {
-                // Remove existing items
-                purchaseOrder.getOrderItems().clear();
-                
-                // Add new items
-                for (PurchaseOrderItem item : purchaseOrderDetails.getOrderItems()) {
-                    item.setPurchaseOrder(purchaseOrder);
-                    item.calculateTotals();
-                    purchaseOrder.getOrderItems().add(item);
-                }
+    @Transactional
+    public PurchaseOrder updatePurchaseOrder(Long id, PurchaseOrder details) {
+        PurchaseOrder po = purchaseOrderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Purchase Order not found with id: " + id));
+
+        // Scalars
+        po.setPoNumber(details.getPoNumber());
+        po.setSupplier(details.getSupplier());
+        po.setExpectedDeliveryDate(details.getExpectedDeliveryDate());
+        po.setDeliveryAddress(details.getDeliveryAddress());
+        po.setPaymentTerms(details.getPaymentTerms());
+        po.setShippingCost(details.getShippingCost());
+        po.setNotes(details.getNotes());
+        po.setUpdatedAt(LocalDateTime.now());
+
+        // Items (only if provided)
+        if (details.getOrderItems() != null) {
+            for (PurchaseOrderItem i : details.getOrderItems()) {
+                i.calculateTotals();
             }
-            
-            // Recalculate totals
-            purchaseOrder.calculateTotals();
-            
-            return purchaseOrderRepository.save(purchaseOrder);
+            // ✅ This clears and re-links children; orphanRemoval will delete old rows
+            po.setOrderItems(details.getOrderItems());
         }
-        throw new RuntimeException("Purchase Order not found with id: " + id);
+
+        po.calculateTotals();
+        return purchaseOrderRepository.save(po);
     }
     
     // Get purchase order by ID
