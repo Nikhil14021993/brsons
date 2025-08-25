@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Management - Admin Panel</title>
+    <link rel="stylesheet" href="/css/style.css">
+
+</head>
+<body>
+    <div class="suppliers-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>Supplier Management</h1>
+            <p>Manage your business suppliers, purchase orders, and business relationships</p>
+        </div>
+        
+        <!-- Messages -->
+        <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+        
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Suppliers</h3>
+                <p class="number" th:text="${supplierStats.totalSuppliers}">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Active Suppliers</h3>
+                <p class="number" th:text="${supplierStats.activeSuppliers}">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Credit Limit Exceeded</h3>
+                <p class="number" th:text="${supplierStats.exceededCreditLimit}">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Low Credit</h3>
+                <p class="number" th:text="${supplierStats.lowCredit}">0</p>
+            </div>
+        </div>
+        
+        <!-- Actions Section -->
+        <div class="actions-section">
+            <div class="actions-header">
+                <h2>Suppliers</h2>
+                <a href="/admin/business/suppliers/new" class="btn btn-primary">
+                    <span>+</span> Add New Supplier
+                </a>
+            </div>
+            
+            <!-- Search and Filters -->
+            <form th:action="@{/admin/business/suppliers/search}" method="get" class="search-section">
+                <input type="text" name="query" th:value="${param.query}" 
+                       class="search-input" placeholder="Search suppliers by name, email, phone, or company...">
+                <button type="submit" class="btn btn-primary">Search</button>
+                <a href="/admin/business/suppliers" class="btn btn-secondary">Clear</a>
+            </form>
+            
+            <form th:action="@{/admin/business/suppliers/filter}" method="get" class="filter-section">
+                <div class="filter-group">
+                    <label for="status">Status</label>
+                    <select name="status" id="status">
+                        <option value="">All Statuses</option>
+                        <option value="ACTIVE" th:selected="${param.status == 'ACTIVE'}">Active</option>
+                        <option value="INACTIVE" th:selected="${param.status == 'INACTIVE'}">Inactive</option>
+                        <option value="SUSPENDED" th:selected="${param.status == 'SUSPENDED'}">Suspended</option>
+                        <option value="BLACKLISTED" th:selected="${param.status == 'BLACKLISTED'}">Blacklisted</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="city">City</label>
+                    <select name="city" id="city">
+                        <option value="">All Cities</option>
+                        <option th:each="city : ${cities}" th:value="${city}" th:text="${city}"></option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="rating">Min Rating</label>
+                    <select name="rating" id="rating">
+                        <option value="">Any Rating</option>
+                        <option value="5" th:selected="${param.rating == '5'}">5 Stars</option>
+                        <option value="4" th:selected="${param.rating == '4'}">4+ Stars</option>
+                        <option value="3" th:selected="${param.rating == '3'}">3+ Stars</option>
+                        <option value="2" th:selected="${param.rating == '2'}">2+ Stars</option>
+                        <option value="1" th:selected="${param.rating == '1'}">1+ Stars</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                <a href="/admin/business/suppliers" class="btn btn-secondary">Clear Filters</a>
+            </form>
+        </div>
+        
+        <!-- Suppliers Table -->
+        <div class="suppliers-table-container">
+            <div th:if="${#lists.isEmpty(suppliers)}" class="no-suppliers">
+                <h3>No Suppliers Found</h3>
+                <p th:if="${param.query}">No suppliers match your search criteria.</p>
+                <p th:unless="${param.query}">Get started by adding your first supplier.</p>
+                <a href="/admin/business/suppliers/new" class="btn btn-primary">Add First Supplier</a>
+            </div>
+            
+            <table th:if="${!#lists.isEmpty(suppliers)}" class="suppliers-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Company Name</th>
+                        <th>Contact Person</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>City</th>
+                        <th>Status</th>
+                        <th>Rating</th>
+                        <th>Credit Limit</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="supplier : ${suppliers}">
+                        <td>
+                            <strong th:text="${supplier.supplierCode}">SUP001</strong>
+                        </td>
+                        <td>
+                            <strong th:text="${supplier.companyName}">Company Name</strong>
+                        </td>
+                        <td th:text="${supplier.contactPerson}">Contact Person</td>
+                        <td th:text="${supplier.email}">email@company.com</td>
+                        <td th:text="${supplier.phone}">Phone</td>
+                        <td th:text="${supplier.city}">City</td>
+                        <td>
+                            <span th:class="'status-badge status-' + ${#strings.toLowerCase(supplier.status)}" 
+                                  th:text="${supplier.status}">ACTIVE</span>
+                        </td>
+                        <td>
+                            <div th:if="${supplier.rating}" class="rating-stars">
+                                <span th:each="i : ${#numbers.sequence(1, supplier.rating)}">★</span>
+                                <span th:each="i : ${#numbers.sequence(supplier.rating + 1, 5)}">☆</span>
+                            </div>
+                            <span th:unless="${supplier.rating}">-</span>
+                        </td>
+                        <td>
+                            <span th:if="${supplier.creditLimit}" th:text="${'₹' + #numbers.formatDecimal(supplier.creditLimit, 1, 2)}">₹500,000.00</span>
+                            <span th:unless="${supplier.creditLimit}">-</span>
+                        </td>
+                        <td class="actions-cell">
+                            <a th:href="@{/admin/business/suppliers/edit/{id}(id=${supplier.id})}" 
+                               class="btn btn-warning btn-sm">Edit</a>
+                       <button class="btn btn-sm"
+        th:classappend="${supplier.status == 'ACTIVE' ? 'btn-danger' : 'btn-success'}"
+        th:text="${supplier.status == 'ACTIVE' ? 'Deactivate' : 'Activate'}"
+        th:attr="data-id=${supplier.id}, 
+                 data-status=${supplier.status == 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'}"
+        onclick="updateSupplierStatus(this)">
+</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        // Update supplier status via AJAX
+        function updateSupplierStatus(button) {
+    const supplierId = button.getAttribute("data-id");
+    const newStatus = button.getAttribute("data-status");
+
+    // Call API or handle status change
+    console.log("Supplier ID:", supplierId, "New Status:", newStatus);
+
+    // Example AJAX call
+    fetch(`/admin/suppliers/${supplierId}/status?status=${newStatus}`, {
+        method: 'POST'
+    }).then(res => {
+        if (res.ok) {
+            location.reload();
+        }
+    });
+}
+        
+        // Auto-submit search on Enter key
+        document.querySelector('.search-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.closest('form').submit();
+            }
+        });
+    </script>
+</body>
+</html>

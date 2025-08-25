@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Supplier - Admin Panel</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .edit-supplier-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .page-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .page-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 600;
+        }
+        
+        .page-header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .form-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .form-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 25px 30px;
+        }
+        
+        .form-header h2 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        
+        .form-content {
+            padding: 30px;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .form-group label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #fafbfc;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left-color: #28a745;
+        }
+        
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border-left-color: #dc3545;
+        }
+        
+        .required {
+            color: #dc3545;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 20px;
+            transition: color 0.3s ease;
+        }
+        
+        .back-link:hover {
+            color: #5a6fd8;
+        }
+        
+        .back-link::before {
+            content: "←";
+            font-size: 1.2rem;
+        }
+        
+        .supplier-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .supplier-info h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 1.2rem;
+        }
+        
+        .supplier-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            color: #333;
+            font-size: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .edit-supplier-container {
+                padding: 15px;
+            }
+            
+            .page-header {
+                padding: 20px;
+            }
+            
+            .page-header h1 {
+                font-size: 2rem;
+            }
+            
+            .form-content {
+                padding: 20px;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+            
+            .supplier-info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="edit-supplier-container">
+        <!-- Back Link -->
+        <a href="/admin/business/suppliers" class="back-link">Back to Suppliers</a>
+        
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>Edit Supplier</h1>
+            <p>Update supplier information and business details</p>
+        </div>
+        
+        <!-- Messages -->
+        <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+        
+        <!-- Current Supplier Info -->
+        <div class="supplier-info">
+            <h3>Current Supplier Information</h3>
+            <div class="supplier-info-grid">
+                <div class="info-item">
+                    <span class="info-label">Supplier Code:</span>
+                    <span class="info-value" th:text="${supplier.supplierCode}">SUP001</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Company Name:</span>
+                    <span class="info-value" th:text="${supplier.companyName}">Company Name</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Status:</span>
+                    <span class="info-value" th:text="${supplier.status}">ACTIVE</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Created:</span>
+                    <span class="info-value" th:text="${#temporals.format(supplier.createdAt, 'dd/MM/yyyy')}">01/01/2024</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="form-header">
+                <h2>Update Supplier Information</h2>
+            </div>
+            
+            <form th:action="@{/admin/business/suppliers/edit/{id}(id=${supplier.id})}" method="post" th:object="${supplier}">
+                <div class="form-content">
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Basic Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="supplierCode">Supplier Code <span class="required">*</span></label>
+                                <input type="text" id="supplierCode" th:field="*{supplierCode}" 
+                                       placeholder="e.g., SUP001" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="companyName">Company Name <span class="required">*</span></label>
+                                <input type="text" id="companyName" th:field="*{companyName}" 
+                                       placeholder="e.g., ABC Electronics Ltd" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="contactPerson">Contact Person</label>
+                                <input type="text" id="contactPerson" th:field="*{contactPerson}" 
+                                       placeholder="e.g., John Smith">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="email">Email <span class="required">*</span></label>
+                                <input type="email" id="email" th:field="*{email}" 
+                                       placeholder="e.g., contact@company.com" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="phone">Phone</label>
+                                <input type="tel" id="phone" th:field="*{phone}" 
+                                       placeholder="e.g., +91-9876543210">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="rating">Rating</label>
+                                <select id="rating" th:field="*{rating}">
+                                    <option value="">Select Rating</option>
+                                    <option value="1" th:selected="${supplier.rating == 1}">1 Star</option>
+                                    <option value="2" th:selected="${supplier.rating == 2}">2 Stars</option>
+                                    <option value="3" th:selected="${supplier.rating == 3}">3 Stars</option>
+                                    <option value="4" th:selected="${supplier.rating == 4}">4 Stars</option>
+                                    <option value="5" th:selected="${supplier.rating == 5}">5 Stars</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Address Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Address Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label for="addressLine1">Address Line 1</label>
+                                <input type="text" id="addressLine1" th:field="*{addressLine1}" 
+                                       placeholder="e.g., 123 Industrial Area">
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label for="addressLine2">Address Line 2</label>
+                                <input type="text" id="addressLine2" th:field="*{addressLine2}" 
+                                       placeholder="e.g., Building A, Floor 2">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="city">City</label>
+                                <input type="text" id="city" th:field="*{city}" 
+                                       placeholder="e.g., Mumbai">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="state">State</label>
+                                <input type="text" id="state" th:field="*{state}" 
+                                       placeholder="e.g., Maharashtra">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="zipCode">ZIP Code</label>
+                                <input type="text" id="zipCode" th:field="*{zipCode}" 
+                                       placeholder="e.g., 400001">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="country">Country</label>
+                                <input type="text" id="country" th:field="*{country}" 
+                                       placeholder="e.g., India">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Business Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Business Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="gstin">GSTIN</label>
+                                <input type="text" id="gstin" th:field="*{gstin}" 
+                                       placeholder="e.g., 27ABCDE1234F1Z5" maxlength="15">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="pan">PAN</label>
+                                <input type="text" id="pan" th:field="*{pan}" 
+                                       placeholder="e.g., ABCDE1234F" maxlength="10">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="paymentTerms">Payment Terms</label>
+                                <input type="text" id="paymentTerms" th:field="*{paymentTerms}" 
+                                       placeholder="e.g., 30 days">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="creditLimit">Credit Limit</label>
+                                <input type="number" id="creditLimit" th:field="*{creditLimit}" 
+                                       placeholder="e.g., 500000" step="0.01" min="0">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="status">Status</label>
+                                <select id="status" th:field="*{status}">
+                                    <option value="ACTIVE" th:selected="${supplier.status == 'ACTIVE'}">Active</option>
+                                    <option value="INACTIVE" th:selected="${supplier.status == 'INACTIVE'}">Inactive</option>
+                                    <option value="SUSPENDED" th:selected="${supplier.status == 'SUSPENDED'}">Suspended</option>
+                                    <option value="BLACKLISTED" th:selected="${supplier.status == 'BLACKLISTED'}">Blacklisted</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Additional Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label for="notes">Notes</label>
+                                <textarea id="notes" th:field="*{notes}" 
+                                          placeholder="Additional notes about the supplier..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <a href="/admin/business/suppliers" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Update Supplier</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const supplierCode = document.getElementById('supplierCode').value.trim();
+            const companyName = document.getElementById('companyName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            
+            if (!supplierCode) {
+                alert('Supplier Code is required');
+                e.preventDefault();
+                return;
+            }
+            
+            if (!companyName) {
+                alert('Company Name is required');
+                e.preventDefault();
+                return;
+            }
+            
+            if (!email) {
+                alert('Email is required');
+                e.preventDefault();
+                return;
+            }
+            
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Please enter a valid email address');
+                e.preventDefault();
+                return;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Purchase Order - Admin Panel</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="add-po-container">
+        <!-- Back Link -->
+        <a href="/admin/business/purchase-orders" class="back-link">← Back to Purchase Orders</a>
+        
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>Create New Purchase Order</h1>
+            <p>Create a new purchase order for your suppliers</p>
+        </div>
+        
+        <!-- Messages -->
+        <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+        
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="form-header">
+                <h2>Purchase Order Information</h2>
+            </div>
+            
+                         <form th:action="@{/admin/business/purchase-orders/new}" method="post" id="poForm" onsubmit="return validateForm(event)">
+                <div class="form-content">
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Basic Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="poNumber">PO Number</label>
+                                <input type="text" id="poNumber" name="poNumber" 
+                                       placeholder="Leave blank for auto-generation">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="supplier">Supplier <span class="required">*</span></label>
+                                <select id="supplier" name="supplierId" required>
+                                    <option value="">Select Supplier</option>
+                                    <option th:each="supplier : ${suppliers}" 
+                                            th:value="${supplier.id}" 
+                                            th:text="${supplier.companyName}">Supplier Name</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="expectedDeliveryDate">Expected Delivery Date</label>
+                                <input type="date" id="expectedDeliveryDate" name="expectedDeliveryDate">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="paymentTerms">Payment Terms</label>
+                                <input type="text" id="paymentTerms" name="paymentTerms" 
+                                       placeholder="e.g., 30 days">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Delivery Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Delivery Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label for="deliveryAddress">Delivery Address</label>
+                                <textarea id="deliveryAddress" name="deliveryAddress" 
+                                          placeholder="Enter delivery address..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Order Items -->
+                    <div class="form-section">
+                        <h3 class="section-title">Order Items</h3>
+                        <div id="orderItems">
+                            <div class="order-item" data-item-id="0">
+                                <div class="item-header">
+                                    <h4>Item #1</h4>
+                                    <button type="button" class="remove-item-btn" onclick="removeOrderItem(this)">Remove</button>
+                                </div>
+                                <div class="item-grid">
+                                    <div class="form-group">
+                                        <label>Product <span class="required">*</span></label>
+                                        <select name="productIds" required>
+                                            <option value="">Select Product</option>
+                                            <option th:each="product : ${products}" 
+                                                    th:value="${product.id}" 
+                                                    th:text="${product.productName}">Product Name</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Quantity <span class="required">*</span></label>
+                                        <input type="number" name="orderedQuantities" 
+                                               min="1" required placeholder="1" value="1" onchange="calculateTotals()">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Unit Price <span class="required">*</span></label>
+                                        <input type="number" name="unitPrices" 
+                                               step="0.01" min="0" required placeholder="Enter unit price" onchange="calculateTotals()">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Discount %</label>
+                                        <input type="number" name="discountPercentages" 
+                                               step="0.01" min="0" max="100" placeholder="0.00" value="0.00" onchange="calculateTotals()">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Tax %</label>
+                                        <input type="number" name="taxPercentages" 
+                                               step="0.01" min="0" max="100" placeholder="0.00" value="0.00" onchange="calculateTotals()">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Notes</label>
+                                        <input type="text" name="itemNotes" placeholder="Item notes...">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-secondary" onclick="addOrderItem()">
+                            <i class="fas fa-plus"></i> Add Another Item
+                        </button>
+                        
+                        <!-- Debug button -->
+                        <button type="button" class="btn btn-info" onclick="debugForm()" style="margin-left: 10px;">
+                            Debug Form
+                        </button>
+                    </div>
+                    
+                    <!-- Additional Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Additional Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label for="notes">Notes</label>
+                                <textarea id="notes" name="notes" 
+                                          placeholder="Additional notes about the purchase order..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden field for products data -->
+                    <input type="hidden" id="productsData" th:value="${productsJson}" />
+                    
+                    <!-- Totals Summary -->
+                    <div class="form-section">
+                        <h3 class="section-title">Order Summary</h3>
+                        <div class="totals-summary">
+                            <div class="total-row">
+                                <span>Subtotal:</span>
+                                <span id="subtotal">₹0.00</span>
+                            </div>
+                            <div class="total-row">
+                                <span>Tax Amount:</span>
+                                <span id="taxAmount">₹0.00</span>
+                            </div>
+                            <div class="total-row">
+                                <span>Shipping Cost:</span>
+                                <span id="shippingCost">₹0.00</span>
+                            </div>
+                            <div class="total-row">
+                                <span>Discount Amount:</span>
+                                <span id="discountAmount">₹0.00</span>
+                            </div>
+                            <div class="total-row total">
+                                <span>Total Amount:</span>
+                                <span id="totalAmount">₹0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <a href="/admin/business/purchase-orders" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Create Purchase Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let itemCounter = 1;
+        
+        // Store products data for dynamic item creation - read from hidden field
+        let productsData = [];
+        
+        // Function to load products data from hidden field
+        function loadProductsData() {
+            try {
+                const productsJson = document.getElementById('productsData').value;
+                if (productsJson) {
+                    productsData = JSON.parse(productsJson);
+                    console.log('Products data loaded from hidden field:', productsData);
+                } else {
+                    console.log('No products data found in hidden field');
+                }
+            } catch (error) {
+                console.error('Error loading products data:', error);
+                productsData = [];
+            }
+        }
+        
+        function addOrderItem() {
+            console.log('Adding new item, counter:', itemCounter);
+            const orderItemsContainer = document.getElementById('orderItems');
+            const newItem = document.createElement('div');
+            newItem.className = 'order-item';
+            newItem.setAttribute('data-item-id', itemCounter);
+            
+            // Create product options HTML
+            let productOptions = '<option value="">Select Product</option>';
+            productsData.forEach(product => {
+                productOptions += `<option value="${product.id}">${product.name}</option>`;
+            });
+            
+            newItem.innerHTML = `
+                <div class="item-header">
+                    <h4>Item #${itemCounter + 1}</h4>
+                    <button type="button" class="remove-item-btn" onclick="removeOrderItem(this)">Remove</button>
+                </div>
+                <div class="item-grid">
+                    <div class="form-group">
+                        <label>Product <span class="required">*</span></label>
+                        <select name="productIds" required>
+                            ${productOptions}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Quantity <span class="required">*</span></label>
+                        <input type="number" name="orderedQuantities" 
+                               min="1" required placeholder="1" value="1" onchange="calculateTotals()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Unit Price <span class="required">*</span></label>
+                        <input type="number" name="unitPrices" 
+                               step="0.01" min="0" required placeholder="Enter unit price" onchange="calculateTotals()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Discount %</label>
+                        <input type="number" name="discountPercentages" 
+                               step="0.01" min="0" max="100" placeholder="0.00" value="0.00" onchange="calculateTotals()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Tax %</label>
+                        <input type="number" name="taxPercentages" 
+                               step="0.01" min="0" max="100" placeholder="0.00" value="0.00" onchange="calculateTotals()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <input type="text" name="itemNotes" placeholder="Item notes...">
+                    </div>
+                </div>
+            `;
+            
+            orderItemsContainer.appendChild(newItem);
+            itemCounter++;
+            
+            console.log('Added new item, counter now:', itemCounter);
+            
+            // Recalculate totals after adding new item
+            calculateTotals();
+        }
+        
+        function removeOrderItem(button) {
+            const orderItemsContainer = document.getElementById('orderItems');
+            if (orderItemsContainer.children.length > 1) {
+                button.closest('.order-item').remove();
+                calculateTotals();
+            }
+        }
+        
+        // Calculate totals when form inputs change
+        document.addEventListener('input', function(e) {
+            // Trigger calculation for any input change
+            setTimeout(calculateTotals, 100);
+        });
+        
+        function calculateTotals() {
+            console.log('Starting calculation...');
+            
+            let subtotal = 0;
+            let totalTax = 0;
+            let totalDiscount = 0;
+            
+            // Get all order items
+            const items = document.querySelectorAll('.order-item');
+            console.log('Found', items.length, 'items');
+            
+            items.forEach((item, index) => {
+                // Get the input fields for this item
+                const qtyInput = item.querySelector('input[name*="orderedQuantities"]');
+                const priceInput = item.querySelector('input[name*="unitPrices"]');
+                const discountInput = item.querySelector('input[name*="discountPercentages"]');
+                const taxInput = item.querySelector('input[name*="taxPercentages"]');
+                
+                if (qtyInput && priceInput) {
+                    const qty = parseFloat(qtyInput.value) || 0;
+                    const price = parseFloat(priceInput.value) || 0;
+                    const discount = parseFloat(discountInput ? discountInput.value : 0) || 0;
+                    const tax = parseFloat(taxInput ? taxInput.value : 0) || 0;
+                    
+                    console.log(`Item ${index + 1}: Qty=${qty}, Price=${price}, Discount=${discount}%, Tax=${tax}%`);
+                    
+                    // Only calculate if we have valid values
+                    if (qty > 0 && price > 0) {
+                        // Calculate for this item
+                        const itemSubtotal = qty * price;
+                        const itemDiscount = itemSubtotal * (discount / 100);
+                        const itemTax = (itemSubtotal - itemDiscount) * (tax / 100);
+                        
+                        subtotal += itemSubtotal;
+                        totalDiscount += itemDiscount;
+                        totalTax += itemTax;
+                        
+                        console.log(`Item ${index + 1} totals: Subtotal=${itemSubtotal}, Discount=${itemDiscount}, Tax=${itemTax}`);
+                    } else {
+                        console.log(`Item ${index + 1}: Skipping calculation - invalid values (Qty=${qty}, Price=${price})`);
+                    }
+                }
+            });
+            
+            const totalAmount = subtotal + totalTax - totalDiscount;
+            
+            console.log('Final totals:', { subtotal, totalTax, totalDiscount, totalAmount });
+            
+            // Update the display
+            try {
+                document.getElementById('subtotal').textContent = '₹' + subtotal.toFixed(2);
+                document.getElementById('taxAmount').textContent = '₹' + totalTax.toFixed(2);
+                document.getElementById('shippingCost').textContent = '₹0.00';
+                document.getElementById('discountAmount').textContent = '₹' + totalDiscount.toFixed(2);
+                document.getElementById('totalAmount').textContent = '₹' + totalAmount.toFixed(2);
+                
+                console.log('Display updated successfully');
+            } catch (error) {
+                console.error('Error updating display:', error);
+            }
+        }
+        
+        // Form validation
+        function validateForm(e) {
+            console.log('=== FORM VALIDATION STARTED ===');
+            
+            const supplier = document.getElementById('supplier').value;
+            const items = document.querySelectorAll('.order-item');
+            
+            console.log('Form validation - Supplier:', supplier);
+            console.log('Form validation - Items count:', items.length);
+            
+            if (!supplier) {
+                alert('Please select a supplier');
+                return false;
+            }
+            
+            let hasValidItems = false;
+            
+            items.forEach((item, index) => {
+                // Find fields using specific selectors
+                const productField = item.querySelector('select[name="productIds"]');
+                const quantityField = item.querySelector('input[name="orderedQuantities"]');
+                const unitPriceField = item.querySelector('input[name="unitPrices"]');
+                
+                console.log(`Item ${index} fields found:`, {
+                    productField: productField ? productField.name : 'NOT FOUND',
+                    quantityField: quantityField ? quantityField.name : 'NOT FOUND',
+                    unitPriceField: unitPriceField ? unitPriceField.name : 'NOT FOUND'
+                });
+                
+                const product = productField ? productField.value : '';
+                const quantity = parseFloat(quantityField ? quantityField.value : 0);
+                const unitPrice = parseFloat(unitPriceField ? unitPriceField.value : 0);
+                
+                console.log(`Item ${index}: Product=${product}, Quantity=${quantity}, UnitPrice=${unitPrice}`);
+                
+                // Check if product is selected and quantity/price are greater than 0
+                if (product && product.trim() !== '' && quantity > 0 && unitPrice > 0) {
+                    hasValidItems = true;
+                    console.log(`Item ${index} is valid`);
+                } else {
+                    console.log(`Item ${index} is NOT valid: Product=${product}, Quantity=${quantity}, UnitPrice=${unitPrice}`);
+                }
+            });
+            
+            console.log('Has valid items:', hasValidItems);
+            
+            if (!hasValidItems) {
+                alert('Please add at least one valid order item with:\n- Product selected\n- Quantity greater than 0\n- Unit price greater than 0');
+                return false;
+            }
+            
+            console.log('Form validation passed, submitting...');
+            
+            // Log what will be posted to verify array binding
+            const form = e.target;
+            const formData = new FormData(form);
+            console.log('--- FormData being posted ---');
+            for (const [k, v] of formData.entries()) {
+                console.log(k, v);
+            }
+            
+            return true;
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, initializing...');
+            loadProductsData();
+            calculateTotals();
+        });
+        
+        // Debug function
+        function debugForm() {
+            console.log('=== DEBUG FORM ===');
+            const supplier = document.getElementById('supplier');
+            const items = document.querySelectorAll('.order-item');
+            
+            console.log('Supplier field:', supplier ? supplier.name + ' = ' + supplier.value : 'NOT FOUND');
+            console.log('Items count:', items.length);
+            
+            items.forEach((item, index) => {
+                console.log(`--- Item ${index} ---`);
+                const allInputs = item.querySelectorAll('input, select');
+                allInputs.forEach(input => {
+                    console.log(`${input.name}: ${input.value} (type: ${input.type})`);
+                });
+            });
+            
+            // Test calculation
+            console.log('Testing calculation...');
+            calculateTotals();
+        }
+        
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Order Management - Admin Panel</title>
+    <link rel="stylesheet" href="/css/style.css">
+
+</head>
+<body>
+    <div class="purchase-orders-container">
+        <!-- Back Link -->
+        <a href="/admin/business/dashboard" class="back-link">← Back to Business Dashboard</a>
+        
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>Purchase Order Management</h1>
+            <p>Manage your purchase orders, track approvals, and monitor order status</p>
+        </div>
+        
+        <!-- Messages -->
+        <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+        
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total POs</h3>
+                <p class="number" th:text="${poStats.totalPOs}">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Draft</h3>
+                <p class="number" th:text="${poStats.draftPOs}">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Pending Approval</h3>
+                <p class="number" th:text="${poStats.pendingApprovalPOs}">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Approved</h3>
+                <p class="number" th:text="${poStats.approvedPOs}">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Ordered</h3>
+                <p class="number" th:text="${poStats.orderedPOs}">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Partially Received</h3>
+                <p class="number" th:text="${poStats.partiallyReceivedPOs}">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Fully Received</h3>
+                <p class="number" th:text="${poStats.fullyReceivedPOs}">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Cancelled</h3>
+                <p class="number" th:text="${poStats.cancelledPOs}">0</p>
+            </div>
+        </div>
+        
+        <!-- Actions Section -->
+        <div class="actions-section">
+            <div class="actions-header">
+                <h2>Purchase Orders</h2>
+                <a href="/admin/business/purchase-orders/new" class="btn btn-primary">
+                    <span>+</span> Create New PO
+                </a>
+            </div>
+            
+            <!-- Search -->
+            <form th:action="@{/admin/business/purchase-orders/search}" method="get" class="search-section">
+                <input type="text" name="query" th:value="${param.query}" 
+                       class="search-input" placeholder="Search POs by number, supplier, or notes...">
+                <button type="submit" class="btn btn-primary">Search</button>
+                <a href="/admin/business/purchase-orders" class="btn btn-secondary">Clear</a>
+            </form>
+        </div>
+        
+        <!-- Purchase Orders Table -->
+        <div class="po-table-container">
+            <div th:if="${#lists.isEmpty(purchaseOrders)}" class="no-pos">
+                <h3>No Purchase Orders Found</h3>
+                <p th:if="${param.query}">No purchase orders match your search criteria.</p>
+                <p th:unless="${param.query}">Get started by creating your first purchase order.</p>
+                <a href="/admin/business/purchase-orders/new" class="btn btn-primary">Create First PO</a>
+            </div>
+            
+            <table th:if="${!#lists.isEmpty(purchaseOrders)}" class="po-table">
+                <thead>
+                    <tr>
+                        <th>PO Number</th>
+                        <th>Supplier</th>
+                        <th>Order Date</th>
+                        <th>Expected Delivery</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th>Created By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="po : ${purchaseOrders}">
+                        <td>
+                            <strong th:text="${po.poNumber}">PO001</strong>
+                        </td>
+                        <td th:text="${po.supplier.companyName}">Supplier Name</td>
+                        <td th:text="${#temporals.format(po.orderDate, 'dd/MM/yyyy')}">01/01/2024</td>
+                        <td th:text="${po.expectedDeliveryDate != null ? #temporals.format(po.expectedDeliveryDate, 'dd/MM/yyyy') : '-'}">01/01/2024</td>
+                        <td>
+                            <span th:text="${'₹' + #numbers.formatDecimal(po.totalAmount, 1, 2)}">₹1,000.00</span>
+                        </td>
+                        <td>
+                            <span th:class="'status-badge status-' + ${#strings.toLowerCase(po.status)}" 
+                                  th:text="${po.status}">DRAFT</span>
+                        </td>
+                        <td th:text="${po.createdBy}">Admin</td>
+                        <td class="actions-cell">
+                            <a th:href="@{/admin/business/purchase-orders/edit/{id}(id=${po.id})}" 
+                               class="btn btn-warning btn-sm">Edit</a>
+                            <button th:attr="data-po-id=${po.id}, data-new-status=${poUtils.getNextStatus(po.status)}"
+                                    th:class="|btn btn-${poUtils.getNextStatusButtonClass(po.status)} btn-sm update-status-btn|"
+                                    th:text="${poUtils.getNextStatusText(po.status)}">
+                                Next Status
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        // Update PO status via AJAX
+        function updatePOStatus(poId, newStatus) {
+            if (!confirm('Are you sure you want to change the status to ' + newStatus + '?')) {
+                return;
+            }
+            
+            fetch('/admin/business/purchase-orders/status/' + poId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'status=' + newStatus
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload the page to show updated status
+                    window.location.reload();
+                } else {
+                    alert('Error updating PO status: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating PO status. Please try again.');
+            });
+        }
+        
+        // Add event listeners to all update status buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.update-status-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const poId = this.dataset.poId;
+                    const newStatus = this.dataset.newStatus;
+                    updatePOStatus(poId, newStatus);
+                });
+            });
+        });
+        
+        // Auto-submit search on Enter key
+        document.querySelector('.search-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.closest('form').submit();
+            }
+        });
+    </script>
+</body>
+</html>

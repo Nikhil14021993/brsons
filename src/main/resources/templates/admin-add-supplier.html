@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Supplier - Admin Panel</title>
+    <link rel="stylesheet" href="/css/style.css">
+
+</head>
+<body>
+    <div class="add-supplier-container">
+        <!-- Back Link -->
+        <a href="/admin/business/suppliers" class="back-link">Back to Suppliers</a>
+        
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>Add New Supplier</h1>
+            <p>Create a new supplier account for your business</p>
+        </div>
+        
+        <!-- Messages -->
+        <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+        
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="form-header">
+                <h2>Supplier Information</h2>
+            </div>
+            
+            <form th:action="@{/admin/business/suppliers/new}" method="post" th:object="${supplier}">
+                <div class="form-content">
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Basic Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="supplierCode">Supplier Code <span class="required">*</span></label>
+                                <input type="text" id="supplierCode" th:field="*{supplierCode}" 
+                                       placeholder="e.g., SUP001" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="companyName">Company Name <span class="required">*</span></label>
+                                <input type="text" id="companyName" th:field="*{companyName}" 
+                                       placeholder="e.g., ABC Electronics Ltd" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="contactPerson">Contact Person</label>
+                                <input type="text" id="contactPerson" th:field="*{contactPerson}" 
+                                       placeholder="e.g., John Smith">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="email">Email <span class="required">*</span></label>
+                                <input type="email" id="email" th:field="*{email}" 
+                                       placeholder="e.g., contact@company.com" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="phone">Phone</label>
+                                <input type="tel" id="phone" th:field="*{phone}" 
+                                       placeholder="e.g., +91-9876543210">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="rating">Rating</label>
+                                <select id="rating" th:field="*{rating}">
+                                    <option value="">Select Rating</option>
+                                    <option value="1">1 Star</option>
+                                    <option value="2">2 Stars</option>
+                                    <option value="3">3 Stars</option>
+                                    <option value="4">4 Stars</option>
+                                    <option value="5">5 Stars</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Address Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Address Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label for="addressLine1">Address Line 1</label>
+                                <input type="text" id="addressLine1" th:field="*{addressLine1}" 
+                                       placeholder="e.g., 123 Industrial Area">
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label for="addressLine2">Address Line 2</label>
+                                <input type="text" id="addressLine2" th:field="*{addressLine2}" 
+                                       placeholder="e.g., Building A, Floor 2">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="city">City</label>
+                                <input type="text" id="city" th:field="*{city}" 
+                                       placeholder="e.g., Mumbai">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="state">State</label>
+                                <input type="text" id="state" th:field="*{state}" 
+                                       placeholder="e.g., Maharashtra">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="zipCode">ZIP Code</label>
+                                <input type="text" id="zipCode" th:field="*{zipCode}" 
+                                       placeholder="e.g., 400001">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="country">Country</label>
+                                <input type="text" id="country" th:field="*{country}" 
+                                       placeholder="e.g., India" value="India">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Business Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Business Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="gstin">GSTIN</label>
+                                <input type="text" id="gstin" th:field="*{gstin}" 
+                                       placeholder="e.g., 27ABCDE1234F1Z5" maxlength="15">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="pan">PAN</label>
+                                <input type="text" id="pan" th:field="*{pan}" 
+                                       placeholder="e.g., ABCDE1234F" maxlength="10">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="paymentTerms">Payment Terms</label>
+                                <input type="text" id="paymentTerms" th:field="*{paymentTerms}" 
+                                       placeholder="e.g., 30 days">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="creditLimit">Credit Limit</label>
+                                <input type="number" id="creditLimit" th:field="*{creditLimit}" 
+                                       placeholder="e.g., 500000" step="0.01" min="0">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="status">Status</label>
+                                <select id="status" th:field="*{status}">
+                                    <option value="ACTIVE">Active</option>
+                                    <option value="INACTIVE">Inactive</option>
+                                    <option value="SUSPENDED">Suspended</option>
+                                    <option value="BLACKLISTED">Blacklisted</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">Additional Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label for="notes">Notes</label>
+                                <textarea id="notes" th:field="*{notes}" 
+                                          placeholder="Additional notes about the supplier..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <a href="/admin/business/suppliers" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Create Supplier</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const supplierCode = document.getElementById('supplierCode').value.trim();
+            const companyName = document.getElementById('companyName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            
+            if (!supplierCode) {
+                alert('Supplier Code is required');
+                e.preventDefault();
+                return;
+            }
+            
+            if (!companyName) {
+                alert('Company Name is required');
+                e.preventDefault();
+                return;
+            }
+            
+            if (!email) {
+                alert('Email is required');
+                e.preventDefault();
+                return;
+            }
+            
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Please enter a valid email address');
+                e.preventDefault();
+                return;
+            }
+        });
+        
+        // Auto-generate supplier code if empty
+        document.getElementById('companyName').addEventListener('blur', function() {
+            const supplierCode = document.getElementById('supplierCode');
+            if (!supplierCode.value.trim()) {
+                const companyName = this.value.trim();
+                if (companyName) {
+                    const code = 'SUP' + Date.now().toString().slice(-6);
+                    supplierCode.value = code;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
