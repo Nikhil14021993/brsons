@@ -17,8 +17,10 @@ public class PurchaseOrder {
     @Column(name = "po_number", unique = true, nullable = false)
     private String poNumber;
     
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "supplier_id", nullable = false)
+  
+    
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "supplier_id")
     private Supplier supplier;
     
     @Column(name = "order_date", nullable = false)

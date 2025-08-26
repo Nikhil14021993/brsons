@@ -26,21 +26,55 @@ public class AdminOrderService {
     @Autowired
     private ProductRepository productRepository;
     
-    public List<OrderDisplayDto> getAllOrders() {
-        List<Order> orders = orderRepository.findAllByOrderByCreatedAtDesc();
-        
-        return orders.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-    }
+    	public List<OrderDisplayDto> getAllOrders() {
+		// Filter to show only orders with bill_type = 'Pakka'
+		List<Order> orders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Pakka");
+		
+		return orders.stream()
+				.map(this::convertToDto)
+				.collect(Collectors.toList());
+	}
     
-    public List<OrderDisplayDto> getOrdersByStatus(String status) {
-        List<Order> orders = orderRepository.findByOrderStatusOrderByCreatedAtDesc(status);
-        
-        return orders.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-    }
+    	public List<OrderDisplayDto> getOrdersByStatus(String status) {
+		// First get all orders with bill_type = 'Pakka', then filter by status
+		List<Order> pakkaOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Pakka");
+		
+		return pakkaOrders.stream()
+				.filter(o -> status.equals(o.getOrderStatus()))
+				.map(this::convertToDto)
+				.collect(Collectors.toList());
+	}
+	
+	// New method to get B2B orders (Kaccha bill type only)
+	public List<OrderDisplayDto> getB2BOrders() {
+		// Filter to show only orders with bill_type = 'Kaccha'
+		List<Order> orders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Kaccha");
+		
+		return orders.stream()
+				.map(this::convertToDto)
+				.collect(Collectors.toList());
+	}
+	
+	// New method to get B2B order statistics (Kaccha bill type only)
+	public OrderStatistics getB2BOrderStatistics() {
+		// Filter to show only orders with bill_type = 'Kaccha'
+		List<Order> allOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Kaccha");
+		
+		long totalOrders = allOrders.size();
+		long pendingOrders = allOrders.stream()
+				.filter(o -> "Pending".equals(o.getOrderStatus()))
+				.count();
+		long deliveredOrders = allOrders.stream()
+				.filter(o -> "Delivered".equals(o.getOrderStatus()))
+				.count();
+		
+		BigDecimal totalRevenue = allOrders.stream()
+				.map(Order::getTotal)
+				.filter(total -> total != null)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+		
+		return new OrderStatistics(totalOrders, pendingOrders, deliveredOrders, totalRevenue);
+	}
     
     public OrderDisplayDto getOrderById(Long id) {
         Order order = orderRepository.findById(id).orElse(null);
@@ -114,25 +148,26 @@ public class AdminOrderService {
         }
     }
     
-    // New method to get order statistics
-    public OrderStatistics getOrderStatistics() {
-        List<Order> allOrders = orderRepository.findAll();
-        
-        long totalOrders = allOrders.size();
-        long pendingOrders = allOrders.stream()
-                .filter(o -> "Pending".equals(o.getOrderStatus()))
-                .count();
-        long deliveredOrders = allOrders.stream()
-                .filter(o -> "Delivered".equals(o.getOrderStatus()))
-                .count();
-        
-        BigDecimal totalRevenue = allOrders.stream()
-                .map(Order::getTotal)
-                .filter(total -> total != null)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
-        return new OrderStatistics(totalOrders, pendingOrders, deliveredOrders, totalRevenue);
-    }
+    	// New method to get order statistics
+	public OrderStatistics getOrderStatistics() {
+		// Filter to show only orders with bill_type = 'Pakka'
+		List<Order> allOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Pakka");
+		
+		long totalOrders = allOrders.size();
+		long pendingOrders = allOrders.stream()
+				.filter(o -> "Pending".equals(o.getOrderStatus()))
+				.count();
+		long deliveredOrders = allOrders.stream()
+				.filter(o -> "Delivered".equals(o.getOrderStatus()))
+				.count();
+		
+		BigDecimal totalRevenue = allOrders.stream()
+				.map(Order::getTotal)
+				.filter(total -> total != null)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+		
+		return new OrderStatistics(totalOrders, pendingOrders, deliveredOrders, totalRevenue);
+	}
     
     private OrderDisplayDto convertToDto(Order order) {
         return new OrderDisplayDto(

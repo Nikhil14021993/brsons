@@ -556,13 +556,18 @@
     </div>
     <div class="product-grid">
       <div th:each="p : ${featured}" class="product-card">
-                                <div class="sale-badge" th:if="${p.retailPrice > 2000}">30% OFF</div>
+                                <div class="sale-badge" th:if="${(session.user != null and session.user.type == 'B2B' ? p.b2bPrice : p.retailPrice) > 2000}">30% OFF</div>
         <a th:href="@{'/product/' + ${p.id}}">
           <img th:src="@{${p.imageUrl}}" alt="" class="product-image">
         </a>
         <div class="product-info">
           <h3 class="product-name" th:text="${p.name}"></h3>
-          <div class="product-price">₹<span th:text="${p.retailPrice}"></span></div>
+          <div class="product-price">
+            <span th:if="${session.user != null and session.user.type == 'B2B'}" th:text="'₹' + ${p.b2bPrice}">₹0</span>
+            <span th:if="${session.user == null or session.user.type != 'B2B'}" th:text="'₹' + ${p.retailPrice}">₹0</span>
+            <small th:if="${session.user != null and session.user.type == 'B2B'}" style="color: #666; font-size: 12px;">B2B Price</small>
+            <small th:if="${session.user == null or session.user.type != 'B2B'}" style="color: #666; font-size: 12px;">Retail Price</small>
+          </div>
           
           <!-- Show Add to Cart button only when stock is available -->
           <div th:if="${p.stockQuantity != null and p.stockQuantity > 0}">

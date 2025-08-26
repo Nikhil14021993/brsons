@@ -274,6 +274,20 @@ public class AdminController {
         return "redirect:/";
     }
     
+    @GetMapping("/admin/orders/b2b")
+    public String b2bOrdersPage(HttpSession session, Model model) {
+        if (isAdmin(session)) {
+            List<OrderDisplayDto> b2bOrders = adminOrderService.getB2BOrders();
+            AdminOrderService.OrderStatistics stats = adminOrderService.getB2BOrderStatistics();
+            
+            model.addAttribute("orders", b2bOrders);
+            model.addAttribute("stats", stats);
+            model.addAttribute("isB2BPage", true); // Flag to identify this is B2B page
+            return "admin-orders";
+        }
+        return "redirect:/";
+    }
+    
     @PostMapping("/admin/orders/update-status")
     @ResponseBody
     public String updateOrderStatus(@RequestParam Long orderId, @RequestParam String newStatus, HttpSession session) {

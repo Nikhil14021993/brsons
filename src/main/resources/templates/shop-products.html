@@ -684,17 +684,17 @@
 
         <!-- Products Grid -->
         <div class="product-grid" id="productGrid">
-            <div th:each="prod : ${products}" class="product-card" 
-                 th:data-price="${prod.retailPrice}" 
-                 th:data-color="${prod.status}" 
-                 th:data-size="${prod.stockQuantity}"
-                 th:data-name="${prod.productName}"
-                 th:data-product-id="${prod.id}"
-                 th:data-stock-quantity="${prod.stockQuantity}">
+                    <div th:each="prod : ${products}" class="product-card" 
+             th:data-price="${session.user != null and session.user.type == 'B2B' ? prod.b2bPrice : prod.retailPrice}" 
+             th:data-color="${prod.status}" 
+             th:data-size="${prod.stockQuantity}"
+             th:data-name="${prod.productName}"
+             th:data-product-id="${prod.id}"
+             th:data-stock-quantity="${prod.stockQuantity}">
                 
                 <div class="product-image-container">
                     <img th:src="${prod.mainPhoto}" th:alt="${prod.productName}" loading="lazy">
-                    <div class="product-badge" th:if="${prod.retailPrice < 1000}">Sale</div>
+                    <div class="product-badge" th:if="${(session.user != null and session.user.type == 'B2B' ? prod.b2bPrice : prod.retailPrice) < 1000}">Sale</div>
                     <div class="product-actions">
                         <button class="action-btn" th:onclick="'quickView(' + ${prod.id} + ')'" title="Quick View">
                             <i class="fas fa-eye"></i>

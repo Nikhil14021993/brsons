@@ -26,4 +26,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	@Query("SELECT o FROM Order o WHERE o.orderStatus = :status ORDER BY o.createdAt DESC")
 	List<Order> findOrdersByStatusOrderByCreatedAtDesc(@Param("status") String status);
 	
+	// Filter orders by bill type (Pakka only)
+	List<Order> findByBillTypeOrderByCreatedAtDesc(String billType);
+	
 }

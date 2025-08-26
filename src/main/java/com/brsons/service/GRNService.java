@@ -61,6 +61,11 @@ public class GRNService {
         return grnRepository.findAll();
     }
     
+    public GoodsReceivedNote getById(Long id) {
+        return grnRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("GRN not found with id: " + id));
+    }
+    
     // Get GRNs by status
     public List<GoodsReceivedNote> getGRNsByStatus(GoodsReceivedNote.GRNStatus status) {
         return grnRepository.findByStatus(status);

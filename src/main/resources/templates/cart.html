@@ -683,7 +683,12 @@
                         </div>
                     </div>
                     
-                    <div class="item-price" th:text="'₹' + ${item.product.retailPrice}">₹0</div>
+                    <div class="item-price">
+                        <span th:if="${session.user != null and session.user.type == 'B2B'}" th:text="'₹' + ${item.product.b2bPrice}">₹0</span>
+                        <span th:if="${session.user == null or session.user.type != 'B2B'}" th:text="'₹' + ${item.product.retailPrice}">₹0</span>
+                        <small th:if="${session.user != null and session.user.type == 'B2B'}" style="color: #666; font-size: 12px;">B2B Price</small>
+                        <small th:if="${session.user == null or session.user.type != 'B2B'}" style="color: #666; font-size: 12px;">Retail Price</small>
+                    </div>
                     
                     <div class="quantity-controls">
                         <button class="quantity-btn" th:onclick="'updateQuantity(' + ${item.id} + ', -1)'" th:disabled="${item.quantity <= 1}">-</button>

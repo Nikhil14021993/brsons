@@ -66,6 +66,7 @@ public class GRNItem {
     public Product getProduct() { return product; }
     public void setProduct(Product product) { this.product = product; }
     
+    
     public Integer getOrderedQuantity() { return orderedQuantity; }
     public void setOrderedQuantity(Integer orderedQuantity) { this.orderedQuantity = orderedQuantity; }
     

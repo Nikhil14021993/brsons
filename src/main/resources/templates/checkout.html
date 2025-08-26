@@ -283,10 +283,29 @@
         
         <div class="form-group">
             <label>Bill Type:</label>
-            <select name="billType" id="billType">
+            <!-- For retail users, bill type is always Pakka and cannot be changed -->
+            <select name="billType" id="billType" 
+                    th:if="${session.user != null and session.user.type == 'B2B'}"
+                    th:disabled="${session.user != null and session.user.type != 'B2B'}">
               <option value="Pakka">Pakka (with GST)</option>
               <option value="Kaccha">Kaccha</option>
             </select>
+            
+            <!-- For retail users, show readonly input with Pakka -->
+            <input type="text" name="billType" id="billTypeRetail" 
+                   value="Pakka" readonly 
+                   th:if="${session.user == null or session.user.type != 'B2B'}"
+                   style="background-color: #f8f9fa; color: #6c757d;">
+            
+            <!-- Hidden input to ensure form submission works for retail users -->
+            <input type="hidden" name="billType" value="Pakka" 
+                   th:if="${session.user == null or session.user.type != 'B2B'}">
+            
+            <!-- Note for retail users -->
+            <small style="color: #6c757d; font-style: italic; display: block; margin-top: 5px;"
+                   th:if="${session.user == null or session.user.type != 'B2B'}">
+                <i class="fas fa-info-circle"></i> Retail customers always receive Pakka bills with GST
+            </small>
         </div>
 
         <div class="form-group">
@@ -334,6 +353,25 @@
   </div>
 
   <script>
+    // Function to get bill type value based on user type
+    function getBillTypeValue() {
+        const billTypeSelect = document.getElementById('billType');
+        const billTypeRetail = document.getElementById('billTypeRetail');
+        
+        // If B2B user, get value from select dropdown
+        if (billTypeSelect && !billTypeSelect.disabled) {
+            return billTypeSelect.value;
+        }
+        
+        // If retail user, return "Pakka" (always)
+        if (billTypeRetail) {
+            return billTypeRetail.value;
+        }
+        
+        // Fallback to "Pakka" for retail users
+        return "Pakka";
+    }
+    
     async function submitCheckout(event) {
         event.preventDefault();
         
@@ -349,7 +387,7 @@
             city: document.getElementById('city').value,
             state: document.getElementById('state').value,
             zipCode: document.getElementById('zipCode').value,
-            billType: document.getElementById('billType').value,
+            billType: getBillTypeValue(),
             buyerGstin: document.getElementById('buyerGstin').value
         };
         

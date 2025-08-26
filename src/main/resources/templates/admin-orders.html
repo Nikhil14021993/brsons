@@ -669,9 +669,19 @@
         <!-- Page Header -->
         <div class="page-header">
             <h1 class="page-title">
-                <i class="fas fa-shopping-cart"></i> Orders Management
+                <i class="fas fa-shopping-cart"></i> 
+                <span th:if="${isB2BPage != null and isB2BPage}">B2B Orders Management</span>
+                <span th:if="${isB2BPage == null or !isB2BPage}">Orders Management</span>
             </h1>
-            <p class="page-subtitle">Manage and track all customer orders from one central dashboard</p>
+            <p class="page-subtitle">
+                <span th:if="${isB2BPage != null and isB2BPage}">Manage and track all B2B customer orders from one central dashboard</span>
+                <span th:if="${isB2BPage == null or !isB2BPage}">Manage and track all customer orders from one central dashboard</span>
+            </p>
+            <div class="filter-notice" style="background: #e8f5e8; border: 1px solid #28a745; border-radius: 8px; padding: 10px; margin-top: 15px; color: #155724; font-size: 0.9rem;">
+                <i class="fas fa-info-circle"></i> <strong>Filter Applied:</strong> 
+                <span th:if="${isB2BPage != null and isB2BPage}">Showing only orders with Bill Type = "Kaccha"</span>
+                <span th:if="${isB2BPage == null or !isB2BPage}">Showing only orders with Bill Type = "Pakka"</span>
+            </div>
         </div>
 
         <!-- Statistics Cards -->

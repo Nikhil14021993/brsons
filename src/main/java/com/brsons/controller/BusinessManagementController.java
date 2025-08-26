@@ -727,36 +727,77 @@ public class BusinessManagementController {
     }
 
     @GetMapping("/grn/edit/{id}")
-    public String showEditGRNForm(@PathVariable Long id, Model model, HttpSession session) {
-        // Check if user is logged in and is admin
+    public String editGRN(@PathVariable Long id, Model model, HttpSession session) {
         User user = (User) session.getAttribute("user");
+
         if (user == null || !"Admin".equals(user.getType())) {
             return "redirect:/login";
         }
-        
-        Optional<GoodsReceivedNote> grn = grnService.getGRNById(id);
-        if (grn.isPresent()) {
-            List<PurchaseOrder> purchaseOrders = purchaseOrderService.getAllPurchaseOrders();
-            List<Supplier> suppliers = supplierService.getAllSuppliers();
-            
-            // We don't need to fetch all products anymore since we only show PO-specific products
-            
-            model.addAttribute("grn", grn.get());
-            model.addAttribute("purchaseOrders", purchaseOrders);
-            model.addAttribute("suppliers", suppliers);
-            model.addAttribute("user", user);
-            model.addAttribute("grnStatuses", GoodsReceivedNote.GRNStatus.values());
-            
-            // Ensure message attributes are always present in the model to prevent Thymeleaf errors
-            model.addAttribute("successMessage", model.getAttribute("successMessage") != null ? model.getAttribute("successMessage") : "");
-            model.addAttribute("errorMessage", model.getAttribute("errorMessage") != null ? model.getAttribute("errorMessage") : "");
-            
-            return "admin-edit-grn";
+
+        GoodsReceivedNote grn = grnService.getById(id);
+        PurchaseOrder po = grn.getPurchaseOrder();
+
+        // 🔑 force load supplier before Thymeleaf
+        if (po != null && po.getSupplier() != null) {
+            po.getSupplier().getCompanyName();  // triggers lazy initialization
         }
+
+        // Get all purchase orders for the dropdown (same as add GRN)
+        List<PurchaseOrder> purchaseOrders = purchaseOrderService.getAllPurchaseOrders();
         
-        return "redirect:/admin/business/grn";
+        // Convert purchase orders to JSON for JavaScript
+        ObjectMapper objectMapper = new ObjectMapper();
+        String purchaseOrdersJson = "[]";
+        try {
+            System.out.println("=== DEBUG: Processing " + purchaseOrders.size() + " purchase orders for edit GRN ===");
+            List<Map<String, Object>> poData = new ArrayList<>();
+            for (PurchaseOrder purchaseOrder : purchaseOrders) {
+                System.out.println("Processing PO: " + purchaseOrder.getPoNumber() + " (ID: " + purchaseOrder.getId() + ")");
+                Map<String, Object> poMap = new HashMap<>();
+                poMap.put("id", purchaseOrder.getId());
+                poMap.put("poNumber", purchaseOrder.getPoNumber());
+                poMap.put("supplierId", purchaseOrder.getSupplier().getId());
+                poMap.put("supplierName", purchaseOrder.getSupplier().getCompanyName());
+                System.out.println("Supplier: " + purchaseOrder.getSupplier().getCompanyName() + " (ID: " + purchaseOrder.getSupplier().getId() + ")");
+
+                List<Map<String, Object>> poItems = new ArrayList<>();
+                if (purchaseOrder.getOrderItems() != null) {
+                    System.out.println("PO has " + purchaseOrder.getOrderItems().size() + " items");
+                    for (PurchaseOrderItem item : purchaseOrder.getOrderItems()) {
+                        Map<String, Object> itemMap = new HashMap<>();
+                        itemMap.put("productId", item.getProduct().getId());
+                        itemMap.put("productName", item.getProduct().getProductName());
+                        itemMap.put("orderedQuantity", item.getOrderedQuantity());
+                        itemMap.put("unitPrice", item.getUnitPrice());
+                        itemMap.put("discountPercentage", item.getDiscountPercentage());
+                        itemMap.put("taxPercentage", item.getTaxPercentage());
+                        poItems.add(itemMap);
+                        System.out.println("  Item: " + item.getProduct().getProductName() + ", Qty: " + item.getOrderedQuantity() + ", Price: " + item.getUnitPrice() + ", Discount: " + item.getDiscountPercentage() + ", Tax: " + item.getTaxPercentage());
+                    }
+                } else {
+                    System.out.println("PO has no items (getOrderItems() is null)");
+                }
+                poMap.put("items", poItems);
+                poData.add(poMap);
+            }
+            purchaseOrdersJson = objectMapper.writeValueAsString(poData);
+            System.out.println("Generated JSON for edit GRN: " + purchaseOrdersJson);
+        } catch (Exception e) {
+            System.err.println("Error converting purchase orders to JSON for edit GRN: " + e.getMessage());
+            purchaseOrdersJson = "[]";
+        }
+
+        model.addAttribute("grn", grn);
+        model.addAttribute("purchaseOrder", po);   // fixed PO
+        model.addAttribute("poItems", po.getOrderItems());
+        model.addAttribute("user", user);
+        model.addAttribute("suppliers", supplierService.getAllSuppliers());
+        model.addAttribute("purchaseOrders", purchaseOrders);
+        model.addAttribute("purchaseOrdersJson", purchaseOrdersJson);
+
+        return "admin-edit-grn";
     }
-    
+
     @PostMapping("/grn/edit/{id}")
     public String updateGRN(@PathVariable Long id, 
                            @ModelAttribute GoodsReceivedNote grn, 
