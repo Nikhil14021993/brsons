@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import com.brsons.model.GoodsReceivedNote.GRNStatus;
 
 @Service
 @Transactional
@@ -135,6 +136,24 @@ public class GRNService {
     // Delete GRN (soft delete by setting status to CANCELLED)
     public GoodsReceivedNote deleteGRN(Long id) {
         return updateGRNStatus(id, GoodsReceivedNote.GRNStatus.CANCELLED);
+    }
+    
+    // Hard delete GRN from database
+    public void hardDeleteGRN(Long id) {
+        Optional<GoodsReceivedNote> existingGRN = grnRepository.findById(id);
+        if (existingGRN.isPresent()) {
+            GoodsReceivedNote grn = existingGRN.get();
+            
+            // Only allow deletion of GRNs in DRAFT or CANCELLED status
+            if (grn.getStatus() != GRNStatus.DRAFT && grn.getStatus() != GRNStatus.CANCELLED) {
+                throw new IllegalStateException("Cannot delete GRN in status: " + grn.getStatus() + 
+                    ". Only DRAFT or CANCELLED GRNs can be deleted.");
+            }
+            
+            grnRepository.deleteById(id);
+        } else {
+            throw new RuntimeException("GRN not found with id: " + id);
+        }
     }
     
     // Get GRN statistics

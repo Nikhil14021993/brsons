@@ -614,6 +614,24 @@ public class BusinessManagementController {
         }
     }
     
+    @DeleteMapping("/purchase-orders/delete/{id}")
+    @ResponseBody
+    public Map<String, Object> deletePurchaseOrder(@PathVariable Long id, HttpSession session) {
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null || !"Admin".equals(user.getType())) {
+                return Map.of("success", false, "message", "Unauthorized");
+            }
+            
+            purchaseOrderService.hardDeletePurchaseOrder(id);
+            
+            return Map.of("success", true, "message", "Purchase Order deleted successfully");
+            
+        } catch (Exception e) {
+            return Map.of("success", false, "message", "Error: " + e.getMessage());
+        }
+    }
+    
     @GetMapping("/purchase-orders/search")
     public String searchPurchaseOrders(@RequestParam(required = false) String query, 
                                      Model model, 

@@ -17,6 +17,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import com.brsons.model.CreditNote;
+import com.brsons.repository.CreditNoteRepository;
+import com.brsons.model.GoodsReceivedNote;
+import com.brsons.repository.GRNRepository;
 
 @Service
 @Transactional
@@ -33,6 +37,12 @@ public class PurchaseOrderService {
     
     @Autowired
     private SupplierRepository supplierRepository;
+
+    @Autowired
+    private CreditNoteRepository creditNoteRepository;
+    
+    @Autowired
+    private GRNRepository grnRepository;
     
     // Create new purchase order
     public PurchaseOrder createPurchaseOrder(PurchaseOrder purchaseOrder) {
@@ -179,6 +189,41 @@ public class PurchaseOrderService {
     // Delete purchase order (soft delete by setting status to CANCELLED)
     public PurchaseOrder deletePurchaseOrder(Long id) {
         return updatePurchaseOrderStatus(id, PurchaseOrder.POStatus.CANCELLED);
+    }
+    
+    // Hard delete purchase order from database
+    public void hardDeletePurchaseOrder(Long id) {
+        Optional<PurchaseOrder> existingPO = purchaseOrderRepository.findById(id);
+        if (existingPO.isPresent()) {
+            PurchaseOrder po = existingPO.get();
+            
+            // Only allow deletion of POs in DRAFT or CANCELLED status
+            if (po.getStatus() != PurchaseOrder.POStatus.DRAFT && po.getStatus() != PurchaseOrder.POStatus.CANCELLED) {
+                throw new IllegalStateException("Cannot delete Purchase Order in status: " + po.getStatus() + 
+                    ". Only DRAFT or CANCELLED POs can be deleted.");
+            }
+            
+            // First, delete associated CreditNotes to avoid foreign key constraint violations
+            List<CreditNote> associatedCreditNotes = creditNoteRepository.findByPurchaseOrderIdOrderByCreatedAtDesc(po.getId());
+            if (!associatedCreditNotes.isEmpty()) {
+                for (CreditNote creditNote : associatedCreditNotes) {
+                    creditNoteRepository.delete(creditNote);
+                }
+            }
+
+            // Then, delete associated GoodsReceivedNotes
+            List<GoodsReceivedNote> associatedGRNs = grnRepository.findByPurchaseOrderId(po.getId());
+            if (!associatedGRNs.isEmpty()) {
+                for (GoodsReceivedNote grn : associatedGRNs) {
+                    grnRepository.delete(grn);
+                }
+            }
+            
+            // Now delete the PurchaseOrder (this will also delete PurchaseOrderItems due to cascade)
+            purchaseOrderRepository.deleteById(id);
+        } else {
+            throw new RuntimeException("Purchase Order not found with id: " + id);
+        }
     }
     
     // Get purchase order statistics
