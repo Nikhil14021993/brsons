@@ -51,6 +51,8 @@ public class CreditNoteService {
             .orElseThrow(() -> new RuntimeException("Credit Note not found"));
         
         existingCreditNote.setCreditDate(creditNoteDetails.getCreditDate());
+        existingCreditNote.setPurchaseOrder(creditNoteDetails.getPurchaseOrder());
+        existingCreditNote.setSupplier(creditNoteDetails.getSupplier());
         existingCreditNote.setReason(creditNoteDetails.getReason());
         existingCreditNote.setNotes(creditNoteDetails.getNotes());
         existingCreditNote.setUpdatedAt(LocalDateTime.now());

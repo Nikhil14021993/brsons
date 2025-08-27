@@ -299,7 +299,10 @@
         </div>
 
         <!-- Credit Note Form -->
-        <form th:action="@{/admin/business/credit-notes/new}" method="post" class="form-container">
+        <form th:action="@{/admin/business/credit-notes/new}" method="post" class="form-container" id="creditNoteForm">
+            
+            <!-- Hidden fields for calculated values -->
+            <input type="hidden" name="creditAmount" id="creditAmountHidden" value="0">
             
             <!-- Basic Information Section -->
             <div class="form-section">
@@ -411,7 +414,7 @@
                 // Use products from selected PO
                 console.log('Using PO products for new item');
                 window.poProducts.forEach(product => {
-                    productOptions += `<option value="${product.id}" 
+                    productOptions += `<option value="${product.productId}" 
                         data-unit-price="${product.unitPrice || 0}"
                         data-ordered-quantity="${product.orderedQuantity || 1}"
                         data-discount-percentage="${product.discountPercentage || 0}"
@@ -511,12 +514,15 @@
             document.getElementById('subtotal').textContent = '₹' + subtotal.toFixed(2);
             document.getElementById('totalTax').textContent = '₹' + totalTax.toFixed(2);
             document.getElementById('totalAmount').textContent = '₹' + totalAmount.toFixed(2);
+            
+            // Set the hidden field for credit amount
+            document.getElementById('creditAmountHidden').value = totalAmount.toFixed(2);
         }
 
         // Add event listeners for real-time calculation
         document.addEventListener('DOMContentLoaded', function() {
-            // Add initial item
-            addItem();
+            // Don't add initial item - wait for PO selection
+            // addItem();
             
             // Setup product change listeners
             setupProductChangeListeners();
@@ -528,6 +534,68 @@
                     calculateTotals();
                 }
             });
+            
+            // Add form submission listener
+            document.getElementById('creditNoteForm').addEventListener('submit', function(e) {
+                console.log('Form submission started');
+                
+                // Debug: Log all form data
+                const formData = new FormData(this);
+                console.log('=== FORM DATA DEBUG ===');
+                for (let [key, value] of formData.entries()) {
+                    console.log(key + ': ' + value);
+                }
+                console.log('=== END FORM DATA DEBUG ===');
+                
+                // Validate required fields
+                const purchaseOrderId = document.getElementById('purchaseOrderId').value;
+                const creditDate = document.getElementById('creditDate').value;
+                
+                if (!purchaseOrderId) {
+                    e.preventDefault();
+                    alert('Please select a Purchase Order');
+                    return false;
+                }
+                
+                if (!creditDate) {
+                    e.preventDefault();
+                    alert('Please select a Credit Date');
+                    return false;
+                }
+                
+                // Check if there are any items
+                const items = document.querySelectorAll('.item-row');
+                if (items.length === 0) {
+                    e.preventDefault();
+                    alert('Please add at least one item');
+                    return false;
+                }
+                
+                // Validate each item
+                let hasValidItems = false;
+                items.forEach(item => {
+                    const productId = item.querySelector('select[name="productIds"]').value;
+                    const quantity = item.querySelector('input[name="quantities"]').value;
+                    const unitPrice = item.querySelector('input[name="unitPrices"]').value;
+                    
+                    if (productId && quantity && unitPrice) {
+                        hasValidItems = true;
+                    }
+                });
+                
+                if (!hasValidItems) {
+                    e.preventDefault();
+                    alert('Please fill in all required fields for at least one item');
+                    return false;
+                }
+                
+                console.log('Form validation passed, submitting...');
+                
+                // Test: Show alert to confirm form is submitting
+                alert('Form is submitting! Check console for form data.');
+                
+                return true;
+            });
         });
 
         // Auto-populate supplier and products when PO is selected
@@ -537,7 +605,12 @@
                 // Fetch PO details and populate fields
                 console.log('Fetching products for PO:', poId);
                 fetch(`/admin/business/api/purchase-orders/${poId}/products`)
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok: ' + response.status);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         console.log('Received PO products:', data);
                         // Store PO products for use in addItem function
@@ -548,21 +621,97 @@
                             document.getElementById('supplierId').value = data[0].supplier.id;
                         }
                         
-                        // Update existing product dropdowns
-                        updateProductDropdowns(data);
+                        // Clear existing items and create new ones from PO
+                        clearItemsContainer();
+                        createItemsFromPO(data);
                         
                         // Enable supplier field
                         document.getElementById('supplierId').disabled = false;
                     })
                     .catch(error => {
                         console.error('Error fetching PO products:', error);
+                        alert('Error fetching PO products: ' + error.message);
                     });
             } else {
                 // Clear products when no PO is selected
                 window.poProducts = [];
-                updateProductDropdowns([]);
+                clearItemsContainer();
+                // Add one empty item
+                addItem();
             }
         });
+        
+        // Function to clear all items from container
+        function clearItemsContainer() {
+            const itemsContainer = document.getElementById('itemsContainer');
+            itemsContainer.innerHTML = '';
+            itemCounter = 0;
+        }
+        
+        // Function to create items from PO data
+        function createItemsFromPO(poItems) {
+            if (poItems && poItems.length > 0) {
+                poItems.forEach((item, index) => {
+                    itemCounter++;
+                    const itemsContainer = document.getElementById('itemsContainer');
+                    
+                    const itemHtml = `
+                        <div class="item-row" id="item-${itemCounter}">
+                            <button type="button" class="remove-item-btn" onclick="removeItem(${itemCounter})">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            
+                            <div class="item-grid">
+                                <div class="form-group">
+                                    <label>Product *</label>
+                                    <select name="productIds" class="form-control" required>
+                                        <option value="">Select Product</option>
+                                        <option value="${item.productId}" selected>${item.productName}</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Quantity *</label>
+                                    <input type="number" name="quantities" class="form-control" min="1" 
+                                           value="${item.orderedQuantity}" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Unit Price *</label>
+                                    <input type="number" name="unitPrices" class="form-control" step="0.01" min="0" 
+                                           value="${item.unitPrice}" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Discount %</label>
+                                    <input type="number" name="discountPercentages" class="form-control" step="0.01" min="0" max="100" 
+                                           value="${item.discountPercentage || 0}">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Tax %</label>
+                                    <input type="number" name="taxPercentages" class="form-control" step="0.01" min="0" max="100" 
+                                           value="${item.taxPercentage || 0}">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Reason</label>
+                                    <input type="text" name="reasons" class="form-control" placeholder="Item specific reason">
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    itemsContainer.insertAdjacentHTML('beforeend', itemHtml);
+                });
+                
+                // Calculate totals after creating items
+                calculateTotals();
+            } else {
+                // If no PO items, add one empty item
+                addItem();
+            }
+        }
         
         // Function to update all product dropdowns with PO products
         function updateProductDropdowns(poProducts) {
@@ -577,7 +726,7 @@
                 // Add PO products
                 poProducts.forEach(product => {
                     const option = document.createElement('option');
-                    option.value = product.id;
+                    option.value = product.productId;
                     option.textContent = product.productName;
                     option.dataset.unitPrice = product.unitPrice;
                     option.dataset.orderedQuantity = product.orderedQuantity;
@@ -596,7 +745,7 @@
                     const itemRow = productSelect.closest('.item-row');
                     
                     if (productSelect.value && window.poProducts) {
-                        const selectedProduct = window.poProducts.find(p => p.id == productSelect.value);
+                        const selectedProduct = window.poProducts.find(p => p.productId == productSelect.value);
                         if (selectedProduct) {
                             // Auto-populate fields
                             const quantityInput = itemRow.querySelector('input[name="quantities"]');

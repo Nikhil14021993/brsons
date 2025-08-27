@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.stream.Collectors;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Arrays;
 
 @Controller
 @RequestMapping("/admin/business")
@@ -63,16 +64,17 @@ public class BusinessManagementController {
         try {
             Optional<PurchaseOrder> po = purchaseOrderService.getPurchaseOrderById(poId);
             if (po.isPresent()) {
-                return po.get().getItems().stream()
+                return po.get().getOrderItems().stream()
                     .map(item -> {
                         Map<String, Object> productMap = new HashMap<>();
                         Product product = item.getProduct();
-                        productMap.put("id", product.getId());
+                        productMap.put("productId", product.getId());  // Changed from "id" to "productId"
                         productMap.put("productName", product.getProductName());
                         productMap.put("unitPrice", item.getUnitPrice());
                         productMap.put("orderedQuantity", item.getOrderedQuantity());
                         productMap.put("discountPercentage", item.getDiscountPercentage());
                         productMap.put("taxPercentage", item.getTaxPercentage());
+                        productMap.put("totalAmount", item.getTotalAmount());
                         return productMap;
                     })
                     .collect(Collectors.toList());
@@ -877,6 +879,24 @@ public class BusinessManagementController {
         }
     }
     
+    @DeleteMapping("/grn/delete/{id}")
+    @ResponseBody
+    public Map<String, Object> deleteGRN(@PathVariable Long id, HttpSession session) {
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null || !"Admin".equals(user.getType())) {
+                return Map.of("success", false, "message", "Unauthorized");
+            }
+            
+            grnService.hardDeleteGRN(id);
+            
+            return Map.of("success", true, "message", "GRN deleted successfully");
+            
+        } catch (Exception e) {
+            return Map.of("success", false, "message", "Error: " + e.getMessage());
+        }
+    }
+    
     @GetMapping("/grn/search")
     public String searchGRNs(@RequestParam(required = false) String query, 
                             Model model, 
@@ -941,12 +961,12 @@ public class BusinessManagementController {
     
     @PostMapping("/credit-notes/new")
     public String addCreditNote(@ModelAttribute CreditNote creditNote,
-                               @RequestParam(required = false) List<Long> productIds,
-                               @RequestParam(required = false) List<Integer> quantities,
-                               @RequestParam(required = false) List<BigDecimal> unitPrices,
-                               @RequestParam(required = false) List<BigDecimal> discountPercentages,
-                               @RequestParam(required = false) List<BigDecimal> taxPercentages,
-                               @RequestParam(required = false) List<String> reasons,
+                               @RequestParam(required = false) Long[] productIds,
+                               @RequestParam(required = false) Integer[] quantities,
+                               @RequestParam(required = false) BigDecimal[] unitPrices,
+                               @RequestParam(required = false) BigDecimal[] discountPercentages,
+                               @RequestParam(required = false) BigDecimal[] taxPercentages,
+                               @RequestParam(required = false) String[] reasons,
                                HttpSession session,
                                RedirectAttributes redirectAttributes) {
         try {
@@ -955,32 +975,80 @@ public class BusinessManagementController {
                 return "redirect:/login";
             }
             
-            creditNote.setCreatedBy(user.getName());
+            System.out.println("=== DEBUG: Creating Credit Note ===");
+            System.out.println("Credit Note: " + creditNote);
+            System.out.println("Purchase Order ID: " + (creditNote.getPurchaseOrder() != null ? creditNote.getPurchaseOrder().getId() : "null"));
+            System.out.println("Supplier ID: " + (creditNote.getSupplier() != null ? creditNote.getSupplier().getId() : "null"));
+            System.out.println("Credit Date: " + creditNote.getCreditDate());
+            System.out.println("Credit Amount: " + creditNote.getCreditAmount());
+            System.out.println("Reason: " + creditNote.getReason());
+            System.out.println("Notes: " + creditNote.getNotes());
+            System.out.println("Product IDs: " + (productIds != null ? Arrays.toString(productIds) : "null"));
+            System.out.println("Quantities: " + (quantities != null ? Arrays.toString(quantities) : "null"));
+            System.out.println("Unit Prices: " + (unitPrices != null ? Arrays.toString(unitPrices) : "null"));
+            System.out.println("Discount Percentages: " + (discountPercentages != null ? Arrays.toString(discountPercentages) : "null"));
+            System.out.println("Tax Percentages: " + (taxPercentages != null ? Arrays.toString(taxPercentages) : "null"));
+            System.out.println("Reasons: " + (reasons != null ? Arrays.toString(reasons) : "null"));
             
-            // Create credit note items
-            if (productIds != null && !productIds.isEmpty()) {
-                for (int i = 0; i < productIds.size(); i++) {
-                    if (productIds.get(i) != null) {
-                        CreditNoteItem item = new CreditNoteItem();
-                        item.setProduct(productRepository.findById(productIds.get(i)).orElse(null));
-                        item.setQuantity(quantities.get(i));
-                        item.setUnitPrice(unitPrices.get(i));
-                        item.setDiscountPercentage(discountPercentages.get(i));
-                        item.setTaxPercentage(taxPercentages.get(i));
-                        item.setReason(reasons.get(i));
-                        
-                        creditNote.addCreditNoteItem(item);
-                    }
-                }
+            // Set basic credit note details
+            creditNote.setCreatedBy(user.getName());
+            creditNote.setStatus("Draft");
+            creditNote.setCreatedAt(LocalDateTime.now());
+            
+            // Ensure creditAmount is set (even if 0)
+            if (creditNote.getCreditAmount() == null) {
+                creditNote.setCreditAmount(BigDecimal.ZERO);
             }
             
-            creditNoteService.createCreditNote(creditNote);
+            // Create credit note items
+            if (productIds != null && productIds.length > 0) {
+                System.out.println("Processing " + productIds.length + " items");
+                for (int i = 0; i < productIds.length; i++) {
+                    if (productIds[i] != null) {
+                        CreditNoteItem item = new CreditNoteItem();
+                        
+                        // Set product
+                        Product product = productRepository.findById(productIds[i]).orElse(null);
+                        if (product == null) {
+                            System.out.println("Product not found for ID: " + productIds[i]);
+                            continue;
+                        }
+                        item.setProduct(product);
+                        
+                        // Set other fields with null checks and defaults
+                        item.setQuantity(quantities != null && i < quantities.length && quantities[i] != null ? quantities[i] : 0);
+                        item.setUnitPrice(unitPrices != null && i < unitPrices.length && unitPrices[i] != null ? unitPrices[i] : BigDecimal.ZERO);
+                        item.setDiscountPercentage(discountPercentages != null && i < discountPercentages.length && discountPercentages[i] != null ? discountPercentages[i] : BigDecimal.ZERO);
+                        item.setTaxPercentage(taxPercentages != null && i < taxPercentages.length && taxPercentages[i] != null ? taxPercentages[i] : BigDecimal.ZERO);
+                        item.setReason(reasons != null && i < reasons.length && reasons[i] != null ? reasons[i] : "");
+                        
+                        // Set the credit note reference
+                        item.setCreditNote(creditNote);
+                        
+                        // Add item to credit note
+                        creditNote.addCreditNoteItem(item);
+                        
+                        System.out.println("Added item: " + product.getProductName() + ", Qty: " + item.getQuantity() + ", Price: " + item.getUnitPrice());
+                    }
+                }
+            } else {
+                System.out.println("No product IDs provided");
+            }
+            
+            System.out.println("Credit Note items count: " + creditNote.getCreditNoteItems().size());
+            
+            // Save the credit note
+            CreditNote savedCreditNote = creditNoteService.createCreditNote(creditNote);
+            
+            System.out.println("Credit Note saved successfully with ID: " + savedCreditNote.getId());
             
             redirectAttributes.addFlashAttribute("successMessage", 
-                "Credit Note created successfully!");
+                "Credit Note created successfully! Number: " + savedCreditNote.getCreditNoteNumber());
             return "redirect:/admin/business/credit-notes";
             
         } catch (Exception e) {
+            System.err.println("=== ERROR: Creating Credit Note ===");
+            e.printStackTrace();
             redirectAttributes.addFlashAttribute("errorMessage", 
                 "Error creating Credit Note: " + e.getMessage());
             return "redirect:/admin/business/credit-notes/new";
@@ -1011,15 +1079,32 @@ public class BusinessManagementController {
         return "admin-edit-credit-note";
     }
     
+    @GetMapping("/credit-notes/view/{id}")
+    public String viewCreditNote(@PathVariable Long id, Model model, HttpSession session) {
+        // Check if user is logged in and is admin
+        User user = (User) session.getAttribute("user");
+        if (user == null || !"Admin".equals(user.getType())) {
+            return "redirect:/login";
+        }
+        
+        CreditNote creditNote = creditNoteService.getCreditNoteById(id)
+            .orElseThrow(() -> new RuntimeException("Credit Note not found"));
+        
+        model.addAttribute("creditNote", creditNote);
+        model.addAttribute("user", user);
+        
+        return "admin-view-credit-note";
+    }
+    
     @PostMapping("/credit-notes/edit/{id}")
     public String updateCreditNote(@PathVariable Long id,
                                   @ModelAttribute CreditNote creditNoteDetails,
-                                  @RequestParam(required = false) List<Long> productIds,
-                                  @RequestParam(required = false) List<Integer> quantities,
-                                  @RequestParam(required = false) List<BigDecimal> unitPrices,
-                                  @RequestParam(required = false) List<BigDecimal> discountPercentages,
-                                  @RequestParam(required = false) List<BigDecimal> taxPercentages,
-                                  @RequestParam(required = false) List<String> reasons,
+                                  @RequestParam(required = false) Long[] productIds,
+                                  @RequestParam(required = false) Integer[] quantities,
+                                  @RequestParam(required = false) BigDecimal[] unitPrices,
+                                  @RequestParam(required = false) BigDecimal[] discountPercentages,
+                                  @RequestParam(required = false) BigDecimal[] taxPercentages,
+                                  @RequestParam(required = false) String[] reasons,
                                   HttpSession session,
                                   RedirectAttributes redirectAttributes) {
         try {
@@ -1028,26 +1113,43 @@ public class BusinessManagementController {
                 return "redirect:/login";
             }
             
+            System.out.println("=== UPDATING CREDIT NOTE ===");
+            System.out.println("Credit Note ID: " + id);
+            System.out.println("Product IDs: " + Arrays.toString(productIds));
+            System.out.println("Quantities: " + Arrays.toString(quantities));
+            System.out.println("Unit Prices: " + Arrays.toString(unitPrices));
+            
             creditNoteDetails.setUpdatedBy(user.getName());
+            creditNoteDetails.setUpdatedAt(LocalDateTime.now());
             
             // Create credit note items
-            if (productIds != null && !productIds.isEmpty()) {
+            if (productIds != null && productIds.length > 0) {
                 List<CreditNoteItem> items = new ArrayList<>();
-                for (int i = 0; i < productIds.size(); i++) {
-                    if (productIds.get(i) != null) {
+                for (int i = 0; i < productIds.length; i++) {
+                    if (productIds[i] != null) {
                         CreditNoteItem item = new CreditNoteItem();
-                        item.setProduct(productRepository.findById(productIds.get(i)).orElse(null));
-                        item.setQuantity(quantities.get(i));
-                        item.setUnitPrice(unitPrices.get(i));
-                        item.setDiscountPercentage(discountPercentages.get(i));
-                        item.setTaxPercentage(taxPercentages.get(i));
-                        item.setReason(reasons.get(i));
-                        
-                        items.add(item);
+                        Product product = productRepository.findById(productIds[i]).orElse(null);
+                        if (product != null) {
+                            item.setProduct(product);
+                            item.setQuantity(quantities != null && i < quantities.length && quantities[i] != null ? quantities[i] : 0);
+                            item.setUnitPrice(unitPrices != null && i < unitPrices.length && unitPrices[i] != null ? unitPrices[i] : BigDecimal.ZERO);
+                            item.setDiscountPercentage(discountPercentages != null && i < discountPercentages.length && discountPercentages[i] != null ? discountPercentages[i] : BigDecimal.ZERO);
+                            item.setTaxPercentage(taxPercentages != null && i < taxPercentages.length && taxPercentages[i] != null ? taxPercentages[i] : BigDecimal.ZERO);
+                            item.setReason(reasons != null && i < reasons.length && reasons[i] != null ? reasons[i] : "");
+                            
+                            // Set the credit note reference
+                            item.setCreditNote(creditNoteDetails);
+                            
+                            // Add item to credit note
+                            creditNoteDetails.addCreditNoteItem(item);
+                            
+                            System.out.println("Added item: " + product.getProductName() + ", Qty: " + item.getQuantity() + ", Price: " + item.getUnitPrice());
+                        }
                     }
                 }
-                creditNoteDetails.setCreditNoteItems(items);
             }
+            
+            System.out.println("Credit Note items count: " + creditNoteDetails.getCreditNoteItems().size());
             
             creditNoteService.updateCreditNote(id, creditNoteDetails);
             
@@ -1056,6 +1158,8 @@ public class BusinessManagementController {
             return "redirect:/admin/business/credit-notes";
             
         } catch (Exception e) {
+            System.err.println("=== ERROR: Updating Credit Note ===");
+            e.printStackTrace();
             redirectAttributes.addFlashAttribute("errorMessage", 
                 "Error updating Credit Note: " + e.getMessage());
             return "redirect:/admin/business/credit-notes/edit/" + id;
