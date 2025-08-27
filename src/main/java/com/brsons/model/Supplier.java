@@ -3,6 +3,7 @@ package com.brsons.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.brsons.model.CreditNote;
 
 @Entity
 @Table(name = "suppliers")
@@ -84,7 +85,7 @@ public class Supplier {
     private List<PurchaseOrder> purchaseOrders;
     
     @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL)
-    private List<SupplierCreditNote> creditNotes;
+    private List<CreditNote> creditNotes;
     
     // Enums
     public enum SupplierStatus {
@@ -172,8 +173,8 @@ public class Supplier {
     public List<PurchaseOrder> getPurchaseOrders() { return purchaseOrders; }
     public void setPurchaseOrders(List<PurchaseOrder> purchaseOrders) { this.purchaseOrders = purchaseOrders; }
     
-    public List<SupplierCreditNote> getCreditNotes() { return creditNotes; }
-    public void setCreditNotes(List<SupplierCreditNote> creditNotes) { this.creditNotes = creditNotes; }
+    public List<CreditNote> getCreditNotes() { return creditNotes; }
+    public void setCreditNotes(List<CreditNote> creditNotes) { this.creditNotes = creditNotes; }
     
     // Business Methods
     @PreUpdate
