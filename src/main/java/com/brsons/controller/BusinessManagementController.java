@@ -7,6 +7,7 @@ import com.brsons.model.*;
 import com.brsons.service.SupplierService;
 import com.brsons.service.PurchaseOrderService;
 import com.brsons.service.GRNService;
+import com.brsons.service.CreditNoteService;
 import com.brsons.repository.ProductRepository;
 import com.brsons.repository.SupplierRepository;
 
@@ -50,6 +51,38 @@ public class BusinessManagementController {
     
     @Autowired
     private SupplierRepository supplierRepository;
+    
+    @Autowired
+    private CreditNoteService creditNoteService;
+    
+    // ==================== AJAX ENDPOINTS ====================
+    
+    @GetMapping("/api/purchase-orders/{poId}/products")
+    @ResponseBody
+    public List<Map<String, Object>> getProductsByPurchaseOrder(@PathVariable Long poId) {
+        try {
+            Optional<PurchaseOrder> po = purchaseOrderService.getPurchaseOrderById(poId);
+            if (po.isPresent()) {
+                return po.get().getItems().stream()
+                    .map(item -> {
+                        Map<String, Object> productMap = new HashMap<>();
+                        Product product = item.getProduct();
+                        productMap.put("id", product.getId());
+                        productMap.put("productName", product.getProductName());
+                        productMap.put("unitPrice", item.getUnitPrice());
+                        productMap.put("orderedQuantity", item.getOrderedQuantity());
+                        productMap.put("discountPercentage", item.getDiscountPercentage());
+                        productMap.put("taxPercentage", item.getTaxPercentage());
+                        return productMap;
+                    })
+                    .collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new ArrayList<>();
+    }
+    
     // ==================== SUPPLIER MANAGEMENT ====================
     
     @GetMapping("/suppliers")
@@ -498,7 +531,7 @@ public class BusinessManagementController {
             @RequestParam(required = false) BigDecimal[] discountPercentages,
             @RequestParam(required = false) BigDecimal[] taxPercentages,
             @RequestParam(required = false) String[] itemNotes,
-            RedirectAttributes redirectAttributes) {
+                                    RedirectAttributes redirectAttributes) {
         
         try {
             Supplier supplier = supplierRepository.findById(supplierId)
@@ -550,14 +583,14 @@ public class BusinessManagementController {
 
             purchaseOrderService.updatePurchaseOrder(id, purchaseOrder);
             redirectAttributes.addFlashAttribute("successMessage", "Purchase order updated successfully!");
-
+            
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "Error updating purchase order: " + e.getMessage());
         }
 
         return "redirect:/admin/business/purchase-orders";
     }
-   
+    
     @PostMapping("/purchase-orders/status/{id}")
     @ResponseBody
     public Map<String, Object> updatePurchaseOrderStatus(@PathVariable Long id, 
@@ -875,11 +908,196 @@ public class BusinessManagementController {
             return "redirect:/login";
         }
         
-        // TODO: Implement credit note service and repository
+        List<CreditNote> creditNotes = creditNoteService.getAllCreditNotes();
+        CreditNoteService.CreditNoteStatistics stats = creditNoteService.getCreditNoteStatistics();
+        
+        model.addAttribute("creditNotes", creditNotes);
+        model.addAttribute("creditNoteStats", stats);
         model.addAttribute("user", user);
-        model.addAttribute("message", "Credit Note management coming soon!");
         
         return "admin-credit-notes";
+    }
+    
+    @GetMapping("/credit-notes/new")
+    public String showAddCreditNoteForm(Model model, HttpSession session) {
+        // Check if user is logged in and is admin
+        User user = (User) session.getAttribute("user");
+        if (user == null || !"Admin".equals(user.getType())) {
+            return "redirect:/login";
+        }
+        
+        List<PurchaseOrder> orders = purchaseOrderService.getAllPurchaseOrders();
+        List<Supplier> suppliers = supplierService.getAllSuppliers();
+        List<Product> products = productRepository.findAll();
+        
+        model.addAttribute("creditNote", new CreditNote());
+        model.addAttribute("orders", orders);
+        model.addAttribute("suppliers", suppliers);
+        model.addAttribute("products", products);
+        model.addAttribute("user", user);
+        
+        return "admin-add-credit-note";
+    }
+    
+    @PostMapping("/credit-notes/new")
+    public String addCreditNote(@ModelAttribute CreditNote creditNote,
+                               @RequestParam(required = false) List<Long> productIds,
+                               @RequestParam(required = false) List<Integer> quantities,
+                               @RequestParam(required = false) List<BigDecimal> unitPrices,
+                               @RequestParam(required = false) List<BigDecimal> discountPercentages,
+                               @RequestParam(required = false) List<BigDecimal> taxPercentages,
+                               @RequestParam(required = false) List<String> reasons,
+                               HttpSession session,
+                               RedirectAttributes redirectAttributes) {
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null || !"Admin".equals(user.getType())) {
+                return "redirect:/login";
+            }
+            
+            creditNote.setCreatedBy(user.getName());
+            
+            // Create credit note items
+            if (productIds != null && !productIds.isEmpty()) {
+                for (int i = 0; i < productIds.size(); i++) {
+                    if (productIds.get(i) != null) {
+                        CreditNoteItem item = new CreditNoteItem();
+                        item.setProduct(productRepository.findById(productIds.get(i)).orElse(null));
+                        item.setQuantity(quantities.get(i));
+                        item.setUnitPrice(unitPrices.get(i));
+                        item.setDiscountPercentage(discountPercentages.get(i));
+                        item.setTaxPercentage(taxPercentages.get(i));
+                        item.setReason(reasons.get(i));
+                        
+                        creditNote.addCreditNoteItem(item);
+                    }
+                }
+            }
+            
+            creditNoteService.createCreditNote(creditNote);
+            
+            redirectAttributes.addFlashAttribute("successMessage", 
+                "Credit Note created successfully!");
+            return "redirect:/admin/business/credit-notes";
+            
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", 
+                "Error creating Credit Note: " + e.getMessage());
+            return "redirect:/admin/business/credit-notes/new";
+        }
+    }
+    
+    @GetMapping("/credit-notes/edit/{id}")
+    public String showEditCreditNoteForm(@PathVariable Long id, Model model, HttpSession session) {
+        // Check if user is logged in and is admin
+        User user = (User) session.getAttribute("user");
+        if (user == null || !"Admin".equals(user.getType())) {
+            return "redirect:/login";
+        }
+        
+        CreditNote creditNote = creditNoteService.getCreditNoteById(id)
+            .orElseThrow(() -> new RuntimeException("Credit Note not found"));
+        
+        List<PurchaseOrder> orders = purchaseOrderService.getAllPurchaseOrders();
+        List<Supplier> suppliers = supplierService.getAllSuppliers();
+        List<Product> products = productRepository.findAll();
+        
+        model.addAttribute("creditNote", creditNote);
+        model.addAttribute("orders", orders);
+        model.addAttribute("suppliers", suppliers);
+        model.addAttribute("products", products);
+        model.addAttribute("user", user);
+        
+        return "admin-edit-credit-note";
+    }
+    
+    @PostMapping("/credit-notes/edit/{id}")
+    public String updateCreditNote(@PathVariable Long id,
+                                  @ModelAttribute CreditNote creditNoteDetails,
+                                  @RequestParam(required = false) List<Long> productIds,
+                                  @RequestParam(required = false) List<Integer> quantities,
+                                  @RequestParam(required = false) List<BigDecimal> unitPrices,
+                                  @RequestParam(required = false) List<BigDecimal> discountPercentages,
+                                  @RequestParam(required = false) List<BigDecimal> taxPercentages,
+                                  @RequestParam(required = false) List<String> reasons,
+                                  HttpSession session,
+                                  RedirectAttributes redirectAttributes) {
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null || !"Admin".equals(user.getType())) {
+                return "redirect:/login";
+            }
+            
+            creditNoteDetails.setUpdatedBy(user.getName());
+            
+            // Create credit note items
+            if (productIds != null && !productIds.isEmpty()) {
+                List<CreditNoteItem> items = new ArrayList<>();
+                for (int i = 0; i < productIds.size(); i++) {
+                    if (productIds.get(i) != null) {
+                        CreditNoteItem item = new CreditNoteItem();
+                        item.setProduct(productRepository.findById(productIds.get(i)).orElse(null));
+                        item.setQuantity(quantities.get(i));
+                        item.setUnitPrice(unitPrices.get(i));
+                        item.setDiscountPercentage(discountPercentages.get(i));
+                        item.setTaxPercentage(taxPercentages.get(i));
+                        item.setReason(reasons.get(i));
+                        
+                        items.add(item);
+                    }
+                }
+                creditNoteDetails.setCreditNoteItems(items);
+            }
+            
+            creditNoteService.updateCreditNote(id, creditNoteDetails);
+            
+            redirectAttributes.addFlashAttribute("successMessage", 
+                "Credit Note updated successfully!");
+            return "redirect:/admin/business/credit-notes";
+            
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", 
+                "Error updating Credit Note: " + e.getMessage());
+            return "redirect:/admin/business/credit-notes/edit/" + id;
+        }
+    }
+    
+    @PostMapping("/credit-notes/status/{id}")
+    @ResponseBody
+    public Map<String, Object> updateCreditNoteStatus(@PathVariable Long id, 
+                                                     @RequestParam String status, 
+                                                     HttpSession session) {
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null || !"Admin".equals(user.getType())) {
+                return Map.of("success", false, "message", "Unauthorized");
+            }
+            
+            creditNoteService.updateCreditNoteStatus(id, status);
+            
+            return Map.of("success", true, "message", "Credit Note status updated successfully");
+            
+        } catch (Exception e) {
+            return Map.of("success", false, "message", "Error: " + e.getMessage());
+        }
+    }
+    
+    @PostMapping("/credit-notes/delete/{id}")
+    @ResponseBody
+    public Map<String, Object> deleteCreditNote(@PathVariable Long id, HttpSession session) {
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null || !"Admin".equals(user.getType())) {
+                return Map.of("success", false, "message", "Unauthorized");
+            }
+            
+            creditNoteService.deleteCreditNote(id);
+            
+            return Map.of("success", true, "message", "Credit Note deleted successfully");
+            
+        } catch (Exception e) {
+            return Map.of("success", false, "message", "Error: " + e.getMessage());
+        }
     }
     
     // ==================== DASHBOARD ====================
@@ -901,14 +1119,14 @@ public class BusinessManagementController {
         // Get GRN statistics
         GRNService.GRNStatistics grnStats = grnService.getGRNStatistics();
         
-        // TODO: Get other business statistics
-        // - Credit Note statistics
-        // - Financial summaries
+        // Get Credit Note statistics
+        CreditNoteService.CreditNoteStatistics creditNoteStats = creditNoteService.getCreditNoteStatistics();
         
         model.addAttribute("user", user);
         model.addAttribute("supplierStats", supplierStats);
         model.addAttribute("poStats", poStats);
         model.addAttribute("grnStats", grnStats);
+        model.addAttribute("creditNoteStats", creditNoteStats);
         
         return "admin-business-dashboard";
     }

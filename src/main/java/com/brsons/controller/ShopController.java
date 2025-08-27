@@ -336,17 +336,19 @@ public class ShopController {
 	        Product product = productRepository.findByIdWithCategory(entry.getProductId()).orElse(null);
 
 	        if (product != null) {
-	            System.out.println("Product found: " + product.getProductName() + ", Price: " + product.getRetailPrice());
+	            // Use appropriate price based on user type
+	            double unitPrice = "B2B".equals(user.getType()) ? product.getB2bPrice() : product.getRetailPrice();
+	            System.out.println("Product found: " + product.getProductName() + ", B2B Price: " + product.getB2bPrice() + ", Retail Price: " + product.getRetailPrice() + ", Using Price: " + unitPrice + " (User Type: " + user.getType() + ")");
 	            System.out.println("Product category: " + (product.getCategory() != null ? product.getCategory().getCategoryName() : "NULL"));
 	            
 	            int quantity = entry.getQuantity();
-	            double totalPrice = product.getRetailPrice() * quantity;
+	            double totalPrice = unitPrice * quantity;
 
 	            grandTotal += totalPrice;
 
 	            CartItemDetails cartItem = new CartItemDetails(product.getId(), product, quantity, totalPrice);
 	            cartItems.add(cartItem);
-	            System.out.println("Cart item created - ID: " + cartItem.getId() + ", Total Price: " + cartItem.getTotalPrice());
+	            System.out.println("Cart item created - ID: " + cartItem.getId() + ", Total Price: " + cartItem.getTotalPrice() + ", Unit Price: " + unitPrice + ", User Type: " + user.getType());
 	        } else {
 	            System.out.println("Product not found for ID: " + entry.getProductId());
 	        }
