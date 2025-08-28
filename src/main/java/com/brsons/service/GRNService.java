@@ -6,6 +6,7 @@ import com.brsons.model.PurchaseOrder;
 import com.brsons.repository.GRNRepository;
 import com.brsons.repository.PurchaseOrderRepository;
 import com.brsons.service.InventoryService;
+import com.brsons.service.PurchaseOrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,9 @@ public class GRNService {
     @Autowired
     private InventoryService inventoryService;
     
+    @Autowired
+    private PurchaseOrderService purchaseOrderService;
+    
     // Create new GRN
     public GoodsReceivedNote createGRN(GoodsReceivedNote grn) {
         // Generate unique GRN number if not provided
@@ -53,7 +57,26 @@ public class GRNService {
         grn.calculateTotals();
         
         // Save the GRN
-        return grnRepository.save(grn);
+        GoodsReceivedNote savedGRN = grnRepository.save(grn);
+        
+        // Automatically update PO status based on new GRN
+        if (savedGRN.getPurchaseOrder() != null) {
+            try {
+                System.out.println("GRN " + savedGRN.getGrnNumber() + " created for PO " + savedGRN.getPurchaseOrder().getId() + 
+                    " (current status: " + savedGRN.getPurchaseOrder().getStatus() + ")");
+                System.out.println("Triggering automatic PO status update...");
+                purchaseOrderService.updatePOStatusBasedOnGRN(savedGRN.getPurchaseOrder().getId());
+                System.out.println("Automatic PO status update completed");
+            } catch (Exception e) {
+                System.err.println("Error updating PO status after GRN creation: " + e.getMessage());
+                e.printStackTrace();
+                // Don't fail the GRN creation if PO status update fails
+            }
+        } else {
+            System.out.println("GRN " + savedGRN.getGrnNumber() + " has no associated PO");
+        }
+        
+        return savedGRN;
     }
     
     // Get GRN by ID
@@ -166,6 +189,23 @@ public class GRNService {
             // Log status changes for debugging
             System.out.println("GRN " + grn.getGrnNumber() + " status changed: " + oldStatus + " -> " + newStatus);
             
+            // Automatically update PO status based on GRN quantities
+            if (grn.getPurchaseOrder() != null) {
+                try {
+                    System.out.println("GRN " + grn.getGrnNumber() + " status changed to " + newStatus + 
+                        " for PO " + grn.getPurchaseOrder().getId() + " (current PO status: " + grn.getPurchaseOrder().getStatus() + ")");
+                    System.out.println("Triggering automatic PO status update after GRN status change...");
+                    purchaseOrderService.updatePOStatusBasedOnGRN(grn.getPurchaseOrder().getId());
+                    System.out.println("Automatic PO status update completed after GRN status change");
+                } catch (Exception e) {
+                    System.err.println("Error updating PO status: " + e.getMessage());
+                    e.printStackTrace();
+                    // Don't fail the GRN update if PO status update fails
+                }
+            } else {
+                System.out.println("GRN " + grn.getGrnNumber() + " has no associated PO");
+            }
+            
             return grnRepository.save(grn);
         }
         throw new RuntimeException("GRN not found with id: " + id);
@@ -224,6 +264,16 @@ public class GRNService {
             // Recalculate GRN totals
             grn.calculateTotals();
             grnRepository.save(grn);
+            
+            // Automatically update PO status based on updated GRN quantities
+            if (grn.getPurchaseOrder() != null) {
+                try {
+                    purchaseOrderService.updatePOStatusBasedOnGRN(grn.getPurchaseOrder().getId());
+                } catch (Exception e) {
+                    System.err.println("Error updating PO status after quantity update: " + e.getMessage());
+                    // Don't fail the GRN update if PO status update fails
+                }
+            }
         }
     }
     

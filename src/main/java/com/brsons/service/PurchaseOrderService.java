@@ -23,6 +23,10 @@ import com.brsons.repository.CreditNoteRepository;
 import com.brsons.model.GoodsReceivedNote;
 import com.brsons.repository.GRNRepository;
 
+import java.util.Map;
+import java.util.HashMap;
+import java.util.ArrayList;
+
 @Service
 @Transactional
 public class PurchaseOrderService {
@@ -165,43 +169,9 @@ public class PurchaseOrderService {
         return purchaseOrderRepository.searchPOs(query.trim());
     }
     
-    // Update purchase order status
-    public PurchaseOrder updatePurchaseOrderStatus(Long id, PurchaseOrder.POStatus newStatus) {
-        Optional<PurchaseOrder> existingPO = purchaseOrderRepository.findById(id);
-        if (existingPO.isPresent()) {
-            PurchaseOrder purchaseOrder = existingPO.get();
-            PurchaseOrder.POStatus oldStatus = purchaseOrder.getStatus();
-            
-            // Validate status transition
-            if (!canTransitionToStatus(purchaseOrder.getStatus(), newStatus)) {
-                throw new IllegalArgumentException("Invalid status transition from " + purchaseOrder.getStatus() + " to " + newStatus);
-            }
-            
-            purchaseOrder.setStatus(newStatus);
-            purchaseOrder.setUpdatedAt(LocalDateTime.now());
-            
-            // Set approval info if being approved
-            if (newStatus == PurchaseOrder.POStatus.APPROVED) {
-                // This would typically come from the authenticated user
-                purchaseOrder.setApprovedAt(LocalDateTime.now());
-                
-                // Reserve stock when PO is approved
-                inventoryService.handlePOApproval(purchaseOrder);
-            }
-            
-            // Handle stock reservation release if PO is cancelled
-            if (newStatus == PurchaseOrder.POStatus.CANCELLED && oldStatus == PurchaseOrder.POStatus.APPROVED) {
-                inventoryService.handlePOCancellation(purchaseOrder);
-            }
-            
-            return purchaseOrderRepository.save(purchaseOrder);
-        }
-        throw new RuntimeException("Purchase Order not found with id: " + id);
-    }
-    
     // Delete purchase order (soft delete by setting status to CANCELLED)
     public PurchaseOrder deletePurchaseOrder(Long id) {
-        return updatePurchaseOrderStatus(id, PurchaseOrder.POStatus.CANCELLED);
+        return updatePOStatusManually(id, PurchaseOrder.POStatus.CANCELLED);
     }
     
     // Hard delete purchase order from database
@@ -260,7 +230,9 @@ public class PurchaseOrderService {
     private boolean canTransitionToStatus(PurchaseOrder.POStatus currentStatus, PurchaseOrder.POStatus newStatus) {
         switch (currentStatus) {
             case DRAFT:
-                return newStatus == PurchaseOrder.POStatus.PENDING_APPROVAL || newStatus == PurchaseOrder.POStatus.CANCELLED;
+                return newStatus == PurchaseOrder.POStatus.PENDING_APPROVAL || 
+                       newStatus == PurchaseOrder.POStatus.APPROVED || 
+                       newStatus == PurchaseOrder.POStatus.CANCELLED;
             case PENDING_APPROVAL:
                 return newStatus == PurchaseOrder.POStatus.APPROVED || newStatus == PurchaseOrder.POStatus.CANCELLED;
             case APPROVED:
@@ -285,6 +257,277 @@ public class PurchaseOrderService {
         String timestamp = String.valueOf(System.currentTimeMillis()).substring(8); // Last 4 digits
         String random = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
         return prefix + timestamp + random;
+    }
+    
+    // Update PO status based on GRN creation and receipt quantities
+    @Transactional
+    public void updatePOStatusBasedOnGRN(Long poId) {
+        System.out.println("=== Starting PO status update for PO ID: " + poId + " ===");
+        
+        Optional<PurchaseOrder> poOpt = purchaseOrderRepository.findById(poId);
+        if (poOpt.isPresent()) {
+            PurchaseOrder po = poOpt.get();
+            System.out.println("PO found: " + po.getPoNumber() + " with current status: " + po.getStatus());
+            
+            // Get all GRNs for this PO
+            List<GoodsReceivedNote> grns = grnRepository.findByPurchaseOrderId(poId);
+            System.out.println("Found " + grns.size() + " GRNs for this PO");
+            
+            // If no GRNs exist, don't change the status - wait for GRNs to be created
+            if (grns.isEmpty()) {
+                System.out.println("No GRNs found for PO - status will remain unchanged");
+                System.out.println("PO status is " + po.getStatus() + " - waiting for GRNs to be created");
+                return;
+            }
+            
+            // Calculate total received quantities for each item
+            Map<Long, Integer> totalReceivedByProduct = new HashMap<>();
+            Map<Long, Integer> orderedQuantities = new HashMap<>();
+            
+            // Get ordered quantities
+            for (PurchaseOrderItem item : po.getOrderItems()) {
+                orderedQuantities.put(item.getProduct().getId(), item.getOrderedQuantity());
+                totalReceivedByProduct.put(item.getProduct().getId(), 0);
+                System.out.println("PO Item: " + item.getProduct().getProductName() + " - Ordered: " + item.getOrderedQuantity());
+            }
+            
+            // Sum up received quantities from all GRNs
+            for (GoodsReceivedNote grn : grns) {
+                System.out.println("Processing GRN: " + grn.getGrnNumber() + " with status: " + grn.getStatus());
+                if (grn.getStatus() == GoodsReceivedNote.GRNStatus.INSPECTED || 
+                    grn.getStatus() == GoodsReceivedNote.GRNStatus.APPROVED) {
+                    for (var grnItem : grn.getGrnItems()) {
+                        Long productId = grnItem.getProduct().getId();
+                        int acceptedQty = grnItem.getAcceptedQuantity() != null ? grnItem.getAcceptedQuantity() : 0;
+                        int currentReceived = totalReceivedByProduct.getOrDefault(productId, 0);
+                        totalReceivedByProduct.put(productId, currentReceived + acceptedQty);
+                        System.out.println("GRN Item: " + grnItem.getProduct().getProductName() + 
+                            " - Accepted: " + acceptedQty + " (running total: " + (currentReceived + acceptedQty) + ")");
+                    }
+                } else {
+                    System.out.println("Skipping GRN " + grn.getGrnNumber() + " - status " + grn.getStatus() + " not INSPECTED or APPROVED");
+                }
+            }
+            
+            // Determine PO status based on receipt quantities
+            boolean allItemsFullyReceived = true;
+            boolean anyItemsReceived = false;
+            
+            System.out.println("=== Analyzing receipt status ===");
+            for (Map.Entry<Long, Integer> entry : orderedQuantities.entrySet()) {
+                Long productId = entry.getKey();
+                int orderedQty = entry.getValue();
+                int receivedQty = totalReceivedByProduct.getOrDefault(productId, 0);
+                
+                System.out.println("Product ID " + productId + ": Ordered=" + orderedQty + ", Received=" + receivedQty);
+                
+                if (receivedQty > 0) {
+                    anyItemsReceived = true;
+                }
+                
+                if (receivedQty < orderedQty) {
+                    allItemsFullyReceived = false;
+                }
+            }
+            
+            System.out.println("Analysis: anyItemsReceived=" + anyItemsReceived + ", allItemsFullyReceived=" + allItemsFullyReceived);
+            
+            // Update PO status
+            PurchaseOrder.POStatus newStatus = po.getStatus();
+            
+            if (allItemsFullyReceived && anyItemsReceived) {
+                newStatus = PurchaseOrder.POStatus.FULLY_RECEIVED;
+                System.out.println("Setting status to FULLY_RECEIVED");
+            } else if (anyItemsReceived) {
+                newStatus = PurchaseOrder.POStatus.PARTIALLY_RECEIVED;
+                System.out.println("Setting status to PARTIALLY_RECEIVED");
+            } else if (po.getStatus() == PurchaseOrder.POStatus.APPROVED) {
+                // When GRNs exist but no items received yet, change APPROVED to ORDERED
+                newStatus = PurchaseOrder.POStatus.ORDERED;
+                System.out.println("Setting status to ORDERED (GRNs exist but no items received yet)");
+            } else {
+                System.out.println("No status change needed, keeping: " + po.getStatus());
+            }
+            
+            // Update status if it changed
+            if (newStatus != po.getStatus()) {
+                PurchaseOrder.POStatus oldStatus = po.getStatus();
+                po.setStatus(newStatus);
+                po.setUpdatedAt(LocalDateTime.now());
+                purchaseOrderRepository.save(po);
+                
+                System.out.println("PO " + po.getPoNumber() + " status automatically updated: " + 
+                    oldStatus + " → " + newStatus + " based on GRN quantities");
+            } else {
+                System.out.println("PO status unchanged: " + po.getStatus());
+            }
+        } else {
+            System.out.println("PO not found with ID: " + poId);
+        }
+        
+        System.out.println("=== Completed PO status update for PO ID: " + poId + " ===");
+    }
+    
+    // Manual method to update PO status (for testing and manual updates)
+    @Transactional
+    public PurchaseOrder updatePOStatusManually(Long id, PurchaseOrder.POStatus newStatus) {
+        System.out.println("=== Starting manual PO status update ===");
+        System.out.println("PO ID: " + id);
+        System.out.println("Requested new status: " + newStatus);
+        
+        Optional<PurchaseOrder> existingPO = purchaseOrderRepository.findById(id);
+        if (existingPO.isPresent()) {
+            PurchaseOrder purchaseOrder = existingPO.get();
+            PurchaseOrder.POStatus oldStatus = purchaseOrder.getStatus();
+            
+            System.out.println("PO found: " + purchaseOrder.getPoNumber());
+            System.out.println("Current status: " + oldStatus);
+            System.out.println("Requested status: " + newStatus);
+            
+            // Validate status transition
+            boolean canTransition = canTransitionToStatus(purchaseOrder.getStatus(), newStatus);
+            
+            if (!canTransition) {
+                String errorMsg = "Invalid status transition from " + purchaseOrder.getStatus() + " to " + newStatus;
+                throw new IllegalArgumentException(errorMsg);
+            }
+            
+            purchaseOrder.setStatus(newStatus);
+            purchaseOrder.setUpdatedAt(LocalDateTime.now());
+            
+            System.out.println("Status updated to: " + purchaseOrder.getStatus());
+            
+            // Set approval info if being approved
+            if (newStatus == PurchaseOrder.POStatus.APPROVED) {
+                System.out.println("PO is being approved. Setting approval timestamp and reserving stock...");
+                purchaseOrder.setApprovedAt(LocalDateTime.now());
+                
+                // Reserve stock when PO is approved
+                try {
+                    inventoryService.handlePOApproval(purchaseOrder);
+                    System.out.println("Stock reservation completed successfully");
+                } catch (Exception e) {
+                    System.err.println("Error reserving stock: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+            
+            // Handle stock reservation release if PO is cancelled
+            if (newStatus == PurchaseOrder.POStatus.CANCELLED && oldStatus == PurchaseOrder.POStatus.APPROVED) {
+                System.out.println("PO is being cancelled. Releasing stock reservation...");
+                try {
+                    inventoryService.handlePOCancellation(purchaseOrder);
+                    System.out.println("Stock reservation release completed successfully");
+                } catch (Exception e) {
+                    System.err.println("Error releasing stock reservation: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+            
+            // After manual status update, also check if we need to update based on GRNs
+            // BUT ONLY if there are existing GRNs - don't auto-change to ORDERED immediately
+            if (newStatus == PurchaseOrder.POStatus.APPROVED) {
+                System.out.println("PO is now APPROVED. Checking if there are existing GRNs...");
+                try {
+                    List<GoodsReceivedNote> existingGRNs = grnRepository.findByPurchaseOrderId(id);
+                    if (!existingGRNs.isEmpty()) {
+                        System.out.println("Found " + existingGRNs.size() + " existing GRNs, triggering automatic status update...");
+                        // Only trigger automatic status update if there are existing GRNs
+                        updatePOStatusBasedOnGRN(id);
+                        System.out.println("Automatic status update completed");
+                    } else {
+                        System.out.println("No existing GRNs found, PO will remain APPROVED until GRNs are created");
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error in automatic status update: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+            
+            System.out.println("Saving PO to database...");
+            PurchaseOrder savedPO = purchaseOrderRepository.save(purchaseOrder);
+            System.out.println("PO saved successfully. Final status: " + savedPO.getStatus());
+            
+            System.out.println("=== Manual PO status update completed ===");
+            return savedPO;
+        } else {
+            String errorMsg = "Purchase Order not found with id: " + id;
+            System.err.println("ERROR: " + errorMsg);
+            throw new RuntimeException(errorMsg);
+        }
+    }
+    
+    // Get receipt summary for a PO
+    public Map<String, Object> getPOReceiptSummary(Long poId) {
+        Optional<PurchaseOrder> poOpt = purchaseOrderRepository.findById(poId);
+        if (poOpt.isPresent()) {
+            PurchaseOrder po = poOpt.get();
+            Map<String, Object> summary = new HashMap<>();
+            
+            // Get all GRNs for this PO
+            List<GoodsReceivedNote> grns = grnRepository.findByPurchaseOrderId(poId);
+            
+            Map<Long, Integer> totalReceivedByProduct = new HashMap<>();
+            Map<Long, Integer> orderedQuantities = new HashMap<>();
+            
+            // Get ordered quantities
+            for (PurchaseOrderItem item : po.getOrderItems()) {
+                orderedQuantities.put(item.getProduct().getId(), item.getOrderedQuantity());
+                totalReceivedByProduct.put(item.getProduct().getId(), 0);
+            }
+            
+            // Sum up received quantities from all GRNs
+            for (GoodsReceivedNote grn : grns) {
+                if (grn.getStatus() == GoodsReceivedNote.GRNStatus.INSPECTED || 
+                    grn.getStatus() == GoodsReceivedNote.GRNStatus.APPROVED) {
+                    for (var grnItem : grn.getGrnItems()) {
+                        Long productId = grnItem.getProduct().getId();
+                        int acceptedQty = grnItem.getAcceptedQuantity() != null ? grnItem.getAcceptedQuantity() : 0;
+                        int currentReceived = totalReceivedByProduct.getOrDefault(productId, 0);
+                        totalReceivedByProduct.put(productId, currentReceived + acceptedQty);
+                    }
+                }
+            }
+            
+            // Calculate receipt percentages
+            List<Map<String, Object>> itemReceipts = new ArrayList<>();
+            double overallReceiptPercentage = 0.0;
+            int totalOrdered = 0;
+            int totalReceived = 0;
+            
+            for (PurchaseOrderItem item : po.getOrderItems()) {
+                Long productId = item.getProduct().getId();
+                int orderedQty = item.getOrderedQuantity();
+                int receivedQty = totalReceivedByProduct.getOrDefault(productId, 0);
+                double receiptPercentage = orderedQty > 0 ? (double) receivedQty / orderedQty * 100 : 0;
+                
+                Map<String, Object> itemReceipt = new HashMap<>();
+                itemReceipt.put("productName", item.getProduct().getProductName());
+                itemReceipt.put("orderedQuantity", orderedQty);
+                itemReceipt.put("receivedQuantity", receivedQty);
+                itemReceipt.put("receiptPercentage", Math.round(receiptPercentage * 100.0) / 100.0);
+                itemReceipt.put("status", receivedQty == 0 ? "Not Received" : 
+                               receivedQty == orderedQty ? "Fully Received" : "Partially Received");
+                
+                itemReceipts.add(itemReceipt);
+                
+                totalOrdered += orderedQty;
+                totalReceived += receivedQty;
+            }
+            
+            overallReceiptPercentage = totalOrdered > 0 ? (double) totalReceived / totalOrdered * 100 : 0;
+            
+            summary.put("poNumber", po.getPoNumber());
+            summary.put("poStatus", po.getStatus());
+            summary.put("totalOrdered", totalOrdered);
+            summary.put("totalReceived", totalReceived);
+            summary.put("overallReceiptPercentage", Math.round(overallReceiptPercentage * 100.0) / 100.0);
+            summary.put("itemReceipts", itemReceipts);
+            summary.put("grnCount", grns.size());
+            
+            return summary;
+        }
+        return null;
     }
     
     // Statistics class

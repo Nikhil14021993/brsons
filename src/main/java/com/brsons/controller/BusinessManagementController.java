@@ -593,26 +593,67 @@ public class BusinessManagementController {
         return "redirect:/admin/business/purchase-orders";
     }
     
-    @PostMapping("/purchase-orders/status/{id}")
+    @PostMapping("/purchase-orders/{id}/status")
     @ResponseBody
     public Map<String, Object> updatePurchaseOrderStatus(@PathVariable Long id, 
-                                                        @RequestParam String status, 
+                                                        @RequestParam PurchaseOrder.POStatus newStatus, 
                                                         HttpSession session) {
+        System.out.println("=== STATUS UPDATE REQUEST ===");
+        System.out.println("PO ID: " + id);
+        System.out.println("New Status: " + newStatus);
+        System.out.println("Request Method: POST");
+        System.out.println("===============================");
+        
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null || !"Admin".equals(user.getType())) {
+                System.out.println("ERROR: Unauthorized user");
+                return Map.of("success", false, "message", "Unauthorized");
+            }
+            
+            System.out.println("User authorized: " + user.getName());
+            
+            // Use the new manual method that includes proper validation and stock management
+            PurchaseOrder updatedPO = purchaseOrderService.updatePOStatusManually(id, newStatus);
+            
+            System.out.println("PO status updated successfully to: " + updatedPO.getStatus());
+            
+            return Map.of("success", true, "message", "Purchase Order status updated successfully to " + newStatus);
+            
+        } catch (Exception e) {
+            System.err.println("ERROR in controller: " + e.getMessage());
+            e.printStackTrace();
+            return Map.of("success", false, "message", "Error: " + e.getMessage());
+        }
+    }
+    
+    // Get PO receipt summary
+    @GetMapping("/purchase-orders/{id}/receipt-summary")
+    @ResponseBody
+    public Map<String, Object> getPOReceiptSummary(@PathVariable Long id, HttpSession session) {
         try {
             User user = (User) session.getAttribute("user");
             if (user == null || !"Admin".equals(user.getType())) {
                 return Map.of("success", false, "message", "Unauthorized");
             }
             
-            PurchaseOrder.POStatus newStatus = PurchaseOrder.POStatus.valueOf(status);
-            purchaseOrderService.updatePurchaseOrderStatus(id, newStatus);
-            
-            return Map.of("success", true, "message", "Purchase Order status updated successfully");
+            Map<String, Object> summary = purchaseOrderService.getPOReceiptSummary(id);
+            if (summary != null) {
+                return Map.of("success", true, "data", summary);
+            } else {
+                return Map.of("success", false, "message", "Purchase Order not found");
+            }
             
         } catch (Exception e) {
             return Map.of("success", false, "message", "Error: " + e.getMessage());
         }
     }
+    
+
+    
+
+    
+
     
     @DeleteMapping("/purchase-orders/delete/{id}")
     @ResponseBody

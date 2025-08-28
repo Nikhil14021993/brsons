@@ -35,6 +35,192 @@
             transform: none;
             box-shadow: none;
         }
+        
+        /* Status Update Buttons */
+        .status-update-buttons {
+            display: flex;
+            gap: 5px;
+            margin: 5px 0;
+            flex-wrap: wrap;
+        }
+        
+        .status-update-buttons .btn {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            white-space: nowrap;
+        }
+        
+        /* Quick Approve Button Styles */
+        .btn-quick-approve {
+            background-color: #28a745 !important;
+            border-color: #28a745 !important;
+            color: white !important;
+            margin: 2px !important;
+            font-weight: bold !important;
+        }
+        
+        .btn-quick-approve:hover {
+            background-color: #218838 !important;
+            border-color: #1e7e34 !important;
+        }
+        
+        /* Status Badge Colors */
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-draft {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .status-pending_approval {
+            background: #9b59b6;
+            color: white;
+        }
+        
+        .status-approved {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .status-ordered {
+            background: #3498db;
+            color: white;
+        }
+        
+        .status-partially_received {
+            background: #e67e22;
+            color: white;
+        }
+        
+        .status-fully_received {
+            background: #16a085;
+            color: white;
+        }
+        
+        .status-cancelled {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .status-closed {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        /* Receipt Summary Modal */
+        .receipt-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .receipt-modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .receipt-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .receipt-modal-header h2 {
+            margin: 0;
+            color: #2c3e50;
+        }
+        
+        .close-receipt {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close-receipt:hover {
+            color: #000;
+        }
+        
+        .receipt-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .receipt-summary-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        
+        .receipt-summary-card h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 0.9rem;
+        }
+        
+        .receipt-summary-card .number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .receipt-items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .receipt-items-table th,
+        .receipt-items-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .receipt-items-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .receipt-progress {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 20px;
+            margin: 5px 0;
+            overflow: hidden;
+        }
+        
+        .receipt-progress-bar {
+            height: 100%;
+            background: linear-gradient(45deg, #28a745, #20c997);
+            transition: width 0.3s ease;
+        }
     </style>
 
 </head>
@@ -107,6 +293,25 @@
             </form>
         </div>
         
+        <!-- Information Section -->
+        <div class="info-section" style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef; border-left: 4px solid #3498db;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <i class="fas fa-info-circle" style="color: #3498db; font-size: 1.5rem;"></i>
+                <h3 style="margin: 0; color: #2c3e50; font-size: 1.3rem;">Automatic PO-GRN Integration</h3>
+            </div>
+            <div style="color: #34495e; line-height: 1.6;">
+                <p><strong>How the New System Works:</strong></p>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li><strong>DRAFT → PENDING_APPROVAL → APPROVED:</strong> Manual status progression with approval workflow</li>
+                    <li><strong>APPROVED → ORDERED:</strong> Automatic when GRN is created (items received)</li>
+                    <li><strong>ORDERED → PARTIALLY_RECEIVED:</strong> Automatic when some items are received via GRN</li>
+                    <li><strong>PARTIALLY_RECEIVED → FULLY_RECEIVED:</strong> Automatic when all items are received</li>
+                    <li><strong>Stock Management:</strong> Stock is reserved when PO is approved and updated when GRNs are inspected</li>
+                </ul>
+                <p><em>Note: PO status automatically updates based on GRN creation and receipt quantities. Use the "Receipt" button to view detailed receipt summaries.</em></p>
+            </div>
+        </div>
+        
         <!-- Purchase Orders Table -->
         <div class="po-table-container">
             <div class="table-info" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef;">
@@ -114,6 +319,18 @@
                     <i class="fas fa-info-circle"></i> 
                     Delete option is only available for Purchase Orders in DRAFT or CANCELLED status
                 </small>
+            </div>
+            
+            <!-- Debug Section - Temporary -->
+            <div style="background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #dee2e6;">
+                <h4 style="margin: 0 0 10px 0; color: #495057;">Debug Info - PO Statuses</h4>
+                <div style="font-family: monospace; font-size: 12px;">
+                    <div th:each="po : ${purchaseOrders}">
+                        PO ID: <span th:text="${po.id}">0</span> | 
+                        Status: <span th:text="${po.status}">UNKNOWN</span> | 
+                        Is DRAFT: <span th:text="${po.status == T(com.brsons.model.PurchaseOrder.POStatus).DRAFT}">false</span>
+                    </div>
+                </div>
             </div>
             
             <div th:if="${#lists.isEmpty(purchaseOrders)}" class="no-pos">
@@ -155,13 +372,84 @@
                         <td class="actions-cell">
                             <a th:href="@{/admin/business/purchase-orders/edit/{id}(id=${po.id})}" 
                                class="btn btn-warning btn-sm">Edit</a>
-                            <button th:attr="data-po-id=${po.id}, data-new-status=${poUtils.getNextStatus(po.status)}"
-                                    th:class="|btn btn-${poUtils.getNextStatusButtonClass(po.status)} btn-sm update-status-btn|"
-                                    th:text="${poUtils.getNextStatusText(po.status)}">
-                                Next Status
+                            
+                            <!-- Status Update Buttons -->
+                            <div class="status-update-buttons" th:if="${po.status != T(com.brsons.model.PurchaseOrder.POStatus).FULLY_RECEIVED and po.status != T(com.brsons.model.PurchaseOrder.POStatus).CANCELLED and po.status != T(com.brsons.model.PurchaseOrder.POStatus).CLOSED}">
+                                <!-- Draft -> Pending Approval -->
+                                <button th:if="${po.status == T(com.brsons.model.PurchaseOrder.POStatus).DRAFT}" 
+                                        class="btn btn-info btn-sm status-update-btn" 
+                                        th:data-po-id="${po.id}"
+                                        th:data-new-status="PENDING_APPROVAL"
+                                        title="Submit for Approval">
+                                    <i class="fas fa-paper-plane"></i> Submit
+                                </button>
+                                
+                                <!-- Pending Approval -> Approved -->
+                                <button th:if="${po.status == T(com.brsons.model.PurchaseOrder.POStatus).PENDING_APPROVAL}" 
+                                        class="btn btn-success btn-sm status-update-btn" 
+                                        th:data-po-id="${po.id}"
+                                        th:data-new-status="APPROVED"
+                                        title="Approve Purchase Order">
+                                    <i class="fas fa-check"></i> Approve
+                                </button>
+                                
+                                <!-- Approved -> Ordered -->
+                                <button th:if="${po.status == T(com.brsons.model.PurchaseOrder.POStatus).APPROVED}" 
+                                        class="btn btn-primary btn-sm status-update-btn" 
+                                        th:data-po-id="${po.id}"
+                                        th:data-new-status="ORDERED"
+                                        title="Mark as Ordered">
+                                    <i class="fas fa-shipping-fast"></i> Order
+                                </button>
+                                
+                                <!-- Any status -> Cancelled -->
+                                <button class="btn btn-danger btn-sm status-update-btn" 
+                                        th:data-po-id="${po.id}"
+                                        th:data-new-status="CANCELLED"
+                                        title="Cancel Purchase Order">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            </div>
+                            
+                            <!-- Receipt Summary Button -->
+                            <button th:if="${po.status == T(com.brsons.model.PurchaseOrder.POStatus).APPROVED or po.status == T(com.brsons.model.PurchaseOrder.POStatus).ORDERED or po.status == T(com.brsons.model.PurchaseOrder.POStatus).PARTIALLY_RECEIVED or po.status == T(com.brsons.model.PurchaseOrder.POStatus).FULLY_RECEIVED}"
+                                    class="btn btn-secondary btn-sm receipt-summary-btn" 
+                                    th:data-po-id="${po.id}"
+                                    title="View Receipt Summary">
+                                <i class="fas fa-clipboard-list"></i> Receipt
                             </button>
-                            <button class="btn btn-delete btn-sm" 
-                                    th:onclick="'deletePurchaseOrder(' + ${po.id} + ')'"
+                            
+                            <!-- Quick Approve Button for DRAFT POs -->
+                            <button class="btn btn-quick-approve btn-sm quick-approve-btn" 
+                                    th:data-po-id="${po.id}"
+                                    th:if="${po.status == T(com.brsons.model.PurchaseOrder.POStatus).DRAFT}"
+                                    title="Quick Approve (DRAFT → APPROVED)">
+                                <i class="fas fa-check-double"></i> Quick Approve
+                            </button>
+                            
+                            <!-- Temporary: Always Visible Quick Approve Button for Testing -->
+                            <button class="btn btn-warning btn-sm test-approve-btn" 
+                                    th:data-po-id="${po.id}"
+                                    title="TEST: Quick Approve (Always Visible)"
+                                    style="margin: 2px; background-color: #ffc107 !important; border-color: #ffc107 !important;">
+                                <i class="fas fa-exclamation-triangle"></i> TEST Approve
+                            </button>
+                            
+                            <!-- Debug Button - Always Visible -->
+                            <button class="btn btn-info btn-sm debug-btn" 
+                                    th:data-po-id="${po.id}"
+                                    th:data-po-status="${po.status}"
+                                    title="Debug Button - Always Visible"
+                                    style="margin: 2px; background-color: #17a2b8 !important; border-color: #17a2b8 !important;">
+                                <i class="fas fa-info-circle"></i> Debug
+                            </button>
+                            
+
+                            
+
+                            
+                            <button class="btn btn-delete btn-sm delete-po-btn" 
+                                    th:data-po-id="${po.id}"
                                     th:if="${po.status == T(com.brsons.model.PurchaseOrder.POStatus).DRAFT || po.status == T(com.brsons.model.PurchaseOrder.POStatus).CANCELLED}"
                                     title="Delete Purchase Order (only available for DRAFT or CANCELLED status)">
                                 <i class="fas fa-trash"></i>
@@ -173,6 +461,19 @@
         </div>
     </div>
     
+    <!-- Receipt Summary Modal -->
+    <div id="receiptModal" class="receipt-modal">
+        <div class="receipt-modal-content">
+            <div class="receipt-modal-header">
+                <h2>Purchase Order Receipt Summary</h2>
+                <span class="close-receipt" onclick="closeReceiptModal()">&times;</span>
+            </div>
+            <div id="receiptModalBody">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+    
     <script>
         // Update PO status via AJAX
         function updatePOStatus(poId, newStatus) {
@@ -180,14 +481,24 @@
                 return;
             }
             
-            fetch('/admin/business/purchase-orders/status/' + poId, {
+            console.log('Updating PO status:', poId, 'to', newStatus);
+            
+            // Create FormData for proper parameter handling
+            const formData = new FormData();
+            formData.append('newStatus', newStatus);
+            
+            fetch('/admin/business/purchase-orders/' + poId + '/status', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'status=' + newStatus
+                body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('Response data:', data);
                 if (data.success) {
+                    alert('PO status updated successfully to ' + newStatus);
                     // Reload the page to show updated status
                     window.location.reload();
                 } else {
@@ -198,6 +509,184 @@
                 console.error('Error:', error);
                 alert('Error updating PO status. Please try again.');
             });
+        }
+        
+        // Show receipt summary modal
+        function showReceiptSummary(poId) {
+            const modal = document.getElementById('receiptModal');
+            const modalBody = document.getElementById('receiptModalBody');
+            
+            // Show loading state
+            modalBody.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Loading receipt summary...</p></div>';
+            modal.style.display = 'block';
+            
+            // Fetch receipt summary
+            fetch('/admin/business/purchase-orders/' + poId + '/receipt-summary')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayReceiptSummary(data.data);
+                } else {
+                    modalBody.innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;"><i class="fas fa-exclamation-triangle fa-2x"></i><p>Error: ' + data.message + '</p></div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                modalBody.innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;"><i class="fas fa-exclamation-triangle fa-2x"></i><p>Error loading receipt summary. Please try again.</p></div>';
+            });
+        }
+        
+        // Test function for quick approve
+        function testQuickApprove(poId) {
+            console.log('Test function called with PO ID:', poId);
+            alert('Test function working! PO ID: ' + poId + '\n\nNow try the actual Quick Approve button.');
+        }
+        
+        // Quick approve function - changes status from DRAFT directly to APPROVED
+        function quickApprove(poId) {
+            console.log('Quick approve function called with PO ID:', poId);
+            
+            if (!confirm('This will change the PO status from DRAFT directly to APPROVED. Continue?')) {
+                console.log('User cancelled the operation');
+                return;
+            }
+            
+            console.log('Quick approving PO:', poId);
+            
+            // Show loading state
+            const button = event.target.closest('button');
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Approving...';
+            button.disabled = true;
+            
+            // Create FormData for proper parameter handling
+            const formData = new FormData();
+            formData.append('newStatus', 'APPROVED');
+            
+            fetch('/admin/business/purchase-orders/' + poId + '/status', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                if (!response.ok) {
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Quick approve result:', data);
+                if (data.success) {
+                    alert('PO approved successfully! Status changed from DRAFT to APPROVED.');
+                    // Reload page to see the updated status
+                    window.location.reload();
+                } else {
+                    alert('Error approving PO: ' + data.message);
+                    // Reset button state
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error during quick approve:', error);
+                alert('Error during quick approve: ' + error.message);
+                // Reset button state
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+        }
+        
+        // Display receipt summary data
+        function displayReceiptSummary(summary) {
+            const modalBody = document.getElementById('receiptModalBody');
+            
+            let html = `
+                <div class="receipt-summary-grid">
+                    <div class="receipt-summary-card">
+                        <h4>Overall Receipt</h4>
+                        <div class="number">${summary.overallReceiptPercentage}%</div>
+                        <div class="receipt-progress">
+                            <div class="receipt-progress-bar" style="width: ${summary.overallReceiptPercentage}%"></div>
+                        </div>
+                    </div>
+                    <div class="receipt-summary-card">
+                        <h4>Total Ordered</h4>
+                        <div class="number">${summary.totalOrdered}</div>
+                    </div>
+                    <div class="receipt-summary-card">
+                        <h4>Total Received</h4>
+                        <div class="number">${summary.totalReceived}</div>
+                    </div>
+                    <div class="receipt-summary-card">
+                        <h4>GRN Count</h4>
+                        <div class="number">${summary.grnCount}</div>
+                    </div>
+                </div>
+                
+                <h3>Item Receipt Details</h3>
+                <table class="receipt-items-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Ordered</th>
+                            <th>Received</th>
+                            <th>Receipt %</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            summary.itemReceipts.forEach(item => {
+                const statusClass = item.status === 'Fully Received' ? 'status-fully_received' : 
+                                   item.status === 'Partially Received' ? 'status-partially_received' : 'status-draft';
+                
+                html += `
+                    <tr>
+                        <td><strong>${item.productName}</strong></td>
+                        <td>${item.orderedQuantity}</td>
+                        <td>${item.receivedQuantity}</td>
+                        <td>
+                            <div class="receipt-progress">
+                                <div class="receipt-progress-bar" style="width: ${item.receiptPercentage}%"></div>
+                            </div>
+                            ${item.receiptPercentage}%
+                        </td>
+                        <td><span class="status-badge ${statusClass}">${item.status}</span></td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+                
+                <div style="margin-top: 20px; padding: 15px; background: #e8f5e8; border-radius: 8px; border-left: 4px solid #28a745;">
+                    <h4 style="margin: 0 0 10px 0; color: #155724;">
+                        <i class="fas fa-info-circle"></i> How It Works
+                    </h4>
+                    <p style="margin: 0; color: #155724; font-size: 0.9rem;">
+                        <strong>Automatic Status Updates:</strong> PO status automatically changes based on GRN creation and receipt quantities.<br>
+                        <strong>Stock Management:</strong> Stock is reserved when PO is approved and updated when GRNs are inspected.<br>
+                        <strong>Real-time Tracking:</strong> Receipt percentages update automatically as items are received and inspected.
+                    </p>
+                </div>
+            `;
+            
+            modalBody.innerHTML = html;
+        }
+        
+        // Close receipt modal
+        function closeReceiptModal() {
+            document.getElementById('receiptModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('receiptModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
         }
         
         // Delete Purchase Order via AJAX
@@ -249,23 +738,76 @@
             }
         }
         
-        // Add event listeners to all update status buttons
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.update-status-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const poId = this.dataset.poId;
-                    const newStatus = this.dataset.newStatus;
-                    updatePOStatus(poId, newStatus);
-                });
-            });
-        });
-        
         // Auto-submit search on Enter key
         document.querySelector('.search-input').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 this.closest('form').submit();
             }
+        });
+        
+        // Event Listeners for all buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Setting up event listeners...');
+            
+            // Status update buttons
+            document.querySelectorAll('.status-update-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const poId = this.getAttribute('data-po-id');
+                    const newStatus = this.getAttribute('data-new-status');
+                    console.log('Status update clicked:', poId, newStatus);
+                    updatePOStatus(poId, newStatus);
+                });
+            });
+            
+            // Receipt summary buttons
+            document.querySelectorAll('.receipt-summary-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const poId = this.getAttribute('data-po-id');
+                    console.log('Receipt summary clicked:', poId);
+                    showReceiptSummary(poId);
+                });
+            });
+            
+            // Quick approve buttons
+            document.querySelectorAll('.quick-approve-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const poId = this.getAttribute('data-po-id');
+                    console.log('Quick approve clicked:', poId);
+                    quickApprove(poId);
+                });
+            });
+            
+            // Test approve buttons
+            document.querySelectorAll('.test-approve-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const poId = this.getAttribute('data-po-id');
+                    console.log('Test approve clicked:', poId);
+                    testQuickApprove(poId);
+                });
+            });
+            
+            // Debug buttons
+            document.querySelectorAll('.debug-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const poId = this.getAttribute('data-po-id');
+                    const poStatus = this.getAttribute('data-po-status');
+                    console.log('Debug clicked:', poId, poStatus);
+                    console.log('PO Status:', poStatus);
+                    alert('PO ID: ' + poId + ', Status: ' + poStatus);
+                });
+            });
+            
+            // Delete buttons
+            document.querySelectorAll('.delete-po-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const poId = this.getAttribute('data-po-id');
+                    console.log('Delete clicked:', poId);
+                    deletePurchaseOrder(poId);
+                });
+            });
+            
+            console.log('Event listeners set up successfully');
         });
     </script>
 </body>
