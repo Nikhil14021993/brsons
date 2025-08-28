@@ -26,6 +26,15 @@ public class Product {
     @Column(name = "stock_quantity")
     private Integer stockQuantity;
     
+    @Column(name = "reserved_quantity")
+    private Integer reservedQuantity;
+    
+    @Column(name = "price", precision = 10, scale = 2)
+    private java.math.BigDecimal price;
+    
+    @Column(name = "last_updated")
+    private LocalDateTime lastUpdated;
+    
     private String status;
 
     // Image URLs
@@ -85,6 +94,15 @@ public class Product {
     
     public Integer getStockQuantity() { return stockQuantity; }
     public void setStockQuantity(Integer stockQuantity) { this.stockQuantity = stockQuantity; }
+    
+    public Integer getReservedQuantity() { return reservedQuantity; }
+    public void setReservedQuantity(Integer reservedQuantity) { this.reservedQuantity = reservedQuantity; }
+    
+    public java.math.BigDecimal getPrice() { return price; }
+    public void setPrice(java.math.BigDecimal price) { this.price = price; }
+    
+    public LocalDateTime getLastUpdated() { return lastUpdated; }
+    public void setLastUpdated(LocalDateTime lastUpdated) { this.lastUpdated = lastUpdated; }
     
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

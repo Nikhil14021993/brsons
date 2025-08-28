@@ -5,6 +5,7 @@ import com.brsons.model.GRNItem;
 import com.brsons.model.PurchaseOrder;
 import com.brsons.repository.GRNRepository;
 import com.brsons.repository.PurchaseOrderRepository;
+import com.brsons.service.InventoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,9 @@ public class GRNService {
     
     @Autowired
     private PurchaseOrderRepository purchaseOrderRepository;
+    
+    @Autowired
+    private InventoryService inventoryService;
     
     // Create new GRN
     public GoodsReceivedNote createGRN(GoodsReceivedNote grn) {
@@ -119,18 +123,177 @@ public class GRNService {
         Optional<GoodsReceivedNote> existingGRN = grnRepository.findById(id);
         if (existingGRN.isPresent()) {
             GoodsReceivedNote grn = existingGRN.get();
+            GoodsReceivedNote.GRNStatus oldStatus = grn.getStatus();
             
             // Validate status transition
             if (!canTransitionToStatus(grn.getStatus(), newStatus)) {
                 throw new IllegalArgumentException("Invalid status transition from " + grn.getStatus() + " to " + newStatus);
             }
             
+            // Handle stock reversals ONLY when going BACK to previous statuses
+            // NOT when moving forward to APPROVED/REJECTED (these are terminal states)
+            // Business Logic:
+            // - DRAFT -> RECEIVED -> INSPECTED -> APPROVED/REJECTED (forward flow)
+            // - INSPECTED -> RECEIVED/DRAFT (backward flow - requires stock reversal)
+            if (oldStatus == GoodsReceivedNote.GRNStatus.INSPECTED && 
+                (newStatus == GoodsReceivedNote.GRNStatus.RECEIVED || newStatus == GoodsReceivedNote.GRNStatus.DRAFT)) {
+                // Reverse previous stock updates only when going back
+                System.out.println("Reversing stock updates - GRN " + grn.getGrnNumber() + " going back from INSPECTED to " + newStatus);
+                reverseStockUpdates(grn);
+            }
+            
             grn.setStatus(newStatus);
             grn.setUpdatedAt(LocalDateTime.now());
+            
+            // Update inventory ONLY when status changes to INSPECTED (final stock update)
+            if (newStatus == GoodsReceivedNote.GRNStatus.INSPECTED && oldStatus != GoodsReceivedNote.GRNStatus.INSPECTED) {
+                System.out.println("Updating stock from inspection - GRN " + grn.getGrnNumber() + " status: " + oldStatus + " -> " + newStatus);
+                updateStockFromInspection(grn);
+            }
+            
+            // Handle stock decrease when GRN is REJECTED (all items go back to supplier)
+            if (newStatus == GoodsReceivedNote.GRNStatus.REJECTED && oldStatus == GoodsReceivedNote.GRNStatus.INSPECTED) {
+                System.out.println("Decreasing stock for rejected GRN - all items returned to supplier - GRN " + grn.getGrnNumber() + " status: " + oldStatus + " -> " + newStatus);
+                decreaseStockForRejectedGRN(grn);
+            }
+            
+            // Handle stock increase when GRN status changes back to INSPECTED from REJECTED
+            if (newStatus == GoodsReceivedNote.GRNStatus.INSPECTED && oldStatus == GoodsReceivedNote.GRNStatus.REJECTED) {
+                System.out.println("Re-increasing stock for items - GRN " + grn.getGrnNumber() + " status: " + oldStatus + " -> " + newStatus);
+                updateStockFromInspection(grn);
+            }
+            
+            // Log status changes for debugging
+            System.out.println("GRN " + grn.getGrnNumber() + " status changed: " + oldStatus + " -> " + newStatus);
             
             return grnRepository.save(grn);
         }
         throw new RuntimeException("GRN not found with id: " + id);
+    }
+    
+    // Update GRN item quantities and adjust stock if needed
+    @Transactional
+    public void updateGRNItemQuantities(Long grnId, Long itemId, int receivedQty, int acceptedQty, int rejectedQty) {
+        Optional<GoodsReceivedNote> grnOpt = grnRepository.findById(grnId);
+        if (grnOpt.isPresent()) {
+            GoodsReceivedNote grn = grnOpt.get();
+            
+            // Only allow updates if GRN is in DRAFT or RECEIVED status
+            if (grn.getStatus() != GoodsReceivedNote.GRNStatus.DRAFT && 
+                grn.getStatus() != GoodsReceivedNote.GRNStatus.RECEIVED) {
+                throw new IllegalStateException("Cannot update quantities for GRN in status: " + grn.getStatus());
+            }
+            
+            // Find the specific item
+            GRNItem item = grn.getGrnItems().stream()
+                .filter(i -> i.getId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("GRN item not found"));
+            
+            // If GRN was previously INSPECTED, we need to reverse the previous stock update
+            if (grn.getStatus() == GoodsReceivedNote.GRNStatus.INSPECTED) {
+                int previousAccepted = item.getAcceptedQuantity() != null ? item.getAcceptedQuantity() : 0;
+                if (previousAccepted > 0) {
+                    inventoryService.decreaseStock(
+                        item.getProduct().getId(),
+                        previousAccepted,
+                        "Stock reversal - GRN item quantities updated",
+                        "GRN",
+                        grn.getId()
+                    );
+                }
+            }
+            
+            // Update the item quantities
+            item.updateQuantities(receivedQty, acceptedQty, rejectedQty);
+            
+            // If GRN is INSPECTED, update stock with new accepted quantity
+            if (grn.getStatus() == GoodsReceivedNote.GRNStatus.INSPECTED) {
+                int newAccepted = item.getAcceptedQuantity();
+                if (newAccepted > 0) {
+                    inventoryService.increaseStock(
+                        item.getProduct().getId(),
+                        newAccepted,
+                        "Goods accepted from GRN inspection (updated) - " + grn.getGrnNumber(),
+                        "GRN",
+                        grn.getId()
+                    );
+                }
+            }
+            
+            // Recalculate GRN totals
+            grn.calculateTotals();
+            grnRepository.save(grn);
+        }
+    }
+    
+    // Handle stock updates when GRN is inspected
+    private void updateStockFromInspection(GoodsReceivedNote grn) {
+        if (grn.getGrnItems() != null && !grn.getGrnItems().isEmpty()) {
+            for (GRNItem item : grn.getGrnItems()) {
+                // Validate that quantities are properly set
+                if (!item.validateQuantities()) {
+                    throw new IllegalStateException("Invalid quantities for item " + item.getProduct().getProductName() + 
+                        ". Received: " + item.getReceivedQuantity() + 
+                        ", Accepted: " + item.getAcceptedQuantity() + 
+                        ", Rejected: " + item.getRejectedQuantity() + 
+                        ". Accepted + Rejected must equal Received.");
+                }
+                
+                // Use ACCEPTED quantity for stock increase (these are the good items we keep)
+                int acceptedQty = item.getAcceptedQuantity() != null ? item.getAcceptedQuantity() : 0;
+                if (acceptedQty > 0) {
+                    inventoryService.increaseStock(
+                        item.getProduct().getId(),
+                        acceptedQty,
+                        "Goods accepted from GRN inspection - " + grn.getGrnNumber(),
+                        "GRN",
+                        grn.getId()
+                    );
+                }
+                
+                // Note: Rejected items are NOT added to stock (they go back to supplier)
+                // The rejected quantity is tracked but doesn't affect our inventory
+            }
+        }
+    }
+    
+    // Reverse stock updates when GRN status changes from INSPECTED
+    private void reverseStockUpdates(GoodsReceivedNote grn) {
+        if (grn.getGrnItems() != null && !grn.getGrnItems().isEmpty()) {
+            for (GRNItem item : grn.getGrnItems()) {
+                int acceptedQty = item.getAcceptedQuantity() != null ? item.getAcceptedQuantity() : 0;
+                if (acceptedQty > 0) {
+                    inventoryService.decreaseStock(
+                        item.getProduct().getId(),
+                        acceptedQty,
+                        "Stock reversal - GRN status changed from INSPECTED",
+                        "GRN",
+                        grn.getId()
+                    );
+                }
+            }
+        }
+    }
+
+    // Decrease stock for rejected GRN when status changes to REJECTED
+    private void decreaseStockForRejectedGRN(GoodsReceivedNote grn) {
+        if (grn.getGrnItems() != null && !grn.getGrnItems().isEmpty()) {
+            for (GRNItem item : grn.getGrnItems()) {
+                // When GRN is REJECTED, ALL items (both accepted and rejected) go back to supplier
+                // So we need to decrease stock by the ACCEPTED quantity that was previously added
+                int acceptedQty = item.getAcceptedQuantity() != null ? item.getAcceptedQuantity() : 0;
+                if (acceptedQty > 0) {
+                    inventoryService.decreaseStock(
+                        item.getProduct().getId(),
+                        acceptedQty,
+                        "Stock decrease for rejected GRN - all items returned to supplier - " + grn.getGrnNumber(),
+                        "GRN",
+                        grn.getId()
+                    );
+                }
+            }
+        }
     }
     
     // Delete GRN (soft delete by setting status to CANCELLED)
@@ -182,9 +345,11 @@ public class GRNService {
             case INSPECTED:
                 return newStatus == GoodsReceivedNote.GRNStatus.APPROVED || newStatus == GoodsReceivedNote.GRNStatus.REJECTED || newStatus == GoodsReceivedNote.GRNStatus.CANCELLED;
             case APPROVED:
+                return false; // Terminal state
             case REJECTED:
+                return newStatus == GoodsReceivedNote.GRNStatus.INSPECTED || newStatus == GoodsReceivedNote.GRNStatus.CANCELLED; // Can go back to INSPECTED
             case CANCELLED:
-                return false; // Terminal states
+                return false; // Terminal state
             default:
                 return false;
         }

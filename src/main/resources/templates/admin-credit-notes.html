@@ -239,15 +239,96 @@
             background: #e74c3c;
             color: white;
             border: none;
-            padding: 8px 15px;
-            border-radius: 15px;
+            padding: 8px 12px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 0.85rem;
-            transition: background 0.3s ease;
+            transition: all 0.3s ease;
         }
 
         .btn-delete:hover {
             background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        /* Status Change Buttons */
+        .status-change-buttons {
+            display: flex;
+            gap: 5px;
+            margin: 5px 0;
+        }
+
+        .btn-status {
+            border: none;
+            padding: 6px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .btn-status:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-issue {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-issue:hover {
+            background: #2980b9;
+        }
+
+        .btn-apply {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-apply:hover {
+            background: #229954;
+        }
+
+        .btn-cancel {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #e67e22;
+        }
+
+        /* Status Badge Colors */
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-draft {
+            background: #f39c12;
+            color: white;
+        }
+
+        .status-issued {
+            background: #3498db;
+            color: white;
+        }
+
+        .status-applied {
+            background: #27ae60;
+            color: white;
+        }
+
+        .status-cancelled {
+            background: #e74c3c;
+            color: white;
         }
 
         .empty-state {
@@ -371,6 +452,60 @@
                 min-width: 120px;
             }
         }
+
+        /* Info Section */
+        .info-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            border-left: 4px solid #3498db;
+        }
+
+        .info-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .info-header i {
+            color: #3498db;
+            font-size: 1.5rem;
+        }
+
+        .info-header h3 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 1.3rem;
+        }
+
+        .info-content p {
+            margin: 8px 0;
+            color: #34495e;
+            line-height: 1.6;
+        }
+
+        .info-content ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .info-content li {
+            margin: 5px 0;
+            color: #34495e;
+            line-height: 1.5;
+        }
+
+        .info-content strong {
+            color: #2c3e50;
+        }
+
+        .info-content em {
+            color: #7f8c8d;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -468,6 +603,24 @@
             </a>
         </div>
 
+        <!-- Information Section -->
+        <div class="info-section">
+            <div class="info-header">
+                <i class="fas fa-info-circle"></i>
+                <h3>Credit Note Status Management</h3>
+            </div>
+            <div class="info-content">
+                <p><strong>How Status Changes Affect Stock:</strong></p>
+                <ul>
+                    <li><strong>Draft → Issued:</strong> Stock decreases (items returned to supplier)</li>
+                    <li><strong>Issued → Applied:</strong> No stock change (credit finalized)</li>
+                    <li><strong>Issued → Draft:</strong> Stock increases back (reversal)</li>
+                    <li><strong>Issued → Cancelled:</strong> Stock increases back (reversal)</li>
+                </ul>
+                <p><em>Note: Only Draft Credit Notes can be deleted. Stock changes are automatically tracked.</em></p>
+            </div>
+        </div>
+
         <!-- Credit Notes Table -->
         <div class="credit-notes-table-container">
             <div class="table-wrapper">
@@ -519,6 +672,33 @@
                                     <button class="btn-view" th:onclick="'viewCreditNote(' + ${creditNote.id} + ')'">
                                         <i class="fas fa-eye"></i> View
                                     </button>
+                                    
+                                    <!-- Status Change Buttons -->
+                                    <div class="status-change-buttons" th:if="${creditNote.status != 'Applied' and creditNote.status != 'Cancelled'}">
+                                        <!-- Draft -> Issued -->
+                                        <button th:if="${creditNote.status == 'Draft'}" 
+                                                class="btn-status btn-issue" 
+                                                th:onclick="'changeStatus(' + ${creditNote.id} + ', \'Issued\')'"
+                                                title="Issue Credit Note">
+                                            <i class="fas fa-paper-plane"></i> Issue
+                                        </button>
+                                        
+                                        <!-- Issued -> Applied -->
+                                        <button th:if="${creditNote.status == 'Issued'}" 
+                                                class="btn-status btn-apply" 
+                                                th:onclick="'changeStatus(' + ${creditNote.id} + ', \'Applied\')'"
+                                                title="Apply Credit Note">
+                                            <i class="fas fa-check-circle"></i> Apply
+                                        </button>
+                                        
+                                        <!-- Any status -> Cancelled -->
+                                        <button class="btn-status btn-cancel" 
+                                                th:onclick="'changeStatus(' + ${creditNote.id} + ', \'Cancelled\')'"
+                                                title="Cancel Credit Note">
+                                            <i class="fas fa-times-circle"></i> Cancel
+                                        </button>
+                                    </div>
+                                    
                                     <button class="btn-delete" th:onclick="'deleteCreditNote(' + ${creditNote.id} + ')'">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
@@ -574,6 +754,85 @@
                     alert('Error deleting credit note');
                 });
             }
+        }
+
+        // Change Credit Note status
+        function changeStatus(id, newStatus) {
+            let confirmMessage = '';
+            let statusDisplayName = '';
+            
+            switch(newStatus) {
+                case 'Issued':
+                    confirmMessage = 'Are you sure you want to issue this credit note? This will decrease stock for returned items.';
+                    statusDisplayName = 'Issue';
+                    break;
+                case 'Applied':
+                    confirmMessage = 'Are you sure you want to apply this credit note? This will finalize the credit.';
+                    statusDisplayName = 'Apply';
+                    break;
+                case 'Cancelled':
+                    confirmMessage = 'Are you sure you want to cancel this credit note? This action cannot be undone.';
+                    statusDisplayName = 'Cancel';
+                    break;
+                default:
+                    confirmMessage = 'Are you sure you want to change the status to ' + newStatus + '?';
+                    statusDisplayName = newStatus;
+            }
+            
+            if (confirm(confirmMessage)) {
+                // Show loading state
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                button.disabled = true;
+                
+                fetch(`/admin/business/credit-notes/status/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `status=${newStatus}`
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        // Show success message
+                        showMessage('Credit Note status changed to ' + newStatus + ' successfully!', 'success');
+                        // Reload page after a short delay
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        showMessage('Failed to change status: ' + result.message, 'error');
+                        // Reset button
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showMessage('Error changing status. Please try again.', 'error');
+                    // Reset button
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                });
+            }
+        }
+
+        // Show message function
+        function showMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
+            messageDiv.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
+            
+            // Insert at the top of the page content
+            const pageContent = document.querySelector('.page-content');
+            pageContent.insertBefore(messageDiv, pageContent.firstChild);
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
         }
 
         // Auto-hide messages after 5 seconds

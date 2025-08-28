@@ -24,4 +24,31 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // Find all products with categories for inventory management
     @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category")
     List<Product> findAllWithCategory();
+    
+    // Find products with low stock (below threshold)
+    List<Product> findByStockQuantityLessThan(Integer threshold);
+    
+    // Find products with stock quantity less than or equal to zero
+    List<Product> findByStockQuantityLessThanEqual(Integer threshold);
+    
+    // Find products by stock status
+    List<Product> findByStockQuantityGreaterThan(Integer threshold);
+    
+    // Find products with reserved stock
+    List<Product> findByReservedQuantityGreaterThan(Integer threshold);
+    
+    // Find products by price range
+    List<Product> findByPriceBetween(java.math.BigDecimal minPrice, java.math.BigDecimal maxPrice);
+    
+    // Find products by name containing (search)
+    List<Product> findByProductNameContainingIgnoreCase(String productName);
+    
+    // Find products by status
+    List<Product> findByStatus(String status);
+    
+    // Count products by stock level
+    long countByStockQuantityLessThan(Integer threshold);
+    
+    // Count products by status
+    long countByStatus(String status);
 }

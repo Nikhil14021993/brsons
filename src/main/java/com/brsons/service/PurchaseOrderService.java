@@ -8,6 +8,7 @@ import com.brsons.repository.PurchaseOrderRepository;
 import com.brsons.repository.PurchaseOrderItemRepository;
 import com.brsons.repository.ProductRepository;
 import com.brsons.repository.SupplierRepository;
+import com.brsons.service.InventoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,9 @@ public class PurchaseOrderService {
     
     @Autowired
     private GRNRepository grnRepository;
+    
+    @Autowired
+    private InventoryService inventoryService;
     
     // Create new purchase order
     public PurchaseOrder createPurchaseOrder(PurchaseOrder purchaseOrder) {
@@ -166,6 +170,7 @@ public class PurchaseOrderService {
         Optional<PurchaseOrder> existingPO = purchaseOrderRepository.findById(id);
         if (existingPO.isPresent()) {
             PurchaseOrder purchaseOrder = existingPO.get();
+            PurchaseOrder.POStatus oldStatus = purchaseOrder.getStatus();
             
             // Validate status transition
             if (!canTransitionToStatus(purchaseOrder.getStatus(), newStatus)) {
@@ -179,6 +184,14 @@ public class PurchaseOrderService {
             if (newStatus == PurchaseOrder.POStatus.APPROVED) {
                 // This would typically come from the authenticated user
                 purchaseOrder.setApprovedAt(LocalDateTime.now());
+                
+                // Reserve stock when PO is approved
+                inventoryService.handlePOApproval(purchaseOrder);
+            }
+            
+            // Handle stock reservation release if PO is cancelled
+            if (newStatus == PurchaseOrder.POStatus.CANCELLED && oldStatus == PurchaseOrder.POStatus.APPROVED) {
+                inventoryService.handlePOCancellation(purchaseOrder);
             }
             
             return purchaseOrderRepository.save(purchaseOrder);
