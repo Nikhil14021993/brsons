@@ -724,7 +724,7 @@ public class BusinessManagementController {
     @GetMapping("/grn/new")
     public String showAddGRNForm(Model model, HttpSession session) {
         // auth checks omitted here (keep your original)
-        List<PurchaseOrder> purchaseOrders = purchaseOrderService.getAllWithItems();
+        List<PurchaseOrder> purchaseOrders = purchaseOrderService.getPurchaseOrdersReadyForGRN();
         List<Supplier> suppliers = supplierService.getAllSuppliers();
 
         ObjectMapper objectMapper = new ObjectMapper();

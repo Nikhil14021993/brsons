@@ -21,7 +21,18 @@ public class Product {
     @Column(name = "b2b_price")
     private Double b2bPrice;
     
-    private Double discount;
+    @Column(name = "purchase_price")
+    private Double purchasePrice;
+    
+    public Double getPurchasePrice() {
+		return purchasePrice;
+	}
+
+	public void setPurchasePrice(Double purchasePrice) {
+		this.purchasePrice = purchasePrice;
+	}
+
+	private Double discount;
     
     @Column(name = "stock_quantity")
     private Integer stockQuantity;
@@ -32,7 +43,17 @@ public class Product {
     @Column(name = "price", precision = 10, scale = 2)
     private java.math.BigDecimal price;
     
-    @Column(name = "last_updated")
+    private String sku;
+    
+    public String getSku() {
+		return sku;
+	}
+
+	public void setSku(String sku) {
+		this.sku = sku;
+	}
+
+	@Column(name = "last_updated")
     private LocalDateTime lastUpdated;
     
     private String status;

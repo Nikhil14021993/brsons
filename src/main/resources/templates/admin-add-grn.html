@@ -359,11 +359,19 @@
                          <select id="purchaseOrder" name="purchaseOrder.id" required onchange="onPurchaseOrderChange()">
                              <option value="">Select Purchase Order</option>
                              <option th:each="po : ${purchaseOrders}" 
+                                     th:if="${po.status != T(com.brsons.model.PurchaseOrder.POStatus).DRAFT and po.status != T(com.brsons.model.PurchaseOrder.POStatus).PENDING_APPROVAL and po.status != T(com.brsons.model.PurchaseOrder.POStatus).APPROVED}"
                                      th:value="${po.id}" 
-                                     th:text="${po.poNumber + ' - ' + po.supplier.companyName}">
+                                     th:text="${po.poNumber + ' - ' + po.supplier.companyName + ' (' + po.status + ')'}">
                                  PO001 - Supplier Name
                              </option>
                          </select>
+                         <small style="color: #666; font-size: 0.85rem; margin-top: 5px; display: block;">
+                             <i class="fas fa-info-circle"></i> Only Purchase Orders with status ORDERED, PARTIALLY_RECEIVED, or FULLY_RECEIVED are shown. 
+                             DRAFT, PENDING_APPROVAL, and APPROVED POs cannot have GRNs created yet.
+                             <span th:if="${#lists.isEmpty(purchaseOrders)}" style="color: #e74c3c; font-weight: bold;">
+                                 <br>⚠️ No Purchase Orders available for GRN creation. Please ensure you have POs with appropriate statuses.
+                             </span>
+                         </small>
                      </div>
                      
                      <div class="form-group">

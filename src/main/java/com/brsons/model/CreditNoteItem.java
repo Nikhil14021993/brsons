@@ -22,6 +22,12 @@ public class CreditNoteItem {
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
     
+    @Column(name = "quantity_type", length = 50)
+    private String quantityType; // "ACCEPTED", "RECEIVED", "REJECTED"
+    
+    @Column(name = "original_grn_item_id")
+    private Long originalGrnItemId; // Reference to the GRN item this credit note is based on
+    
     @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPrice;
     
@@ -52,6 +58,33 @@ public class CreditNoteItem {
     
     public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    
+    public String getQuantityType() { return quantityType; }
+    public void setQuantityType(String quantityType) { this.quantityType = quantityType; }
+    
+    public Long getOriginalGrnItemId() { return originalGrnItemId; }
+    public void setOriginalGrnItemId(Long originalGrnItemId) { this.originalGrnItemId = originalGrnItemId; }
+    
+    // Business Methods
+    public void calculateTotalAmount() {
+        if (this.quantity != null && this.unitPrice != null) {
+            BigDecimal subtotal = this.unitPrice.multiply(BigDecimal.valueOf(this.quantity));
+            
+            // Apply discount if present
+            if (this.discountPercentage != null && this.discountPercentage.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal discountAmount = subtotal.multiply(this.discountPercentage.divide(BigDecimal.valueOf(100)));
+                subtotal = subtotal.subtract(discountAmount);
+            }
+            
+            // Apply tax if present
+            if (this.taxPercentage != null && this.taxPercentage.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal taxAmount = subtotal.multiply(this.taxPercentage.divide(BigDecimal.valueOf(100)));
+                subtotal = subtotal.add(taxAmount);
+            }
+            
+            this.totalAmount = subtotal;
+        }
+    }
     
     public BigDecimal getUnitPrice() { return unitPrice; }
     public void setUnitPrice(BigDecimal unitPrice) { this.unitPrice = unitPrice; }

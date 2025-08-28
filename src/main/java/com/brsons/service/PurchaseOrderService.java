@@ -26,6 +26,7 @@ import com.brsons.repository.GRNRepository;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -154,6 +155,16 @@ public class PurchaseOrderService {
     // Get purchase orders by status
     public List<PurchaseOrder> getPurchaseOrdersByStatus(PurchaseOrder.POStatus status) {
         return purchaseOrderRepository.findByStatus(status);
+    }
+    
+    // Get purchase orders ready for GRN creation (exclude DRAFT, PENDING_APPROVAL, APPROVED)
+    public List<PurchaseOrder> getPurchaseOrdersReadyForGRN() {
+        List<PurchaseOrder> allPOs = purchaseOrderRepository.findAllWithItems();
+        return allPOs.stream()
+                .filter(po -> po.getStatus() != PurchaseOrder.POStatus.DRAFT &&
+                             po.getStatus() != PurchaseOrder.POStatus.PENDING_APPROVAL &&
+                             po.getStatus() != PurchaseOrder.POStatus.APPROVED)
+                .collect(Collectors.toList());
     }
     
     // Get purchase orders by supplier

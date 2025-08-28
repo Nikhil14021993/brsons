@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low Stock Alerts - Admin Panel</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .low-stock-container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+            color: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .page-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .page-header p {
+            margin: 10px 0 0 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .back-link {
+            display: inline-block;
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+        
+        .filters-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            align-items: end;
+        }
+        
+        .form-group {
+            margin-bottom: 0;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #1e7e34;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .alerts-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .summary-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 5px solid #ffc107;
+            transition: transform 0.3s ease;
+        }
+        
+        .summary-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .summary-card.critical {
+            border-left-color: #dc3545;
+        }
+        
+        .summary-card.warning {
+            border-left-color: #ffc107;
+        }
+        
+        .summary-card.info {
+            border-left-color: #17a2b8;
+        }
+        
+        .summary-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #ffc107;
+            margin-bottom: 10px;
+        }
+        
+        .summary-card.critical .summary-number {
+            color: #dc3545;
+        }
+        
+        .summary-card.warning .summary-number {
+            color: #ffc107;
+        }
+        
+        .summary-card.info .summary-number {
+            color: #17a2b8;
+        }
+        
+        .summary-label {
+            color: #666;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        
+        .alerts-table {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 1.3rem;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .stock-level {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .stock-level.critical {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .stock-level.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .stock-level.low {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+        
+        .no-alerts {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .no-alerts i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        .threshold-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .threshold-info h4 {
+            margin: 0 0 10px 0;
+            color: #007bff;
+        }
+        
+        .threshold-info p {
+            margin: 0;
+            color: #0056b3;
+        }
+        
+        @media (max-width: 768px) {
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .page-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 20px;
+            }
+            
+            .page-header h1 {
+                font-size: 2rem;
+            }
+            
+            .alerts-summary {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="low-stock-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1><i class="fas fa-exclamation-triangle"></i> Low Stock Alerts</h1>
+                <p>Monitor products with low inventory levels</p>
+            </div>
+            <a th:href="@{/admin/inventory/dashboard}" class="back-link">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+        
+        <!-- Threshold Information -->
+        <div class="threshold-info">
+            <h4><i class="fas fa-info-circle"></i> Alert Thresholds</h4>
+            <p>
+                <strong>Critical:</strong> 0 units (Out of Stock) | 
+                <strong>Warning:</strong> 1-5 units | 
+                <strong>Low:</strong> 6-10 units | 
+                <strong>Current Threshold:</strong> <span th:text="${threshold}">10</span> units
+            </p>
+        </div>
+        
+        <!-- Filters Section -->
+        <div class="filters-section">
+            <form th:action="@{/admin/inventory/low-stock}" method="get" class="filters-grid">
+                <div class="form-group">
+                    <label for="threshold">Stock Threshold</label>
+                    <select id="threshold" name="threshold">
+                        <option value="5" th:selected="${threshold == 5}">5 units</option>
+                        <option value="10" th:selected="${threshold == 10}">10 units</option>
+                        <option value="15" th:selected="${threshold == 15}">15 units</option>
+                        <option value="20" th:selected="${threshold == 20}">20 units</option>
+                        <option value="25" th:selected="${threshold == 25}">25 units</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Update Threshold
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Alerts Summary -->
+        <div class="alerts-summary">
+            <div class="summary-card critical">
+                <div class="summary-number" th:text="${#lists.size(outOfStockProducts)}">0</div>
+                <div class="summary-label">Out of Stock</div>
+            </div>
+            <div class="summary-card warning">
+                <div class="summary-number" th:text="${#lists.size(criticalStockProducts)}">0</div>
+                <div class="summary-label">Critical Level</div>
+            </div>
+            <div class="summary-card info">
+                <div class="summary-number" th:text="${#lists.size(lowStockProducts)}">0</div>
+                <div class="summary-label">Low Stock</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-number" th:text="${#lists.size(allLowStockProducts)}">0</div>
+                <div class="summary-label">Total Alerts</div>
+            </div>
+        </div>
+        
+        <!-- Low Stock Products Table -->
+        <div class="alerts-table">
+            <div class="table-header">
+                <h3><i class="fas fa-list"></i> Low Stock Products</h3>
+                <span class="product-count" th:text="${#lists.size(allLowStockProducts) + ' products found'}">0 products found</span>
+            </div>
+            
+            <div class="table-container">
+                <div th:if="${#lists.isEmpty(allLowStockProducts)}" class="no-alerts">
+                    <i class="fas fa-check-circle"></i>
+                    <h3>No Low Stock Alerts</h3>
+                    <p>All products are above the current threshold of <span th:text="${threshold}">10</span> units.</p>
+                    <a th:href="@{/admin/inventory/dashboard}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+                
+                <table th:if="${!#lists.isEmpty(allLowStockProducts)}">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Current Stock</th>
+                            <th>Stock Level</th>
+                            <th>Last Updated</th>
+                            <th>Unit Price</th>
+                            <th>Stock Value</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="product : ${allLowStockProducts}">
+                            <td>
+                                <strong th:text="${product.productName}">Product Name</strong>
+                                <br>
+                                <small th:text="${product.sku}" style="color: #666;">SKU: ABC123</small>
+                                <br>
+                                <small th:text="${product.category}" style="color: #666;">Category</small>
+                            </td>
+                            <td>
+                                <span th:text="${product.stockQuantity}" 
+                                      th:style="${product.stockQuantity == 0 ? 'color: #dc3545; font-weight: bold;' : 
+                                                 product.stockQuantity <= 5 ? 'color: #fd7e14; font-weight: bold;' : 
+                                                 'color: #ffc107; font-weight: bold;'}">0</span>
+                            </td>
+                            <td>
+                                <span class="stock-level" 
+                                      th:classappend="${product.stockQuantity == 0 ? 'critical' : 
+                                                      product.stockQuantity <= 5 ? 'warning' : 'low'}"
+                                      th:text="${product.stockQuantity == 0 ? 'OUT OF STOCK' : 
+                                               product.stockQuantity <= 5 ? 'CRITICAL' : 'LOW'}">
+                                    LOW
+                                </span>
+                            </td>
+                            <td>
+                                <span th:text="${#temporals.format(product.lastUpdated, 'dd/MM/yyyy')}">Date</span>
+                                <br>
+                                <small th:text="${#temporals.format(product.lastUpdated, 'HH:mm')}" style="color: #666;">Time</small>
+                            </td>
+                            <td th:text="${'₹' + #numbers.formatDecimal(product.purchasePrice, 1, 2)}">₹0.00</td>
+                            <td th:text="${'₹' + #numbers.formatDecimal(product.purchasePrice * product.stockQuantity, 1, 2)}">₹0.00</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a th:href="@{/admin/inventory/adjust-stock(productId=${product.id})}" 
+                                       class="btn btn-warning btn-sm">
+                                        <i class="fas fa-plus"></i> Restock
+                                    </a>
+                                    <a th:href="@{/admin/business/purchase-orders/new}" 
+                                       class="btn btn-primary btn-sm">
+                                        <i class="fas fa-shopping-cart"></i> PO
+                                    </a>
+                                    <a th:href="@{/admin/inventory/movements(productId=${product.id})}" 
+                                       class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-history"></i> History
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-refresh page every 2 minutes for real-time alerts
+        setInterval(function() {
+            location.reload();
+        }, 120000); // 2 minutes
+        
+        // Confirm before updating threshold
+        document.getElementById('threshold').addEventListener('change', function() {
+            const newThreshold = this.value;
+            if (confirm(`Are you sure you want to change the stock threshold to ${newThreshold} units? This will update the alerts immediately.`)) {
+                this.form.submit();
+            } else {
+                // Reset to previous value
+                this.value = this.getAttribute('data-original-value') || '10';
+            }
+        });
+        
+        // Store original threshold value
+        document.addEventListener('DOMContentLoaded', function() {
+            const thresholdSelect = document.getElementById('threshold');
+            thresholdSelect.setAttribute('data-original-value', thresholdSelect.value);
+        });
+        
+        // Add hover effects for summary cards
+        document.querySelectorAll('.summary-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-5px)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body>
+</html>

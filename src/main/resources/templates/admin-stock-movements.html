@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Movements - Admin Panel</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .movements-container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .page-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .page-header p {
+            margin: 10px 0 0 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .back-link {
+            display: inline-block;
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+        
+        .back-link:hover {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+        
+        .filters-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            align-items: end;
+        }
+        
+        .form-group {
+            margin-bottom: 0;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .movements-table {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 1.3rem;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .movement-type {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .movement-type.in {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .movement-type.out {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .movement-type.adjustment {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .quantity-change {
+            font-weight: 600;
+            font-family: monospace;
+        }
+        
+        .quantity-change.positive {
+            color: #28a745;
+        }
+        
+        .quantity-change.negative {
+            color: #dc3545;
+        }
+        
+        .no-movements {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .no-movements i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .pagination a {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #007bff;
+            transition: all 0.3s ease;
+        }
+        
+        .pagination a:hover {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        
+        .pagination .active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        
+        @media (max-width: 768px) {
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .page-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 20px;
+            }
+            
+            .page-header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="movements-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1><i class="fas fa-exchange-alt"></i> Stock Movements</h1>
+                <p>Track all inventory changes and stock movements</p>
+            </div>
+            <a th:href="@{/admin/inventory/dashboard}" class="back-link">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+        
+        <!-- Filters Section -->
+        <div class="filters-section">
+            <form th:action="@{/admin/inventory/movements}" method="get" class="filters-grid">
+                <div class="form-group">
+                    <label for="productId">Product</label>
+                    <select id="productId" name="productId">
+                        <option value="">All Products</option>
+                        <option th:each="product : ${products}" 
+                                th:value="${product.id}" 
+                                th:text="${product.productName}"
+                                th:selected="${product.id == selectedProductId}">
+                            Product Name
+                        </option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="movementType">Movement Type</label>
+                    <select id="movementType" name="movementType">
+                        <option value="">All Types</option>
+                        <option value="IN" th:selected="${selectedMovementType == 'IN'}">Stock In</option>
+                        <option value="OUT" th:selected="${selectedMovementType == 'OUT'}">Stock Out</option>
+                        <option value="ADJUSTMENT" th:selected="${selectedMovementType == 'ADJUSTMENT'}">Adjustment</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="startDate">Start Date</label>
+                    <input type="date" id="startDate" name="startDate" th:value="${startDate}">
+                </div>
+                
+                <div class="form-group">
+                    <label for="endDate">End Date</label>
+                    <input type="date" id="endDate" name="endDate" th:value="${endDate}">
+                </div>
+                
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Filter
+                    </button>
+                    <a th:href="@{/admin/inventory/movements}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Movements Table -->
+        <div class="movements-table">
+            <div class="table-header">
+                <h3><i class="fas fa-list"></i> Stock Movements</h3>
+                <span class="movement-count" th:text="${#lists.size(movements) + ' movements found'}">0 movements found</span>
+            </div>
+            
+            <div class="table-container">
+                <div th:if="${#lists.isEmpty(movements)}" class="no-movements">
+                    <i class="fas fa-exchange-alt"></i>
+                    <h3>No Stock Movements Found</h3>
+                    <p>No stock movements match your current filters.</p>
+                    <a th:href="@{/admin/inventory/movements}" class="btn btn-primary">
+                        <i class="fas fa-eye"></i> View All Movements
+                    </a>
+                </div>
+                
+                <table th:if="${!#lists.isEmpty(movements)}">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Product</th>
+                            <th>Movement Type</th>
+                            <th>Quantity Change</th>
+                            <th>Reason</th>
+                            <th>Reference</th>
+                            <th>Before</th>
+                            <th>After</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="movement : ${movements}">
+                            <td>
+                                <div th:text="${#temporals.format(movement.movementDate, 'dd/MM/yyyy')}">Date</div>
+                                <small th:text="${#temporals.format(movement.movementDate, 'HH:mm')}" style="color: #666;">Time</small>
+                            </td>
+                            <td>
+                                <strong th:text="${movement.product.productName}">Product Name</strong>
+                                <br>
+                                <small th:text="${movement.product.id}" style="color: #666;">ID</small>
+                            </td>
+                            <td>
+                                <span class="movement-type" 
+                                      th:classappend="${#strings.toLowerCase(movement.movementType)}"
+                                      th:text="${movement.movementType}">Type</span>
+                            </td>
+                            <td>
+                                <span class="quantity-change" 
+                                      th:classappend="${movement.quantity > 0 ? 'positive' : 'negative'}"
+                                      th:text="${movement.quantity > 0 ? '+' + movement.quantity : movement.quantity}">
+                                    +10
+                                </span>
+                            </td>
+                            <td th:text="${movement.reason}">Reason</td>
+                            <td>
+                                <span th:if="${movement.referenceType != null}" 
+                                      th:text="${movement.referenceType + ': ' + movement.referenceId}">
+                                    Reference
+                                </span>
+                                <span th:if="${movement.referenceType == null}" style="color: #999;">-</span>
+                            </td>
+                            <td th:text="${movement.beforeQuantity}">100</td>
+                            <td th:text="${movement.afterQuantity}">110</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-set end date to today if not set
+        document.addEventListener('DOMContentLoaded', function() {
+            const endDateInput = document.getElementById('endDate');
+            if (!endDateInput.value) {
+                const today = new Date().toISOString().split('T')[0];
+                endDateInput.value = today;
+            }
+            
+            // Auto-set start date to 30 days ago if not set
+            const startDateInput = document.getElementById('startDate');
+            if (!startDateInput.value) {
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                startDateInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+            }
+        });
+        
+        // Confirm before clearing filters
+        document.querySelector('.btn-secondary').addEventListener('click', function(e) {
+            if (document.getElementById('productId').value || 
+                document.getElementById('movementType').value || 
+                document.getElementById('startDate').value || 
+                document.getElementById('endDate').value) {
+                if (!confirm('Are you sure you want to clear all filters?')) {
+                    e.preventDefault();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -321,17 +321,7 @@
                 </small>
             </div>
             
-            <!-- Debug Section - Temporary -->
-            <div style="background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #dee2e6;">
-                <h4 style="margin: 0 0 10px 0; color: #495057;">Debug Info - PO Statuses</h4>
-                <div style="font-family: monospace; font-size: 12px;">
-                    <div th:each="po : ${purchaseOrders}">
-                        PO ID: <span th:text="${po.id}">0</span> | 
-                        Status: <span th:text="${po.status}">UNKNOWN</span> | 
-                        Is DRAFT: <span th:text="${po.status == T(com.brsons.model.PurchaseOrder.POStatus).DRAFT}">false</span>
-                    </div>
-                </div>
-            </div>
+
             
             <div th:if="${#lists.isEmpty(purchaseOrders)}" class="no-pos">
                 <h3>No Purchase Orders Found</h3>
@@ -427,22 +417,7 @@
                                 <i class="fas fa-check-double"></i> Quick Approve
                             </button>
                             
-                            <!-- Temporary: Always Visible Quick Approve Button for Testing -->
-                            <button class="btn btn-warning btn-sm test-approve-btn" 
-                                    th:data-po-id="${po.id}"
-                                    title="TEST: Quick Approve (Always Visible)"
-                                    style="margin: 2px; background-color: #ffc107 !important; border-color: #ffc107 !important;">
-                                <i class="fas fa-exclamation-triangle"></i> TEST Approve
-                            </button>
-                            
-                            <!-- Debug Button - Always Visible -->
-                            <button class="btn btn-info btn-sm debug-btn" 
-                                    th:data-po-id="${po.id}"
-                                    th:data-po-status="${po.status}"
-                                    title="Debug Button - Always Visible"
-                                    style="margin: 2px; background-color: #17a2b8 !important; border-color: #17a2b8 !important;">
-                                <i class="fas fa-info-circle"></i> Debug
-                            </button>
+
                             
 
                             
@@ -536,11 +511,7 @@
             });
         }
         
-        // Test function for quick approve
-        function testQuickApprove(poId) {
-            console.log('Test function called with PO ID:', poId);
-            alert('Test function working! PO ID: ' + poId + '\n\nNow try the actual Quick Approve button.');
-        }
+
         
         // Quick approve function - changes status from DRAFT directly to APPROVED
         function quickApprove(poId) {
@@ -778,25 +749,7 @@
                 });
             });
             
-            // Test approve buttons
-            document.querySelectorAll('.test-approve-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const poId = this.getAttribute('data-po-id');
-                    console.log('Test approve clicked:', poId);
-                    testQuickApprove(poId);
-                });
-            });
-            
-            // Debug buttons
-            document.querySelectorAll('.debug-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const poId = this.getAttribute('data-po-id');
-                    const poStatus = this.getAttribute('data-po-status');
-                    console.log('Debug clicked:', poId, poStatus);
-                    console.log('PO Status:', poStatus);
-                    alert('PO ID: ' + poId + ', Status: ' + poStatus);
-                });
-            });
+
             
             // Delete buttons
             document.querySelectorAll('.delete-po-btn').forEach(button => {

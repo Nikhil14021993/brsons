@@ -4,10 +4,12 @@ import com.brsons.model.CreditNote;
 import com.brsons.model.CreditNoteItem;
 import com.brsons.model.Order;
 import com.brsons.model.Supplier;
+import com.brsons.model.GoodsReceivedNote;
+import com.brsons.model.GRNItem;
 import com.brsons.repository.CreditNoteRepository;
 import com.brsons.repository.OrderRepository;
 import com.brsons.repository.SupplierRepository;
-import com.brsons.service.InventoryService;
+// import com.brsons.service.InventoryService; // No longer needed - stock changes handled manually
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,8 +32,8 @@ public class CreditNoteService {
     @Autowired
     private SupplierRepository supplierRepository;
     
-    @Autowired
-    private InventoryService inventoryService;
+    // @Autowired
+    // private InventoryService inventoryService; // No longer needed - stock changes handled manually
     
     // Create new credit note
     @Transactional
@@ -52,6 +54,45 @@ public class CreditNoteService {
         // when status changes from Draft to Issued
         
         return savedCreditNote;
+    }
+    
+    // Create credit note from GRN items with proper quantity logic
+    @Transactional
+    public CreditNote createCreditNoteFromGRN(GoodsReceivedNote grn, String reason, String notes) {
+        CreditNote creditNote = new CreditNote();
+        creditNote.setCreditDate(LocalDateTime.now());
+        creditNote.setPurchaseOrder(grn.getPurchaseOrder());
+        creditNote.setSupplier(grn.getSupplier());
+        creditNote.setReason(reason);
+        creditNote.setNotes(notes);
+        creditNote.setStatus("Draft");
+        
+        // Add credit note items based on GRN items
+        for (GRNItem grnItem : grn.getGrnItems()) {
+            CreditNoteItem creditItem = new CreditNoteItem();
+            creditItem.setProduct(grnItem.getProduct());
+            creditItem.setUnitPrice(grnItem.getUnitPrice());
+            // Note: GRN items don't have discount/tax percentages, so setting to 0
+            creditItem.setDiscountPercentage(BigDecimal.ZERO);
+            creditItem.setTaxPercentage(BigDecimal.ZERO);
+            creditItem.setReason(reason);
+            creditItem.setOriginalGrnItemId(grnItem.getId());
+            
+            // **IMPORTANT: Use ACCEPTED quantity for Credit Note**
+            // This is the quantity you actually accepted and will pay for
+            creditItem.setQuantity(grnItem.getAcceptedQuantity());
+            creditItem.setQuantityType("ACCEPTED");
+            
+            // Calculate total amount based on accepted quantity
+            creditItem.calculateTotalAmount();
+            
+            creditNote.addCreditNoteItem(creditItem);
+        }
+        
+        // Calculate total credit amount
+        calculateCreditAmount(creditNote);
+        
+        return creditNoteRepository.save(creditNote);
     }
     
     // Update credit note
@@ -114,20 +155,8 @@ public class CreditNoteService {
         
         String oldStatus = creditNote.getStatus();
         
-        // Handle stock changes based on status transition
-        if ("Draft".equals(oldStatus) && "Issued".equals(newStatus)) {
-            // Moving from Draft to Issued - decrease stock for returned items
-            System.out.println("Credit Note " + creditNote.getCreditNoteNumber() + " status changed from " + oldStatus + " to " + newStatus + " - decreasing stock");
-            inventoryService.handleCreditNoteCreation(creditNote);
-        } else if ("Issued".equals(oldStatus) && "Draft".equals(newStatus)) {
-            // Moving back from Issued to Draft - increase stock back (reverse the decrease)
-            System.out.println("Credit Note " + creditNote.getCreditNoteNumber() + " status changed from " + oldStatus + " to " + newStatus + " - increasing stock back");
-            reverseStockChanges(creditNote);
-        } else if ("Issued".equals(oldStatus) && "Cancelled".equals(newStatus)) {
-            // Moving from Issued to Cancelled - increase stock back (reverse the decrease)
-            System.out.println("Credit Note " + creditNote.getCreditNoteNumber() + " status changed from " + oldStatus + " to " + newStatus + " - increasing stock back");
-            reverseStockChanges(creditNote);
-        }
+        // Note: Stock changes are now handled manually by the user
+        // No automatic stock operations when Credit Note status changes
         
         creditNote.setStatus(newStatus);
         creditNote.setUpdatedAt(LocalDateTime.now());
@@ -188,23 +217,8 @@ public class CreditNoteService {
         creditNote.setCreditAmount(totalAmount);
     }
     
-    // Reverse stock changes when Credit Note status is reverted or cancelled
-    private void reverseStockChanges(CreditNote creditNote) {
-        if (creditNote.getCreditNoteItems() != null && !creditNote.getCreditNoteItems().isEmpty()) {
-            for (CreditNoteItem item : creditNote.getCreditNoteItems()) {
-                int quantity = item.getQuantity() != null ? item.getQuantity() : 0;
-                if (quantity > 0) {
-                    inventoryService.increaseStock(
-                        item.getProduct().getId(),
-                        quantity,
-                        "Stock reversal - Credit Note status reverted/cancelled - " + creditNote.getCreditNoteNumber(),
-                        "CREDIT_NOTE",
-                        creditNote.getId()
-                    );
-                }
-            }
-        }
-    }
+    // Note: Stock changes are now handled manually by the user
+    // The reverseStockChanges method has been removed as it's no longer needed
     
     // Get credit note statistics
     public CreditNoteStatistics getCreditNoteStatistics() {
