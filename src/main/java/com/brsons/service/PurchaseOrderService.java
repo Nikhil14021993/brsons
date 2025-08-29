@@ -414,8 +414,11 @@ public class PurchaseOrderService {
                 purchaseOrder.setApprovedAt(LocalDateTime.now());
                 
                 // Reserve stock when PO is approved
+                Boolean isSellerMode = false;
                 try {
+                	if (isSellerMode== true) {
                     inventoryService.handlePOApproval(purchaseOrder);
+                	}
                     System.out.println("Stock reservation completed successfully");
                 } catch (Exception e) {
                     System.err.println("Error reserving stock: " + e.getMessage());

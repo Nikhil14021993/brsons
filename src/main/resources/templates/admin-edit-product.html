@@ -371,6 +371,14 @@
                         </div>
                         
                         <div class="form-group">
+                            <label for="purchasePrice">Purchase Price (₹)</label>
+                            <input type="number" id="purchasePrice" name="purchasePrice" 
+                                   step="0.01" min="0" 
+                                   th:value="${product.purchasePrice != null ? product.purchasePrice : ''}" 
+                                   placeholder="Cost price from supplier">
+                        </div>
+                        
+                        <div class="form-group">
                             <label for="b2bPrice">B2B Price (₹) *</label>
                             <input type="number" id="b2bPrice" name="b2bPrice" 
                                    step="0.01" min="0" 
@@ -382,6 +390,27 @@
                             <input type="number" id="discount" name="discount" 
                                    step="0.01" min="0" max="100" 
                                    th:value="${product.discount != null ? product.discount : 0}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pricing Information Guide -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #667eea;">
+                    <h4 style="margin: 0 0 15px 0; color: #667eea;">
+                        <i class="fas fa-info-circle"></i> Pricing Structure Guide
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; color: #666; font-size: 14px;">
+                        <div>
+                            <strong>Purchase Price:</strong> Cost price from supplier (typically 60% of retail price)
+                        </div>
+                        <div>
+                            <strong>Retail Price:</strong> Selling price to end customers
+                        </div>
+                        <div>
+                            <strong>B2B Price:</strong> Wholesale price for business customers (typically 80% of retail)
+                        </div>
+                        <div>
+                            <strong>Profit Margin:</strong> Retail price should be at least 1.67x purchase price for healthy margins
                         </div>
                     </div>
                 </div>

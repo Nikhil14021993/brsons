@@ -288,13 +288,84 @@ public class InventoryService {
         List<Product> products = productRepository.findAll();
         BigDecimal totalValue = BigDecimal.ZERO;
         
+        System.out.println("=== DEBUG: Stock Valuation ===");
+        System.out.println("Total products found: " + products.size());
+        
         for (Product product : products) {
             int stock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
-            BigDecimal price = product.getPrice() != null ? product.getPrice() : BigDecimal.ZERO;
-            totalValue = totalValue.add(price.multiply(BigDecimal.valueOf(stock)));
+            if (stock <= 0) {
+                System.out.println("Product: " + product.getProductName() + " - Skipped (stock: " + stock + ")");
+                continue; // Skip products with no stock
+            }
+            
+            BigDecimal price = getProductPrice(product);
+            BigDecimal productValue = price.multiply(BigDecimal.valueOf(stock));
+            totalValue = totalValue.add(productValue);
+            
+            System.out.println("Product: " + product.getProductName() + 
+                             " - Stock: " + stock + 
+                             " - Price: " + price + 
+                             " - Value: " + productValue);
         }
         
+        System.out.println("Total Stock Value: " + totalValue);
+        System.out.println("=== END DEBUG ===");
+        
         return totalValue;
+    }
+    
+    /**
+     * Update product prices for existing products that don't have prices set
+     * This is a utility method to populate the price field for existing products
+     */
+    public void updateProductPricesForExistingProducts() {
+        List<Product> products = productRepository.findAll();
+        
+        for (Product product : products) {
+            if (product.getPrice() == null || product.getPrice().compareTo(BigDecimal.ZERO) == 0) {
+                BigDecimal newPrice = getProductPrice(product);
+                if (newPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    product.setPrice(newPrice);
+                    product.setLastUpdated(LocalDateTime.now());
+                    productRepository.save(product);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Get product price with fallback logic
+     */
+    private BigDecimal getProductPrice(Product product) {
+        System.out.println("  Getting price for: " + product.getProductName());
+        
+        // First try the main price field
+        if (product.getPrice() != null && product.getPrice().compareTo(BigDecimal.ZERO) > 0) {
+            System.out.println("    Using main price: " + product.getPrice());
+            return product.getPrice();
+        }
+        
+        // Fallback to purchase price
+        if (product.getPurchasePrice() != null && product.getPurchasePrice() > 0) {
+            System.out.println("    Using purchase price: " + product.getPurchasePrice());
+            return BigDecimal.valueOf(product.getPurchasePrice());
+        }
+        
+        // Fallback to retail price
+        if (product.getRetailPrice() != null && product.getRetailPrice() > 0) {
+            System.out.println("    Using retail price: " + product.getRetailPrice());
+            return BigDecimal.valueOf(product.getRetailPrice());
+        }
+        
+        // Fallback to b2b price
+        if (product.getB2bPrice() != null && product.getB2bPrice() > 0) {
+            System.out.println("    Using b2b price: " + product.getB2bPrice());
+            return BigDecimal.valueOf(product.getB2bPrice());
+        }
+        
+        // Default to 0 if no price is available
+        System.out.println("    No price found, using 0");
+        return BigDecimal.ZERO;
     }
     
     /**
@@ -305,7 +376,7 @@ public class InventoryService {
             .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
         
         int stock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
-        BigDecimal price = product.getPrice() != null ? product.getPrice() : BigDecimal.ZERO;
+        BigDecimal price = getProductPrice(product);
         
         return price.multiply(BigDecimal.valueOf(stock));
     }

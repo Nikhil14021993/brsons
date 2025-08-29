@@ -372,6 +372,7 @@ public class AdminController {
             @RequestParam String productName,
             @RequestParam(required = false) String description,
             @RequestParam Double retailPrice,
+            @RequestParam(required = false) Double purchasePrice,
             @RequestParam(required = false) Double b2bPrice,
             @RequestParam(required = false) Double discount,
             @RequestParam(required = false) Integer stockQuantity,
@@ -413,6 +414,7 @@ public class AdminController {
         product.setProductName(productName);
         product.setDescription(description);
         product.setRetailPrice(retailPrice);
+        product.setPurchasePrice(purchasePrice != null ? purchasePrice : retailPrice * 0.6); // Default purchase price as 60% of retail
         product.setB2bPrice(b2bPrice != null ? b2bPrice : retailPrice * 0.8); // Default B2B price
         product.setDiscount(discount != null ? discount : 0.0);
         product.setStockQuantity(stockQuantity != null ? stockQuantity : 0);
@@ -914,6 +916,7 @@ public class AdminController {
                                @RequestParam String productName,
                                @RequestParam String description,
                                @RequestParam Double retailPrice,
+                               @RequestParam(required = false) Double purchasePrice,
                                @RequestParam Double b2bPrice,
                                @RequestParam Double discount,
                                @RequestParam Integer stockQuantity,
@@ -942,6 +945,7 @@ public class AdminController {
             product.setProductName(productName);
             product.setDescription(description);
             product.setRetailPrice(retailPrice);
+            product.setPurchasePrice(purchasePrice != null ? purchasePrice : retailPrice * 0.6); // Default purchase price as 60% of retail
             product.setB2bPrice(b2bPrice);
             product.setDiscount(discount);
             product.setStockQuantity(stockQuantity);

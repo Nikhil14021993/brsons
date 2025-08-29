@@ -25,7 +25,29 @@ public class GRNItem {
     @Column(name = "received_quantity", nullable = false)
     private Integer receivedQuantity;
     
-    @Column(name = "accepted_quantity", nullable = false)
+    @Column(name = "discount_percentage", precision = 5, scale = 2)
+    private BigDecimal discountPercentage;
+    
+    @Column(name = "tax_percentage", precision = 5, scale = 2)
+    private BigDecimal taxPercentage;
+    
+    public BigDecimal getTaxPercentage() {
+		return taxPercentage;
+	}
+
+	public void setTaxPercentage(BigDecimal taxPercentage) {
+		this.taxPercentage = taxPercentage;
+	}
+
+	public BigDecimal getDiscountPercentage() {
+		return discountPercentage;
+	}
+
+	public void setDiscountPercentage(BigDecimal discountPercentage) {
+		this.discountPercentage = discountPercentage;
+	}
+
+	@Column(name = "accepted_quantity", nullable = false)
     private Integer acceptedQuantity;
     
     @Column(name = "rejected_quantity", nullable = false)
