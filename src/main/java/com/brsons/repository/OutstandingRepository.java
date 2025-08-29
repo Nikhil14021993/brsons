@@ -23,6 +23,9 @@ public interface OutstandingRepository extends JpaRepository<Outstanding, Long> 
     // Find by type and status
     List<Outstanding> findByTypeAndStatus(Outstanding.OutstandingType type, Outstanding.OutstandingStatus status);
     
+    // Find by type and order type
+    List<Outstanding> findByTypeAndOrderType(Outstanding.OutstandingType type, String orderType);
+    
     // Find overdue items
     List<Outstanding> findByStatusAndDueDateBefore(Outstanding.OutstandingStatus status, LocalDateTime date);
     

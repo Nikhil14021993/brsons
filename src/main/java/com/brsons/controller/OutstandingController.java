@@ -31,13 +31,30 @@ public class OutstandingController {
             return "redirect:/login";
         }
         
-        // Get outstanding dashboard data
+        // Get outstanding dashboard data for retail orders (Pakka bill type)
         Map<String, Object> dashboard = outstandingService.getOutstandingDashboard();
         
         model.addAttribute("dashboard", dashboard);
         model.addAttribute("user", user);
         
         return "admin-outstanding-dashboard";
+    }
+    
+    @GetMapping("/dashboard/b2b")
+    public String b2bOutstandingDashboard(Model model, HttpSession session) {
+        // Check if user is logged in and is admin
+        Object user = session.getAttribute("user");
+        if (user == null) {
+            return "redirect:/login";
+        }
+        
+        // Get B2B outstanding dashboard data (Kaccha orders + Purchase Orders)
+        Map<String, Object> dashboard = outstandingService.getB2BOutstandingDashboard();
+        
+        model.addAttribute("dashboard", dashboard);
+        model.addAttribute("user", user);
+        
+        return "admin-outstanding-b2b-dashboard";
     }
     
     // ==================== OUTSTANDING LISTING ====================
@@ -104,14 +121,36 @@ public class OutstandingController {
             return "redirect:/login";
         }
         
-        List<Outstanding> receivables = outstandingService.getOutstandingByType(Outstanding.OutstandingType.INVOICE_RECEIVABLE);
+        // Get retail receivables (Pakka orders only)
+        List<Outstanding> receivables = outstandingService.getRetailReceivables();
         Map<String, Object> dashboard = outstandingService.getOutstandingDashboard();
         
         model.addAttribute("receivables", receivables);
         model.addAttribute("dashboard", dashboard);
         model.addAttribute("user", user);
+        model.addAttribute("isRetail", true);
         
         return "admin-outstanding-receivables";
+    }
+    
+    @GetMapping("/receivables/b2b")
+    public String b2bReceivablesList(Model model, HttpSession session) {
+        // Check if user is logged in and is admin
+        Object user = session.getAttribute("user");
+        if (user == null) {
+            return "redirect:/login";
+        }
+        
+        // Get B2B receivables (Kaccha orders only)
+        List<Outstanding> b2bReceivables = outstandingService.getB2BReceivables();
+        Map<String, Object> dashboard = outstandingService.getB2BOutstandingDashboard();
+        
+        model.addAttribute("receivables", b2bReceivables);
+        model.addAttribute("dashboard", dashboard);
+        model.addAttribute("user", user);
+        model.addAttribute("isB2B", true);
+        
+        return "admin-outstanding-b2b-receivables";
     }
     
     @GetMapping("/payables")
@@ -143,6 +182,26 @@ public class OutstandingController {
         model.addAttribute("purchaseOrderCount", purchaseOrders.size());
         
         return "admin-outstanding-payables";
+    }
+    
+    @GetMapping("/payables/b2b")
+    public String b2bPayablesList(Model model, HttpSession session) {
+        // Check if user is logged in and is admin
+        Object user = session.getAttribute("user");
+        if (user == null) {
+            return "redirect:/login";
+        }
+        
+        // Get B2B payables (Purchase Orders only)
+        List<Outstanding> b2bPayables = outstandingService.getB2BPayables();
+        Map<String, Object> dashboard = outstandingService.getB2BOutstandingDashboard();
+        
+        model.addAttribute("payables", b2bPayables);
+        model.addAttribute("dashboard", dashboard);
+        model.addAttribute("user", user);
+        model.addAttribute("isB2B", true);
+        
+        return "admin-outstanding-b2b-payables";
     }
     
     @GetMapping("/purchase-orders")
@@ -230,6 +289,8 @@ public class OutstandingController {
     public String markPartiallyPaid(@PathVariable Long id,
                                    @RequestParam BigDecimal paidAmount,
                                    @RequestParam(required = false) String notes,
+                                   @RequestParam String paymentMethod,
+                                   @RequestParam(required = false) String paymentReference,
                                    HttpSession session) {
         // Check if user is logged in and is admin
         Object user = session.getAttribute("user");
@@ -238,7 +299,7 @@ public class OutstandingController {
         }
         
         try {
-            outstandingService.markPartiallyPaid(id, paidAmount, notes);
+            outstandingService.markPartiallyPaid(id, paidAmount, notes, paymentMethod, paymentReference);
             return "success";
         } catch (Exception e) {
             return "error: " + e.getMessage();
@@ -249,6 +310,8 @@ public class OutstandingController {
     @ResponseBody
     public String markSettled(@PathVariable Long id,
                              @RequestParam(required = false) String notes,
+                             @RequestParam String paymentMethod,
+                             @RequestParam(required = false) String paymentReference,
                              HttpSession session) {
         // Check if user is logged in and is admin
         Object user = session.getAttribute("user");
@@ -257,7 +320,7 @@ public class OutstandingController {
         }
         
         try {
-            outstandingService.markAsSettled(id, notes);
+            outstandingService.markAsSettled(id, notes, paymentMethod, paymentReference);
             return "success";
         } catch (Exception e) {
             return "error: " + e.getMessage();
@@ -276,12 +339,30 @@ public class OutstandingController {
         
         try {
             outstandingService.createOutstandingForExistingItems();
-            redirectAttributes.addFlashAttribute("successMessage", "Outstanding items created successfully for existing orders and POs!");
+            redirectAttributes.addFlashAttribute("successMessage", "Outstanding items created successfully for existing retail orders (Pakka) and POs!");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "Error creating outstanding items: " + e.getMessage());
         }
         
         return "redirect:/admin/outstanding/dashboard";
+    }
+    
+    @PostMapping("/create-b2b-existing")
+    public String createB2BOutstandingForExistingItems(HttpSession session, RedirectAttributes redirectAttributes) {
+        // Check if user is logged in and is admin
+        Object user = session.getAttribute("user");
+        if (user == null) {
+            return "redirect:/login";
+        }
+        
+        try {
+            outstandingService.createB2BOutstandingForExistingItems();
+            redirectAttributes.addFlashAttribute("successMessage", "B2B outstanding items created successfully for existing Kaccha orders and POs!");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Error creating B2B outstanding items: " + e.getMessage());
+        }
+        
+        return "redirect:/admin/outstanding/dashboard/b2b";
     }
     
     @GetMapping("/export")

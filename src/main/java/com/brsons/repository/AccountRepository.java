@@ -28,4 +28,7 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 		       """)
 		List<TrialBalanceRow> findTrialBalance(@Param("startDate") LocalDate startDate,
 		                                       @Param("endDate") LocalDate endDate);
+	
+	// Find accounts by name containing the given text (case insensitive)
+	List<Account> findByNameContainingIgnoreCase(String name);
 }

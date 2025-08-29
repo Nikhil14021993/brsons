@@ -5,10 +5,16 @@ import com.brsons.model.Outstanding;
 import com.brsons.model.Order;
 import com.brsons.model.PurchaseOrder;
 import com.brsons.model.Supplier;
+import com.brsons.model.Voucher;
+import com.brsons.model.VoucherEntry;
+import com.brsons.model.Account;
 import com.brsons.repository.OutstandingRepository;
 import com.brsons.repository.OrderRepository;
 import com.brsons.repository.PurchaseOrderRepository;
 import com.brsons.repository.SupplierRepository;
+import com.brsons.repository.VoucherRepository;
+import com.brsons.repository.VoucherEntryRepository;
+import com.brsons.repository.AccountRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -22,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.ArrayList;
 
 @Service
 public class OutstandingService {
@@ -37,6 +44,15 @@ public class OutstandingService {
     
     @Autowired
     private SupplierRepository supplierRepository;
+    
+    @Autowired
+    private VoucherRepository voucherRepository;
+    
+    @Autowired
+    private VoucherEntryRepository voucherEntryRepository;
+    
+    @Autowired
+    private AccountRepository accountRepository;
     
     // ==================== OUTSTANDING MANAGEMENT ====================
     
@@ -58,7 +74,8 @@ public class OutstandingService {
             order.getInvoiceNumber() != null ? order.getInvoiceNumber() : "ORD-" + order.getId(),
             order.getTotal(),
             dueDate,
-            order.getName()
+            order.getName(),
+            order.getBillType() // Set the order type (Pakka/Kaccha)
         );
         
         outstanding.setDescription("Customer invoice for order #" + order.getId());
@@ -164,9 +181,14 @@ public class OutstandingService {
      * Mark outstanding item as partially paid
      */
     @Transactional
-    public Outstanding markPartiallyPaid(Long outstandingId, BigDecimal paidAmount, String notes) {
+    public Outstanding markPartiallyPaid(Long outstandingId, BigDecimal paidAmount, String notes, String paymentMethod, String paymentReference) {
         Outstanding outstanding = outstandingRepository.findById(outstandingId)
             .orElseThrow(() -> new RuntimeException("Outstanding item not found"));
+        
+        // Set payment details
+        outstanding.setPaymentMethod(paymentMethod);
+        outstanding.setPaymentReference(paymentReference);
+        outstanding.setPaymentDate(LocalDateTime.now());
         
         outstanding.setStatus(Outstanding.OutstandingStatus.PARTIALLY_PAID);
         outstanding.setAmount(outstanding.getAmount().subtract(paidAmount));
@@ -175,9 +197,14 @@ public class OutstandingService {
         }
         outstanding.setUpdatedAt(LocalDateTime.now());
         
+        // Automatically create voucher for partial payment
+        createPartialPaymentVoucher(outstanding, paidAmount, notes);
+        
         // If fully paid, mark as settled
         if (outstanding.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             outstanding.setStatus(Outstanding.OutstandingStatus.SETTLED);
+            // Create final settlement voucher
+            createSettlementVoucher(outstanding, notes);
         }
         
         return outstandingRepository.save(outstanding);
@@ -187,9 +214,14 @@ public class OutstandingService {
      * Mark outstanding item as settled
      */
     @Transactional
-    public Outstanding markAsSettled(Long outstandingId, String notes) {
+    public Outstanding markAsSettled(Long outstandingId, String notes, String paymentMethod, String paymentReference) {
         Outstanding outstanding = outstandingRepository.findById(outstandingId)
             .orElseThrow(() -> new RuntimeException("Outstanding item not found"));
+        
+        // Set payment details
+        outstanding.setPaymentMethod(paymentMethod);
+        outstanding.setPaymentReference(paymentReference);
+        outstanding.setPaymentDate(LocalDateTime.now());
         
         outstanding.setStatus(Outstanding.OutstandingStatus.SETTLED);
         outstanding.setAmount(BigDecimal.ZERO);
@@ -197,6 +229,9 @@ public class OutstandingService {
             outstanding.setNotes(notes);
         }
         outstanding.setUpdatedAt(LocalDateTime.now());
+        
+        // Automatically create voucher for settlement
+        createSettlementVoucher(outstanding, notes);
         
         return outstandingRepository.save(outstanding);
     }
@@ -240,10 +275,125 @@ public class OutstandingService {
     }
     
     /**
+     * Get B2B outstanding dashboard data (Kaccha orders + Purchase Orders)
+     * Calculates totals from Outstanding table to account for settlements and partial payments
+     */
+    public Map<String, Object> getB2BOutstandingDashboard() {
+        Map<String, Object> dashboard = new HashMap<>();
+        
+        // Get B2B receivables from Outstanding table (Kaccha orders only)
+        List<Outstanding> b2bReceivables = outstandingRepository.findByTypeAndOrderType(
+            Outstanding.OutstandingType.INVOICE_RECEIVABLE, 
+            "Kaccha"
+        );
+        
+        // Get B2B payables from Outstanding table (Purchase Orders only)
+        List<Outstanding> b2bPayables = outstandingRepository.findByType(Outstanding.OutstandingType.PURCHASE_ORDER);
+        
+        BigDecimal totalB2BReceivable = BigDecimal.ZERO;
+        BigDecimal totalPayable = BigDecimal.ZERO;
+        BigDecimal totalOverdue = BigDecimal.ZERO;
+        int criticalCount = 0;
+        int totalB2BItems = 0;
+        
+        // Calculate B2B receivables from Outstanding table
+        for (Outstanding receivable : b2bReceivables) {
+            // Only include items that are not fully settled
+            if (receivable.getStatus() != Outstanding.OutstandingStatus.SETTLED) {
+                BigDecimal outstandingAmount = receivable.getAmount();
+                
+                // For partially paid items, calculate remaining amount
+                if (receivable.getStatus() == Outstanding.OutstandingStatus.PARTIALLY_PAID) {
+                    // You might need to add a field to track paid amount, or calculate it differently
+                    // For now, we'll use the current amount which should be the remaining amount
+                    outstandingAmount = receivable.getAmount();
+                }
+                
+                totalB2BReceivable = totalB2BReceivable.add(outstandingAmount);
+                totalB2BItems++;
+                
+                // Check if overdue
+                if (receivable.getStatus() == Outstanding.OutstandingStatus.OVERDUE) {
+                    totalOverdue = totalOverdue.add(outstandingAmount);
+                    if (receivable.getDaysOverdue() > 30) {
+                        criticalCount++;
+                    }
+                }
+            }
+        }
+        
+        // Calculate purchase order payables from Outstanding table
+        for (Outstanding payable : b2bPayables) {
+            // Only include items that are not fully settled
+            if (payable.getStatus() != Outstanding.OutstandingStatus.SETTLED) {
+                BigDecimal outstandingAmount = payable.getAmount();
+                
+                // For partially paid items, calculate remaining amount
+                if (payable.getStatus() == Outstanding.OutstandingStatus.PARTIALLY_PAID) {
+                    // You might need to add a field to track paid amount, or calculate it differently
+                    // For now, we'll use the current amount which should be the remaining amount
+                    outstandingAmount = payable.getAmount();
+                }
+                
+                totalPayable = totalPayable.add(outstandingAmount);
+                totalB2BItems++;
+                
+                // Check if overdue
+                if (payable.getStatus() == Outstanding.OutstandingStatus.OVERDUE) {
+                    totalOverdue = totalOverdue.add(outstandingAmount);
+                    if (payable.getDaysOverdue() > 30) {
+                        criticalCount++;
+                    }
+                }
+            }
+        }
+        
+        dashboard.put("totalB2BReceivable", totalB2BReceivable);
+        dashboard.put("totalPayable", totalPayable);
+        dashboard.put("totalOverdue", totalOverdue);
+        dashboard.put("criticalCount", criticalCount);
+        dashboard.put("totalB2BItems", totalB2BItems);
+        dashboard.put("b2bOrdersCount", b2bReceivables.size());
+        dashboard.put("purchaseOrdersCount", b2bPayables.size());
+        
+        return dashboard;
+    }
+    
+    /**
      * Get outstanding items by type
      */
     public List<Outstanding> getOutstandingByType(Outstanding.OutstandingType type) {
         return outstandingRepository.findByType(type);
+    }
+    
+    /**
+     * Get B2B receivables (Kaccha orders only)
+     */
+    public List<Outstanding> getB2BReceivables() {
+        // Get outstanding receivables with orderType "Kaccha"
+        return outstandingRepository.findByTypeAndOrderType(
+            Outstanding.OutstandingType.INVOICE_RECEIVABLE, 
+            "Kaccha"
+        );
+    }
+    
+    /**
+     * Get retail receivables (Pakka orders only)
+     */
+    public List<Outstanding> getRetailReceivables() {
+        // Get outstanding receivables with orderType "Pakka"
+        return outstandingRepository.findByTypeAndOrderType(
+            Outstanding.OutstandingType.INVOICE_RECEIVABLE, 
+            "Pakka"
+        );
+    }
+    
+    /**
+     * Get B2B payables (Purchase Orders only)
+     */
+    public List<Outstanding> getB2BPayables() {
+        // Get all outstanding purchase orders
+        return outstandingRepository.findByType(Outstanding.OutstandingType.PURCHASE_ORDER);
     }
     
     /**
@@ -385,4 +535,142 @@ public class OutstandingService {
             }
         }
     }
+    
+    // ==================== AUTOMATIC VOUCHER CREATION ====================
+    
+    /**
+     * Create settlement voucher when outstanding item is fully settled
+     */
+    private void createSettlementVoucher(Outstanding outstanding, String notes) {
+        try {
+            // Get default accounts (you may need to adjust these based on your chart of accounts)
+            Account cashAccount = getDefaultCashAccount();
+            Account customerAccount = getDefaultCustomerAccount();
+            Account supplierAccount = getDefaultSupplierAccount();
+            
+            if (cashAccount == null || customerAccount == null || supplierAccount == null) {
+                System.err.println("Default accounts not found. Cannot create voucher.");
+                return;
+            }
+            
+            Voucher voucher = new Voucher();
+            voucher.setDate(java.time.LocalDate.now());
+            voucher.setType("Settlement");
+            
+            String narration = "Settlement of " + outstanding.getReferenceType() + " #" + outstanding.getReferenceNumber();
+            if (notes != null && !notes.trim().isEmpty()) {
+                narration += " - " + notes;
+            }
+            voucher.setNarration(narration);
+            voucherRepository.save(voucher);
+            
+            // Create voucher entries based on outstanding type
+            if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {
+                // Customer payment received
+                createVoucherEntry(voucher, cashAccount, outstanding.getAmount(), true); // Debit Cash
+                createVoucherEntry(voucher, customerAccount, outstanding.getAmount(), false); // Credit Customer
+            } else if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
+                       outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
+                // Supplier payment made
+                createVoucherEntry(voucher, supplierAccount, outstanding.getAmount(), true); // Debit Supplier
+                createVoucherEntry(voucher, cashAccount, outstanding.getAmount(), false); // Credit Cash
+            }
+            
+            System.out.println("Created settlement voucher for outstanding item #" + outstanding.getId());
+            
+        } catch (Exception e) {
+            System.err.println("Error creating settlement voucher: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Create partial payment voucher when outstanding item is partially paid
+     */
+    private void createPartialPaymentVoucher(Outstanding outstanding, BigDecimal paidAmount, String notes) {
+        try {
+            // Get default accounts
+            Account cashAccount = getDefaultCashAccount();
+            Account customerAccount = getDefaultCustomerAccount();
+            Account supplierAccount = getDefaultSupplierAccount();
+            
+            if (cashAccount == null || customerAccount == null || supplierAccount == null) {
+                System.err.println("Default accounts not found. Cannot create voucher.");
+                return;
+            }
+            
+            Voucher voucher = new Voucher();
+            voucher.setDate(java.time.LocalDate.now());
+            voucher.setType("Partial Payment");
+            
+            String narration = "Partial payment of " + paidAmount + " for " + outstanding.getReferenceType() + " #" + outstanding.getReferenceNumber();
+            if (notes != null && !notes.trim().isEmpty()) {
+                narration += " - " + notes;
+            }
+            voucher.setNarration(narration);
+            voucherRepository.save(voucher);
+            
+            // Create voucher entries based on outstanding type
+            if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {
+                // Customer partial payment received
+                createVoucherEntry(voucher, cashAccount, paidAmount, true); // Debit Cash
+                createVoucherEntry(voucher, customerAccount, paidAmount, false); // Credit Customer
+            } else if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
+                       outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
+                // Supplier partial payment made
+                createVoucherEntry(voucher, supplierAccount, paidAmount, true); // Debit Supplier
+                createVoucherEntry(voucher, cashAccount, paidAmount, false); // Credit Cash
+            }
+            
+            System.out.println("Created partial payment voucher for outstanding item #" + outstanding.getId());
+            
+        } catch (Exception e) {
+            System.err.println("Error creating partial payment voucher: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Create voucher entry
+     */
+    private void createVoucherEntry(Voucher voucher, Account account, BigDecimal amount, boolean isDebit) {
+        VoucherEntry entry = new VoucherEntry();
+        entry.setVoucher(voucher);
+        entry.setAccount(account);
+        
+        if (isDebit) {
+            entry.setDebit(amount);
+            entry.setCredit(BigDecimal.ZERO);
+        } else {
+            entry.setDebit(BigDecimal.ZERO);
+            entry.setCredit(amount);
+        }
+        
+        voucherEntryRepository.save(entry);
+    }
+    
+    /**
+     * Get default cash account
+     */
+    private Account getDefaultCashAccount() {
+        return accountRepository.findByNameContainingIgnoreCase("Cash")
+            .stream().findFirst().orElse(null);
+    }
+    
+    /**
+     * Get default customer account
+     */
+    private Account getDefaultCustomerAccount() {
+        return accountRepository.findByNameContainingIgnoreCase("Customer")
+            .stream().findFirst().orElse(null);
+    }
+    
+    /**
+     * Get default supplier account
+     */
+    private Account getDefaultSupplierAccount() {
+        return accountRepository.findByNameContainingIgnoreCase("Supplier")
+            .stream().findFirst().orElse(null);
+    }
 }
+

@@ -182,6 +182,16 @@
             transform: translateY(-2px);
         }
         
+        .btn-purple {
+            background: #9b59b6;
+            color: white;
+        }
+        
+        .btn-purple:hover {
+            background: #8e44ad;
+            transform: translateY(-2px);
+        }
+        
         .btn-warning {
             background: #ffc107;
             color: #212529;
@@ -478,7 +488,10 @@
                 </div>
                 <div class="action-buttons">
                     <a th:href="@{/admin/outstanding/dashboard}" class="btn btn-primary">
-                        <i class="fas fa-chart-line"></i> Outstanding Dashboard
+                        <i class="fas fa-chart-line"></i> Retail Dashboard
+                    </a>
+                    <a th:href="@{/admin/outstanding/dashboard/b2b}" class="btn btn-purple">
+                        <i class="fas fa-building"></i> B2B Dashboard
                     </a>
                     <a th:href="@{/admin/outstanding/list}" class="btn btn-success">
                         <i class="fas fa-list"></i> View All Items

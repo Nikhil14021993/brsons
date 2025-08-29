@@ -56,6 +56,18 @@ public class Outstanding {
     @Column(name = "notes")
     private String notes;
     
+    @Column(name = "order_type")
+    private String orderType; // "Pakka" or "Kaccha" for orders
+    
+    @Column(name = "payment_method")
+    private String paymentMethod; // "Cash", "Online", "Bank Transfer", "Check", "Adjustment", etc.
+    
+    @Column(name = "payment_reference")
+    private String paymentReference; // Transaction ID, check number, etc.
+    
+    @Column(name = "payment_date")
+    private LocalDateTime paymentDate; // When the payment was made
+    
     // Enums
     public enum OutstandingType {
         INVOICE_RECEIVABLE,      // Money owed to us (customer invoices)
@@ -93,6 +105,21 @@ public class Outstanding {
         this.amount = amount;
         this.dueDate = dueDate;
         this.customerSupplierName = customerSupplierName;
+        this.updateDaysOverdue();
+    }
+    
+    public Outstanding(OutstandingType type, Long referenceId, String referenceType, 
+                      String referenceNumber, BigDecimal amount, LocalDateTime dueDate, 
+                      String customerSupplierName, String orderType) {
+        this();
+        this.type = type;
+        this.referenceId = referenceId;
+        this.referenceType = referenceType;
+        this.referenceNumber = referenceNumber;
+        this.amount = amount;
+        this.dueDate = dueDate;
+        this.customerSupplierName = customerSupplierName;
+        this.orderType = orderType;
         this.updateDaysOverdue();
     }
     
@@ -168,4 +195,16 @@ public class Outstanding {
     
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+    
+    public String getOrderType() { return orderType; }
+    public void setOrderType(String orderType) { this.orderType = orderType; }
+    
+    public String getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+    
+    public String getPaymentReference() { return paymentReference; }
+    public void setPaymentReference(String paymentReference) { this.paymentReference = paymentReference; }
+    
+    public LocalDateTime getPaymentDate() { return paymentDate; }
+    public void setPaymentDate(LocalDateTime paymentDate) { this.paymentDate = paymentDate; }
 }
