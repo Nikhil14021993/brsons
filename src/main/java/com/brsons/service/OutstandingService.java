@@ -8,6 +8,8 @@ import com.brsons.model.Supplier;
 import com.brsons.model.Voucher;
 import com.brsons.model.VoucherEntry;
 import com.brsons.model.Account;
+import com.brsons.model.CustomerLedger;
+import com.brsons.model.CustomerLedgerEntry;
 import com.brsons.repository.OutstandingRepository;
 import com.brsons.repository.OrderRepository;
 import com.brsons.repository.PurchaseOrderRepository;
@@ -56,6 +58,9 @@ public class OutstandingService {
     @Autowired
     private AccountRepository accountRepository;
     
+    @Autowired
+    private CustomerLedgerService customerLedgerService;
+    
     // ==================== INITIALIZATION ====================
     
     @PostConstruct
@@ -96,7 +101,32 @@ public class OutstandingService {
         outstanding.setDescription("Customer invoice for order #" + order.getId());
         outstanding.setContactInfo(order.getUserPhone());
         
-        return outstandingRepository.save(outstanding);
+        Outstanding savedOutstanding = outstandingRepository.save(outstanding);
+        
+        // If this is a B2B order (Kaccha), also create customer ledger entry
+        if ("Kaccha".equals(order.getBillType()) && order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                // Check if customer ledger entry already exists for this order
+                List<CustomerLedgerEntry> existingLedgerEntries = customerLedgerService.getCustomerLedgerEntriesByReference("ORDER", order.getId());
+                
+                if (existingLedgerEntries.isEmpty()) {
+                    // Only create if no ledger entry exists
+                    CustomerLedger customerLedger = customerLedgerService.findOrCreateCustomerLedger(
+                        order.getName(), 
+                        order.getUserPhone(), 
+                        null
+                    );
+                    customerLedgerService.addInvoiceEntry(customerLedger, order, order.getTotal());
+                    System.out.println("Created customer ledger entry for B2B order #" + order.getId());
+                } else {
+                    System.out.println("Customer ledger entry already exists for B2B order #" + order.getId() + ", skipping creation");
+                }
+            } catch (Exception e) {
+                System.err.println("Error creating customer ledger entry for order #" + order.getId() + ": " + e.getMessage());
+            }
+        }
+        
+        return savedOutstanding;
     }
     
     /**
@@ -224,6 +254,26 @@ public class OutstandingService {
         // Automatically create voucher for partial payment
         createPartialPaymentVoucher(outstanding, paidAmount, notes);
         
+        // If this is a B2B receivable, also update customer ledger
+        if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE && 
+            "Kaccha".equals(outstanding.getOrderType())) {
+            try {
+                Optional<CustomerLedger> customerLedger = customerLedgerService.getCustomerLedgerByPhone(outstanding.getContactInfo());
+                if (customerLedger.isPresent()) {
+                    customerLedgerService.addPaymentEntry(
+                        customerLedger.get(),
+                        paidAmount,
+                        outstanding.getPaymentMethod(),
+                        outstanding.getPaymentReference(),
+                        notes
+                    );
+                    System.out.println("Updated customer ledger for partial payment of " + paidAmount);
+                }
+            } catch (Exception e) {
+                System.err.println("Error updating customer ledger for partial payment: " + e.getMessage());
+            }
+        }
+        
         // If fully paid, mark as settled
         if (outstanding.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             System.out.println("Item fully paid through partial payment - marking as settled");
@@ -265,6 +315,26 @@ public class OutstandingService {
         // Use the remaining amount, not the original amount
         System.out.println("Creating settlement voucher for remaining amount: " + remainingAmount);
         createSettlementVoucher(outstanding, notes, remainingAmount);
+        
+        // If this is a B2B receivable, also update customer ledger
+        if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE && 
+            "Kaccha".equals(outstanding.getOrderType())) {
+            try {
+                Optional<CustomerLedger> customerLedger = customerLedgerService.getCustomerLedgerByPhone(outstanding.getContactInfo());
+                if (customerLedger.isPresent()) {
+                    customerLedgerService.addPaymentEntry(
+                        customerLedger.get(),
+                        remainingAmount,
+                        outstanding.getPaymentMethod(),
+                        outstanding.getPaymentReference(),
+                        notes
+                    );
+                    System.out.println("Updated customer ledger for settlement of " + remainingAmount);
+                }
+            } catch (Exception e) {
+                System.err.println("Error updating customer ledger for settlement: " + e.getMessage());
+            }
+        }
         
         return outstandingRepository.save(outstanding);
     }
