@@ -384,4 +384,39 @@ public class OutstandingController {
         
         return "admin-outstanding-export";
     }
+    
+    // ==================== DEBUG ENDPOINTS ====================
+    
+    @GetMapping("/debug/accounts")
+    @ResponseBody
+    public String debugAccounts(HttpSession session) {
+        // Check if user is logged in and is admin
+        Object user = session.getAttribute("user");
+        if (user == null) {
+            return "unauthorized";
+        }
+        
+        try {
+            return outstandingService.debugAccounts();
+        } catch (Exception e) {
+            return "error: " + e.getMessage();
+        }
+    }
+    
+    @GetMapping("/debug/create-accounts")
+    @ResponseBody
+    public String createDefaultAccounts(HttpSession session) {
+        // Check if user is logged in and is admin
+        Object user = session.getAttribute("user");
+        if (user == null) {
+            return "unauthorized";
+        }
+        
+        try {
+            outstandingService.createDefaultAccountsIfNeeded();
+            return "Default accounts created/verified successfully. Check console for details.";
+        } catch (Exception e) {
+            return "error: " + e.getMessage();
+        }
+    }
 }

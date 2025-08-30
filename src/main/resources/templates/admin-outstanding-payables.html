@@ -566,12 +566,59 @@
                 <input type="number" id="paidAmount" step="0.01" placeholder="0.00" required>
             </div>
             <div class="form-group">
+                <label for="paymentMethod">Payment Method *</label>
+                <select id="paymentMethod" required>
+                    <option value="">Select Payment Method</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Online">Online</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="Check">Check</option>
+                    <option value="Adjustment">Adjustment</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="paymentReference">Payment Reference (Optional)</label>
+                <input type="text" id="paymentReference" placeholder="Transaction ID, check number, etc.">
+            </div>
+            <div class="form-group">
                 <label for="partialNotes">Notes (Optional)</label>
                 <textarea id="partialNotes" rows="3" placeholder="Add any notes about this payment..."></textarea>
             </div>
             <div style="display: flex; gap: 15px; justify-content: flex-end; margin-top: 20px;">
                 <button onclick="closePartialPaymentModal()" class="btn btn-warning">Cancel</button>
                 <button onclick="confirmPartialPayment()" class="btn btn-success">Mark Paid</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settlement Modal -->
+    <div id="settlementModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+        <div class="modal-content" style="background-color: white; margin: 15% auto; padding: 20px; border-radius: 8px; width: 80%; max-width: 500px;">
+            <h3>Mark as Settled</h3>
+            <div class="form-group">
+                <label for="settlementPaymentMethod">Payment Method *</label>
+                <select id="settlementPaymentMethod" required>
+                    <option value="">Select Payment Method</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Online">Online</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="Check">Check</option>
+                    <option value="Adjustment">Adjustment</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="settlementPaymentReference">Payment Reference (Optional)</label>
+                <input type="text" id="settlementPaymentReference" placeholder="Transaction ID, check number, etc.">
+            </div>
+            <div class="form-group">
+                <label for="settlementNotes">Notes (Optional)</label>
+                <textarea id="settlementNotes" rows="3" placeholder="Add any notes about this settlement..."></textarea>
+            </div>
+            <div style="display: flex; gap: 15px; justify-content: flex-end; margin-top: 20px;">
+                <button onclick="closeSettlementModal()" class="btn btn-warning">Cancel</button>
+                <button onclick="confirmSettlement()" class="btn btn-success">Mark Settled</button>
             </div>
         </div>
     </div>
@@ -595,27 +642,9 @@
         }
         
         function markSettled(itemId) {
-            if (confirm('Are you sure you want to mark this invoice as settled?')) {
-                fetch(`/admin/outstanding/mark-settled/${itemId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: 'notes=Settled via admin panel'
-                })
-                .then(response => response.text())
-                .then(result => {
-                    if (result === 'success') {
-                        location.reload();
-                    } else {
-                        alert('Error: ' + result);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while updating the status');
-                });
-            }
+            currentItemId = itemId;
+            currentAction = 'settlement';
+            document.getElementById('settlementModal').style.display = 'block';
         }
         
         function confirmStatusUpdate() {
@@ -645,10 +674,17 @@
         
         function confirmPartialPayment() {
             const paidAmount = document.getElementById('paidAmount').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const paymentReference = document.getElementById('paymentReference').value;
             const notes = document.getElementById('partialNotes').value;
             
             if (!paidAmount || paidAmount <= 0) {
                 alert('Please enter a valid amount');
+                return;
+            }
+            
+            if (!paymentMethod) {
+                alert('Please select a payment method');
                 return;
             }
             
@@ -657,7 +693,7 @@
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: `paidAmount=${paidAmount}&notes=${encodeURIComponent(notes)}`
+                body: `paidAmount=${paidAmount}&paymentMethod=${encodeURIComponent(paymentMethod)}&paymentReference=${encodeURIComponent(paymentReference)}&notes=${encodeURIComponent(notes)}`
             })
             .then(response => response.text())
             .then(result => {
@@ -681,6 +717,43 @@
         
         function closePartialPaymentModal() {
             document.getElementById('partialPaymentModal').style.display = 'none';
+            currentItemId = null;
+            currentAction = null;
+        }
+        
+        function confirmSettlement() {
+            const paymentMethod = document.getElementById('settlementPaymentMethod').value;
+            const paymentReference = document.getElementById('settlementPaymentReference').value;
+            const notes = document.getElementById('settlementNotes').value;
+            
+            if (!paymentMethod) {
+                alert('Please select a payment method');
+                return;
+            }
+            
+            fetch(`/admin/outstanding/mark-settled/${currentItemId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `paymentMethod=${encodeURIComponent(paymentMethod)}&paymentReference=${encodeURIComponent(paymentReference)}&notes=${encodeURIComponent(notes)}`
+            })
+            .then(response => response.text())
+            .then(result => {
+                if (result === 'success') {
+                    location.reload();
+                } else {
+                    alert('Error: ' + result);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating the status');
+            });
+        }
+        
+        function closeSettlementModal() {
+            document.getElementById('settlementModal').style.display = 'none';
             currentItemId = null;
             currentAction = null;
         }
