@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results - Customer Ledger - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            margin: 0.25rem 0;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            transition: transform 0.2s ease-in-out;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .table {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .table th {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            font-weight: 600;
+            padding: 1rem;
+        }
+        
+        .table td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-color: #f1f3f4;
+        }
+        
+        .table tbody tr:hover {
+            background-color: #f8fff9;
+            transform: scale(1.01);
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 25px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-outline-primary {
+            border-color: #667eea;
+            color: #667eea;
+            border-radius: 25px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: #667eea;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+        
+        .btn-outline-success {
+            border-color: #28a745;
+            color: #28a745;
+            border-radius: 25px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-success:hover {
+            background-color: #28a745;
+            border-color: #28a745;
+            transform: translateY(-2px);
+        }
+        
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-inactive {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .balance-positive {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .balance-negative {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .search-box {
+            border-radius: 25px;
+            border: 2px solid #e9ecef;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .search-box:focus {
+            border-color: #28a745;
+            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+        }
+        
+        .page-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 2rem 0;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            transition: transform 0.2s ease-in-out;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stats-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #28a745;
+        }
+        
+        .stats-label {
+            color: #6c757d;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .search-highlight {
+            background-color: #fff3cd;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        .no-results {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 15px;
+            padding: 3rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 px-0">
+                <div class="sidebar p-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-white">Admin Panel</h4>
+                    </div>
+                    <nav class="nav flex-column">
+                        <a class="nav-link" href="/admin">
+                            <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                        </a>
+                        <a class="nav-link" href="/admin/orders">
+                            <i class="fas fa-shopping-cart me-2"></i> Orders
+                        </a>
+                        <a class="nav-link" href="/admin/inventory">
+                            <i class="fas fa-boxes me-2"></i> Inventory
+                        </a>
+                        <a class="nav-link" href="/admin/customers">
+                            <i class="fas fa-users me-2"></i> Customers
+                        </a>
+                        <a class="nav-link active" href="/admin/customer-ledger/dashboard">
+                            <i class="fas fa-book me-2"></i> Customer Ledger
+                        </a>
+                        <a class="nav-link" href="/admin/accounting">
+                            <i class="fas fa-calculator me-2"></i> Accounting
+                        </a>
+                        <a class="nav-link" href="/logout">
+                            <i class="fas fa-sign-out-alt me-2"></i> Logout
+                        </a>
+                    </nav>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10">
+                <div class="main-content p-4">
+                    <!-- Page Header -->
+                    <div class="page-header text-center">
+                        <h1 class="mb-0">
+                            <i class="fas fa-search me-3"></i>
+                            Search Results
+                        </h1>
+                        <p class="mb-0 mt-2">Customer ledger search results for: <strong th:text="${searchQuery}">Search Query</strong></p>
+                    </div>
+                    
+                    <!-- Statistics Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number" th:text="${#lists.size(searchResults)}">0</div>
+                                <div class="stats-label">Results Found</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number" th:text="${#lists.size(searchResults.?[currentBalance.compareTo(new java.math.BigDecimal('0')) > 0])}">0</div>
+                                <div class="stats-label">With Outstanding</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number" th:text="${#lists.size(searchResults.?[status == 'ACTIVE'])}">0</div>
+                                <div class="stats-label">Active Ledgers</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number" th:text="${#lists.size(searchResults.?[status == 'INACTIVE'])}">0</div>
+                                <div class="stats-label">Inactive Ledgers</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Search Form -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <form th:action="@{/admin/customer-ledger/search}" method="get" class="d-flex">
+                                <input type="text" name="query" class="form-control search-box me-3" 
+                                       placeholder="Search customer ledgers by name or phone..." 
+                                       th:value="${searchQuery}">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-2"></i> Search
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="/admin/customer-ledger/dashboard" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-chart-bar me-2"></i> Dashboard
+                            </a>
+                            <a href="/admin/customer-ledger/list" class="btn btn-outline-success">
+                                <i class="fas fa-list me-2"></i> All Ledgers
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Search Results -->
+                    <div th:if="${!#lists.isEmpty(searchResults)}" class="card">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-search me-2 text-success"></i>
+                                Search Results for "<span th:text="${searchQuery}" class="text-success">Query</span>"
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Customer Name</th>
+                                            <th>Phone</th>
+                                            <th>Email</th>
+                                            <th>Current Balance</th>
+                                            <th>Total Debits</th>
+                                            <th>Total Credits</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr th:each="ledger : ${searchResults}">
+                                            <td>
+                                                <strong th:text="${ledger.customerName}">Customer Name</strong>
+                                            </td>
+                                            <td th:text="${ledger.customerPhone}">Phone</td>
+                                            <td th:text="${ledger.customerEmail != null ? ledger.customerEmail : 'N/A'}">Email</td>
+                                            <td>
+                                                <span th:class="${ledger.currentBalance.compareTo(new java.math.BigDecimal('0')) >= 0 ? 'balance-positive' : 'balance-negative'}"
+                                                      th:text="${'₹' + #numbers.formatDecimal(ledger.currentBalance, 1, 2)}">
+                                                    Balance
+                                                </span>
+                                            </td>
+                                            <td th:text="${'₹' + #numbers.formatDecimal(ledger.totalDebits, 1, 2)}">Total Debits</td>
+                                            <td th:text="${'₹' + #numbers.formatDecimal(ledger.totalCredits, 1, 2)}">Total Credits</td>
+                                            <td>
+                                                <span th:class="${ledger.status == 'ACTIVE' ? 'status-badge status-active' : 'status-badge status-inactive'}"
+                                                      th:text="${ledger.status}">
+                                                    Status
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a th:href="@{/admin/customer-ledger/{id}(id=${ledger.id})}" 
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a th:href="@{/admin/customer-ledger/{id}/payment(id=${ledger.id})}" 
+                                                       class="btn btn-sm btn-outline-success">
+                                                        <i class="fas fa-money-bill-wave"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- No Results -->
+                    <div th:if="${#lists.isEmpty(searchResults)}" class="no-results">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Results Found</h4>
+                        <p class="text-muted">No customer ledgers found matching your search query: <strong th:text="${searchQuery}">Query</strong></p>
+                        <div class="mt-4">
+                            <a href="/admin/customer-ledger/list" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-list me-2"></i> View All Ledgers
+                            </a>
+                            <a href="/admin/customer-ledger/dashboard" class="btn btn-primary">
+                                <i class="fas fa-chart-bar me-2"></i> Go to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Search Tips -->
+                    <div th:if="${#lists.isEmpty(searchResults)}" class="card mt-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">
+                                <i class="fas fa-lightbulb me-2 text-warning"></i>
+                                Search Tips
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="mb-0">
+                                <li>Try searching by customer name (partial matches work)</li>
+                                <li>Search by phone number (exact match)</li>
+                                <li>Use shorter search terms for broader results</li>
+                                <li>Check spelling if no results are found</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Add any JavaScript functionality here
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
+            // Add row hover effects
+            const tableRows = document.querySelectorAll('tbody tr');
+            tableRows.forEach(row => {
+                row.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#f8fff9';
+                });
+                row.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = '';
+                });
+            });
+            
+            // Auto-focus search box
+            const searchBox = document.querySelector('input[name="query"]');
+            if (searchBox) {
+                searchBox.focus();
+                searchBox.select();
+            }
+        });
+    </script>
+</body>
+</html>
