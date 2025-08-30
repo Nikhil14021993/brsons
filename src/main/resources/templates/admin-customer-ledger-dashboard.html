@@ -7,6 +7,137 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        /* Navigation Styles */
+        .navbar {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
+            width: 100%;
+        }
+        
+        .navbar-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .navbar-logo {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .navbar-links {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .navbar-links li {
+            margin: 0;
+            padding: 0;
+        }
+        
+        .navbar-links a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            white-space: nowrap;
+            display: block;
+        }
+        
+        .navbar-links a:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        
+        .navbar-links a.active {
+            background-color: rgba(255,255,255,0.2);
+        }
+        
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            white-space: nowrap;
+            background: none;
+            border: none;
+            font-size: inherit;
+            font-family: inherit;
+        }
+        
+        .dropdown-toggle::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 4px solid white;
+            margin-left: 0.5rem;
+        }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: white;
+            min-width: 220px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1001;
+            border-radius: 8px;
+            padding: 0.5rem 0;
+            margin-top: 0.5rem;
+        }
+        
+        .dropdown-content a {
+            color: #333;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            transition: background-color 0.2s ease;
+            border-radius: 0;
+        }
+        
+        .dropdown-content a:hover {
+            background-color: #f8f9fa;
+            color: #2c3e50;
+        }
+        
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        
+        .dropdown:hover .dropdown-toggle {
+            background-color: rgba(255,255,255,0.1);
+        }
+        
+        @media (max-width: 768px) {
+            .navbar-links {
+                display: none;
+            }
+        }
+        
+        /* Dashboard Styles */
         .card-stats {
             transition: transform 0.2s;
         }
@@ -43,7 +174,67 @@
     </style>
 </head>
 <body>
-    <div th:replace="~{fragments/header :: header}"></div>
+    <!-- Navigation Header -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-logo">Cloth Shop Admin</div>
+            <ul class="navbar-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/admin">Dashboard</a></li>
+                
+                <!-- Orders Management -->
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle">Orders</a>
+                    <div class="dropdown-content">
+                        <a href="/admin/orders">All Orders</a>
+                        <a href="/admin/outstanding/dashboard">Retail Outstanding</a>
+                        <a href="/admin/outstanding/dashboard/b2b">B2B Outstanding</a>
+                    </div>
+                </li>
+                
+                <!-- Inventory Management -->
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle">Inventory</a>
+                    <div class="dropdown-content">
+                        <a href="/admin/inventory">Inventory Dashboard</a>
+                        <a href="/admin/add-product">Add Product</a>
+                        <a href="/admin/stock-valuation">Stock Valuation</a>
+                        <a href="/admin/purchase-orders">Purchase Orders</a>
+                        <a href="/admin/grn">GRN Management</a>
+                    </div>
+                </li>
+                
+                <!-- Customer Management -->
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle">Customers</a>
+                    <div class="dropdown-content">
+                        <a href="/admin/customer-ledger/dashboard">Customer Ledger</a>
+                        <a href="/admin/users">User Management</a>
+                    </div>
+                </li>
+                
+                <!-- Accounting -->
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle">Accounting</a>
+                    <div class="dropdown-content">
+                        <a href="/admin/vouchers/new">Vouchers</a>
+                        <a href="/accounting/trial-balance-ui">Trial Balance</a>
+                        <a href="/accounting/balance-sheet-ui">Balance Sheet</a>
+                        <a href="/accounting/pnl-ui">Profit & Loss</a>
+                        <a href="/admin/daybook">Daybook</a>
+                    </div>
+                </li>
+                
+                <!-- Business Management -->
+                <li><a href="/admin/business/dashboard">Business</a></li>
+                
+                <!-- Logout -->
+                <li>
+                    <a href="/logout">Logout</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
     
     <div class="container-fluid mt-4">
         <div class="row">

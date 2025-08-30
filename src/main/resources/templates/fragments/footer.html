@@ -1,106 +1,103 @@
-    </div> <!-- End of main-content -->
+<script th:fragment="footer">
+    // Utility function to format currency
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            minimumFractionDigits: 2
+        }).format(amount);
+    }
     
-    <!-- Common JavaScript Functions -->
-    <script th:fragment="footer">
-        // Utility function to format currency
-        function formatCurrency(amount) {
-            return new Intl.NumberFormat('en-IN', {
-                style: 'currency',
-                currency: 'INR',
-                minimumFractionDigits: 2
-            }).format(amount);
-        }
-        
-        // Utility function to format dates
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-IN', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            });
-        }
-        
-        // Utility function to show success message
-        function showSuccessMessage(message) {
-            // You can implement a toast notification system here
-            alert(message);
-        }
-        
-        // Utility function to show error message
-        function showErrorMessage(message) {
-            // You can implement a toast notification system here
-            alert('Error: ' + message);
-        }
-        
-        // Utility function to confirm action
-        function confirmAction(message) {
-            return confirm(message);
-        }
-        
-        // Utility function to make AJAX requests
-        function makeRequest(url, method, data, successCallback, errorCallback) {
-            const options = {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            };
-            
-            if (data && (method === 'POST' || method === 'PUT')) {
-                options.body = JSON.stringify(data);
-            }
-            
-            fetch(url, options)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(successCallback)
-                .catch(errorCallback);
-        }
-        
-        // Utility function to refresh page
-        function refreshPage() {
-            location.reload();
-        }
-        
-        // Utility function to redirect
-        function redirectTo(url) {
-            window.location.href = url;
-        }
-        
-        // Add active class to current navigation item
-        document.addEventListener('DOMContentLoaded', function() {
-            const currentPath = window.location.pathname;
-            const navLinks = document.querySelectorAll('.navbar-links a');
-            
-            navLinks.forEach(link => {
-                if (link.getAttribute('href') === currentPath) {
-                    link.classList.add('active');
-                }
-            });
+    // Utility function to format dates
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-IN', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
         });
+    }
+    
+    // Utility function to show success message
+    function showSuccessMessage(message) {
+        // You can implement a toast notification system here
+        alert(message);
+    }
+    
+    // Utility function to show error message
+    function showErrorMessage(message) {
+        // You can implement a toast notification system here
+        alert('Error: ' + message);
+    }
+    
+    // Utility function to confirm action
+    function confirmAction(message) {
+        return confirm(message);
+    }
+    
+    // Utility function to make AJAX requests
+    function makeRequest(url, method, data, successCallback, errorCallback) {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        };
         
-        // Close modal when clicking outside
-        document.addEventListener('click', function(event) {
+        if (data && (method === 'POST' || method === 'PUT')) {
+            options.body = JSON.stringify(data);
+        }
+        
+        fetch(url, options)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(successCallback)
+            .catch(errorCallback);
+    }
+    
+    // Utility function to refresh page
+    function refreshPage() {
+        location.reload();
+    }
+    
+    // Utility function to redirect
+    function redirectTo(url) {
+        window.location.href = url;
+    }
+    
+    // Add active class to current navigation item
+    document.addEventListener('DOMContentLoaded', function() {
+        const currentPath = window.location.pathname;
+        const navLinks = document.querySelectorAll('.navbar-links a');
+        
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.classList.add('active');
+            }
+        });
+    });
+    
+    // Close modal when clicking outside
+    document.addEventListener('click', function(event) {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    });
+    
+    // Close modal when pressing Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
             const modals = document.querySelectorAll('.modal');
             modals.forEach(modal => {
-                if (event.target === modal) {
-                    modal.style.display = 'none';
-                }
+                modal.style.display = 'none';
             });
-        });
-        
-        // Close modal when pressing Escape key
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                const modals = document.querySelectorAll('.modal');
-                modals.forEach(modal => {
-                    modal.style.display = 'none';
-                });
-            }
-        });
-    </script>
+        }
+    });
+</script>
