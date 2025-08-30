@@ -83,7 +83,14 @@ public class CustomerLedgerService {
     }
     
     /**
-     * Search customer ledgers by name
+     * Search customer ledgers by name or phone
+     */
+    public List<CustomerLedger> searchCustomerLedgers(String searchTerm) {
+        return customerLedgerRepository.findByCustomerNameOrPhoneContaining(searchTerm);
+    }
+    
+    /**
+     * Search customer ledgers by name only (for backward compatibility)
      */
     public List<CustomerLedger> searchCustomerLedgersByName(String customerName) {
         return customerLedgerRepository.findByCustomerNameContainingIgnoreCase(customerName);

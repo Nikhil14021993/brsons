@@ -24,6 +24,14 @@ public interface CustomerLedgerRepository extends JpaRepository<CustomerLedger, 
     List<CustomerLedger> findByCustomerNameContainingIgnoreCase(String customerName);
     
     /**
+     * Find customer ledgers by name or phone (case-insensitive)
+     */
+    @Query("SELECT cl FROM CustomerLedger cl WHERE " +
+           "LOWER(cl.customerName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "cl.customerPhone LIKE CONCAT('%', :searchTerm, '%')")
+    List<CustomerLedger> findByCustomerNameOrPhoneContaining(@Param("searchTerm") String searchTerm);
+    
+    /**
      * Find active customer ledgers
      */
     List<CustomerLedger> findByStatus(String status);

@@ -89,13 +89,20 @@ public class CustomerLedgerController {
     // ==================== SEARCH ====================
     
     @GetMapping("/search")
-    public String searchCustomerLedgers(@RequestParam String query, Model model, HttpSession session) {
+    public String searchCustomerLedgers(@RequestParam(required = false) String query, Model model, HttpSession session) {
         Object user = session.getAttribute("user");
         if (user == null) {
             return "redirect:/login";
         }
         
-        List<CustomerLedger> searchResults = customerLedgerService.searchCustomerLedgersByName(query);
+        if (query == null || query.trim().isEmpty()) {
+            // If no query provided, show empty search page
+            model.addAttribute("searchResults", List.of());
+            model.addAttribute("searchQuery", "");
+            return "admin-customer-ledger-search";
+        }
+        
+        List<CustomerLedger> searchResults = customerLedgerService.searchCustomerLedgers(query);
         model.addAttribute("searchResults", searchResults);
         model.addAttribute("searchQuery", query);
         
