@@ -821,8 +821,8 @@
                     </h3>
                     <div class="product-details">
                         <span class="product-color" th:text="'Status: ' + ${prod.status}">Status</span>
-                        <span class="product-size" th:text="'Stock: ' + ${prod.stockQuantity}">Stock</span>
-                    </div>
+<!--                        <span class="product-size" th:text="'Stock: ' + ${prod.stockQuantity}">Stock</span>
+-->                    </div>
                     <div class="product-price">
                         <!-- Use orderForUser type if in admin order mode, otherwise use session user type -->
                         <span th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B')}" 
