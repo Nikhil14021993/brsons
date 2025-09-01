@@ -84,6 +84,74 @@
             justify-content: center;
         }
 
+        /* Admin Order Mode Banner */
+        .admin-order-banner {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 20px;
+            margin: 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .banner-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .banner-text h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.3rem;
+        }
+
+        .banner-text p {
+            margin: 0 0 3px 0;
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+
+        .banner-note {
+            font-style: italic;
+            opacity: 0.8;
+        }
+
+        .user-name {
+            font-weight: bold;
+        }
+
+        .user-type {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+        }
+
+        .btn-cancel-order {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn-cancel-order:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 768px) {
+            .admin-order-banner { padding: 15px; }
+            .banner-content { flex-direction: column; text-align: center; gap: 15px; }
+            .banner-text h3 { font-size: 1.1rem; }
+            .banner-text p { font-size: 0.9rem; }
+        }
+
         /* Main Content */
         .main-container {
             max-width: 1400px;
@@ -605,6 +673,23 @@
         </div>
     </nav>
 
+    <!-- Admin Order Mode Banner -->
+    <div th:if="${adminOrderMode}" class="admin-order-banner">
+        <div class="banner-content">
+            <i class="fas fa-user-plus"></i>
+            <div class="banner-text">
+                <h3>Creating Order for: <span th:text="${orderForUser.name}" class="user-name"></span></h3>
+                <p>Phone: <span th:text="${orderForUser.phone}"></span> | Type: <span th:text="${orderForUser.type}" class="user-type"></span></p>
+                <p class="banner-note">Shop normally - the order will be created for this user</p>
+            </div>
+            <form th:action="@{/admin/order-creation/cancel}" method="post" style="display: inline;">
+                <button type="submit" class="btn-cancel-order">
+                    <i class="fas fa-times"></i> Cancel Order
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Main Content -->
     <div class="main-container">
         <div class="product-container">
@@ -644,13 +729,29 @@
                     <h1 class="product-title" th:text="${product.productName}">Product Name</h1>
                     <div class="product-category" th:text="${category.categoryName}">Category</div>
                     <div class="product-price">
-                    <span th:if="${session.user != null and session.user.type == 'B2B'}" th:text="'₹' + ${product.b2bPrice}" style="font-size: 2.5rem; font-weight: bold; color: #2c3e50;">₹0</span>
-                    <span th:if="${session.user == null or session.user.type != 'B2B'}" th:text="'₹' + ${product.retailPrice}" style="font-size: 2.5rem; font-weight: bold; color: #2c3e50;">₹0</span>
-                    <div style="margin-top: 5px;">
-                        <small th:if="${session.user != null and session.user.type == 'B2B'}" style="color: #666; font-size: 14px;">B2B Price</small>
-                        <small th:if="${session.user == null or session.user.type != 'B2B'}" style="color: #666; font-size: 14px;">Retail Price</small>
+                        <span th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B')}" 
+                              th:text="'₹' + ${product.b2bPrice}" style="font-size: 2.5rem; font-weight: bold; color: #2c3e50;">₹0</span>
+                        <span th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B')}" 
+                              th:text="'₹' + ${product.retailPrice}" style="font-size: 2.5rem; font-weight: bold; color: #2c3e50;">₹0</span>
+                        <span th:if="${adminOrderMode == null or !adminOrderMode}">
+                            <span th:if="${session.user != null and session.user.type == 'B2B'}" 
+                                  th:text="'₹' + ${product.b2bPrice}" style="font-size: 2.5rem; font-weight: bold; color: #2c3e50;">₹0</span>
+                            <span th:if="${session.user == null or session.user.type != 'B2B'}" 
+                                  th:text="'₹' + ${product.retailPrice}" style="font-size: 2.5rem; font-weight: bold; color: #2c3e50;">₹0</span>
+                        </span>
+                        <div style="margin-top: 5px;">
+                            <small th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B')}" 
+                                   style="color: #666; font-size: 14px;">B2B Price</small>
+                            <small th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B')}" 
+                                   style="color: #666; font-size: 14px;">Retail Price</small>
+                            <small th:if="${adminOrderMode == null or !adminOrderMode}">
+                                <small th:if="${session.user != null and session.user.type == 'B2B'}" 
+                                       style="color: #666; font-size: 14px;">B2B Price</small>
+                                <small th:if="${session.user == null or session.user.type != 'B2B'}" 
+                                       style="color: #666; font-size: 14px;">Retail Price</small>
+                            </small>
+                        </div>
                     </div>
-                </div>
                     
                     <p class="product-description">
                         Discover the perfect blend of style and comfort with this exceptional product. 

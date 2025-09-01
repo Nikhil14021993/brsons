@@ -61,8 +61,30 @@ public class CheckoutController {
         if (user == null) {
             return "redirect:/login";
         }
+        
+        // If admin is not in order creation mode, redirect to order creation page
+        if ("Admin".equals(user.getType())) {
+            Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+            if (adminOrderMode == null || !adminOrderMode) {
+                System.out.println("Admin user attempting to access checkout directly, redirecting to order creation");
+                return "redirect:/admin/order-creation";
+            }
+        }
+        
+        // Check if admin is in order creation mode
+        Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+        User orderForUser = (User) session.getAttribute("orderForUser");
+        Map<String, String> orderAddress = (Map<String, String>) session.getAttribute("orderAddress");
+        
+        if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+            model.addAttribute("adminOrderMode", true);
+            model.addAttribute("orderForUser", orderForUser);
+            model.addAttribute("orderAddress", orderAddress);
+            model.addAttribute("userPhone", orderForUser.getPhone()); // Use the order user's phone
+        } else {
+            model.addAttribute("userPhone", user.getPhone());
+        }
    
-        model.addAttribute("userPhone", user.getPhone());
         return "checkout";
     }
     
@@ -80,6 +102,17 @@ public class CheckoutController {
             response.put("message", "User not logged in");
             response.put("redirect", "/login");
             return ResponseEntity.ok(response);
+        }
+        
+        // If admin is not in order creation mode, redirect to order creation page
+        if ("Admin".equals(user.getType())) {
+            Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+            if (adminOrderMode == null || !adminOrderMode) {
+                response.put("success", false);
+                response.put("message", "Admin users can only create orders for other users");
+                response.put("redirect", "/admin/order-creation");
+                return ResponseEntity.ok(response);
+            }
         }
 
         try {
@@ -125,17 +158,50 @@ public class CheckoutController {
             String billType = requestData.get("billType");
             String buyerGstin = requestData.get("buyerGstin");
 
+            // Check if admin is creating order for another user
+            Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+            User orderForUser = (User) session.getAttribute("orderForUser");
+            Map<String, String> orderAddress = (Map<String, String>) session.getAttribute("orderAddress");
+            
             // Create Order
             Order order = new Order();
-            order.setName(name);
-            order.setUserPhone(user.getPhone());
-            order.setAddressLine1(addressLine1);
-            order.setAddressLine2(addressLine2);
-            order.setCity(city);
-            order.setState(state);
-            order.setZipCode(zipCode);
-            order.setStatus("Active");
-            order.setOrderStatus("Not Confirmed");
+            
+            if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+                // Admin is creating order for another user
+                order.setName(orderForUser.getName());
+                order.setUserPhone(orderForUser.getPhone());
+                
+                // Use address from admin order creation if available, otherwise from form
+                if (orderAddress != null) {
+                    order.setAddressLine1(orderAddress.get("addressLine1"));
+                    order.setAddressLine2(orderAddress.get("addressLine2"));
+                    order.setCity(orderAddress.get("city"));
+                    order.setState(orderAddress.get("state"));
+                    order.setZipCode(orderAddress.get("zipCode"));
+                    order.setBuyerGstin(orderAddress.get("buyerGstin"));
+                } else {
+                    order.setAddressLine1(addressLine1);
+                    order.setAddressLine2(addressLine2);
+                    order.setCity(city);
+                    order.setState(state);
+                    order.setZipCode(zipCode);
+                    order.setBuyerGstin(buyerGstin);
+                }
+                
+                order.setStatus("Active");
+                order.setOrderStatus("Confirmed"); // Admin orders are confirmed
+            } else {
+                // Regular user checkout
+                order.setName(name);
+                order.setUserPhone(user.getPhone());
+                order.setAddressLine1(addressLine1);
+                order.setAddressLine2(addressLine2);
+                order.setCity(city);
+                order.setState(state);
+                order.setZipCode(zipCode);
+                order.setStatus("Active");
+                order.setOrderStatus("Not Confirmed");
+            }
 
             // Create Order Items with price information and stock management
             List<OrderItem> orderItems = new ArrayList<>();
@@ -150,8 +216,16 @@ public class CheckoutController {
                     // Store the actual price at order time based on user type
                     BigDecimal unitPrice;
                     String priceType;
+                    String userTypeForPricing;
                     
-                    if ("B2B".equalsIgnoreCase(user.getType()) && product.getB2bPrice() != null) {
+                    // Determine which user type to use for pricing
+                    if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+                        userTypeForPricing = orderForUser.getType();
+                    } else {
+                        userTypeForPricing = user.getType();
+                    }
+                    
+                    if ("B2B".equalsIgnoreCase(userTypeForPricing) && product.getB2bPrice() != null) {
                         unitPrice = BigDecimal.valueOf(product.getB2bPrice());
                         priceType = "b2b";
                     } else {
@@ -161,7 +235,7 @@ public class CheckoutController {
                     }
                     
                     item.setUnitPrice(unitPrice);
-                    item.setUserType(user.getType());
+                    item.setUserType(userTypeForPricing);
                     item.setPriceType(priceType);
                     item.calculateTotalPrice();
                     
@@ -189,10 +263,19 @@ public class CheckoutController {
             orderRepository.save(order);
             
             // Finalize GST + invoice + ledger with dynamic pricing based on user type
-            orderAccountingService.finalizeTotalsAndInvoice(order, new BigDecimal("5.00"), order.getBillType(), user.getType());
+            String userTypeForFinalization = (adminOrderMode != null && adminOrderMode && orderForUser != null) ? 
+                orderForUser.getType() : user.getType();
+            orderAccountingService.finalizeTotalsAndInvoice(order, new BigDecimal("5.00"), order.getBillType(), userTypeForFinalization);
             
             // Clear cart
             checkoutService.clearCart(user.getPhone());
+            
+            // Clear admin order mode session data if this was an admin order
+            if (adminOrderMode != null && adminOrderMode) {
+                session.removeAttribute("adminOrderMode");
+                session.removeAttribute("orderForUser");
+                session.removeAttribute("orderAddress");
+            }
             
             response.put("success", true);
             response.put("message", "Order placed successfully!");

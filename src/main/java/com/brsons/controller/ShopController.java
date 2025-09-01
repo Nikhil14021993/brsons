@@ -48,8 +48,24 @@ public class ShopController {
 	    List<Category> categories = categoryRepository.findByStatus("Active");
 	    model.addAttribute("categories", categories);
 	    
-	    // Set cart count in session for navbar display
+	    // Check if admin is in order creation mode
+	    Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	    User orderForUser = (User) session.getAttribute("orderForUser");
+	    
+	    // If admin is not in order creation mode, redirect to order creation page
 	    User user = (User) session.getAttribute("user");
+	    if (user != null && "Admin".equals(user.getType()) && (adminOrderMode == null || !adminOrderMode)) {
+	        System.out.println("Admin user attempting to access shop directly, redirecting to order creation");
+	        return "redirect:/admin/order-creation";
+	    }
+	    
+	    if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+	        model.addAttribute("adminOrderMode", true);
+	        model.addAttribute("orderForUser", orderForUser);
+	        model.addAttribute("orderAddress", session.getAttribute("orderAddress"));
+	    }
+	    
+	    // Set cart count in session for navbar display
 	    if (user != null) {
 	        AddToCart cart = addToCartRepository.findByUserId(user.getId()).orElse(null);
 	        if (cart != null && !cart.getProductQuantities().isEmpty()) {
@@ -70,6 +86,16 @@ public class ShopController {
 	    System.out.println("=== CATEGORY PRODUCTS ENDPOINT HIT ===");
 	    System.out.println("Category ID: " + id);
 	    System.out.println("Session ID: " + session.getId());
+	    
+	    // If admin is not in order creation mode, redirect to order creation page
+	    User user = (User) session.getAttribute("user");
+	    if (user != null && "Admin".equals(user.getType())) {
+	        Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	        if (adminOrderMode == null || !adminOrderMode) {
+	            System.out.println("Admin user attempting to access shop category directly, redirecting to order creation");
+	            return "redirect:/admin/order-creation";
+	        }
+	    }
 	    
 	    Category category = categoryRepository.findById(id).orElse(null);
 	    if (category == null) {
@@ -109,8 +135,17 @@ public class ShopController {
 	    model.addAttribute("category", category);
 	    model.addAttribute("products", products);
 	    
+	    // Check if admin is in order creation mode
+	    Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	    User orderForUser = (User) session.getAttribute("orderForUser");
+	    
+	    if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+	        model.addAttribute("adminOrderMode", true);
+	        model.addAttribute("orderForUser", orderForUser);
+	        model.addAttribute("orderAddress", session.getAttribute("orderAddress"));
+	    }
+	    
 	    // Set cart count in session for navbar display
-	    User user = (User) session.getAttribute("user");
 	    if (user != null) {
 	        AddToCart cart = addToCartRepository.findByUserId(user.getId()).orElse(null);
 	        if (cart != null && !cart.getProductQuantities().isEmpty()) {
@@ -131,6 +166,16 @@ public class ShopController {
 	    System.out.println("Product ID: " + id);
 	    System.out.println("Session ID: " + session.getId());
 	    
+	    // If admin is not in order creation mode, redirect to order creation page
+	    User user = (User) session.getAttribute("user");
+	    if (user != null && "Admin".equals(user.getType())) {
+	        Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	        if (adminOrderMode == null || !adminOrderMode) {
+	            System.out.println("Admin user attempting to access product directly, redirecting to order creation");
+	            return "redirect:/admin/order-creation";
+	        }
+	    }
+	    
 	    Product product = productRepository.findById(id).orElse(null);
 	    if (product == null) {
 	        System.out.println("Product not found, redirecting to home");
@@ -150,9 +195,18 @@ public class ShopController {
 	    model.addAttribute("product", product);
 	    model.addAttribute("images", images);
 
+	    // Check if admin is in order creation mode
+	    Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	    User orderForUser = (User) session.getAttribute("orderForUser");
+	    
+	    if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+	        model.addAttribute("adminOrderMode", true);
+	        model.addAttribute("orderForUser", orderForUser);
+	        model.addAttribute("orderAddress", session.getAttribute("orderAddress"));
+	    }
+
 	    // Check quantity in cart
 	    int quantityInCart = 0;
-	    User user = (User) session.getAttribute("user");
 	    System.out.println("User from session: " + (user != null ? user.getId() : "null"));
 	    
 	    if (user != null) {
@@ -205,6 +259,15 @@ public class ShopController {
 	    if (user == null) {
 	        System.out.println("User not logged in, returning 401");
 	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Please login");
+	    }
+	    
+	    // If admin is not in order creation mode, prevent adding to cart
+	    if ("Admin".equals(user.getType())) {
+	        Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	        if (adminOrderMode == null || !adminOrderMode) {
+	            System.out.println("Admin user attempting to add to cart directly, returning error");
+	            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin users can only add items to cart when creating orders for other users");
+	        }
 	    }
 
 	    // Get existing cart from session or create new one
@@ -268,6 +331,15 @@ public class ShopController {
 	    if (user == null) {
 	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Login required");
 	    }
+	    
+	    // If admin is not in order creation mode, prevent updating cart
+	    if ("Admin".equals(user.getType())) {
+	        Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	        if (adminOrderMode == null || !adminOrderMode) {
+	            System.out.println("Admin user attempting to update cart directly, returning error");
+	            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin users can only update cart when creating orders for other users");
+	        }
+	    }
 
 	    AddToCart cart = addToCartRepository.findByUserId(user.getId())
 	            .orElseThrow(() -> new RuntimeException("Cart not found"));
@@ -309,6 +381,25 @@ public class ShopController {
 	    if (user == null) {
 	        return "redirect:/login";
 	    }
+	    
+	    // If admin is not in order creation mode, redirect to order creation page
+	    if ("Admin".equals(user.getType())) {
+	        Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	        if (adminOrderMode == null || !adminOrderMode) {
+	            System.out.println("Admin user attempting to access cart directly, redirecting to order creation");
+	            return "redirect:/admin/order-creation";
+	        }
+	    }
+
+	    // Check if admin is in order creation mode
+	    Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	    User orderForUser = (User) session.getAttribute("orderForUser");
+	    
+	    if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+	        model.addAttribute("adminOrderMode", true);
+	        model.addAttribute("orderForUser", orderForUser);
+	        model.addAttribute("orderAddress", session.getAttribute("orderAddress"));
+	    }
 
 	    AddToCart cart = addToCartRepository.findByUserId(user.getId())
 	            .orElse(null);
@@ -329,30 +420,38 @@ public class ShopController {
 	        System.out.println("Product quantities count: " + cart.getProductQuantities().size());
 	    }
 
-	    for (CartProductEntry entry : cart.getProductQuantities()) {
-	        System.out.println("Processing entry - Product ID: " + entry.getProductId() + ", Quantity: " + entry.getQuantity());
-	        
-	        // Use a custom query to fetch product with category
-	        Product product = productRepository.findByIdWithCategory(entry.getProductId()).orElse(null);
-
-	        if (product != null) {
-	            // Use appropriate price based on user type
-	            double unitPrice = "B2B".equals(user.getType()) ? product.getB2bPrice() : product.getRetailPrice();
-	            System.out.println("Product found: " + product.getProductName() + ", B2B Price: " + product.getB2bPrice() + ", Retail Price: " + product.getRetailPrice() + ", Using Price: " + unitPrice + " (User Type: " + user.getType() + ")");
-	            System.out.println("Product category: " + (product.getCategory() != null ? product.getCategory().getCategoryName() : "NULL"));
+	    	        for (CartProductEntry entry : cart.getProductQuantities()) {
+	            System.out.println("Processing entry - Product ID: " + entry.getProductId() + ", Quantity: " + entry.getQuantity());
 	            
-	            int quantity = entry.getQuantity();
-	            double totalPrice = unitPrice * quantity;
+	            // Use a custom query to fetch product with category
+	            Product product = productRepository.findByIdWithCategory(entry.getProductId()).orElse(null);
 
-	            grandTotal += totalPrice;
+	            if (product != null) {
+	                // Determine which user type to use for pricing
+	                String userTypeForPricing;
+	                if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+	                    userTypeForPricing = orderForUser.getType();
+	                } else {
+	                    userTypeForPricing = user.getType();
+	                }
+	                
+	                // Use appropriate price based on user type
+	                double unitPrice = "B2B".equals(userTypeForPricing) ? product.getB2bPrice() : product.getRetailPrice();
+	                System.out.println("Product found: " + product.getProductName() + ", B2B Price: " + product.getB2bPrice() + ", Retail Price: " + product.getRetailPrice() + ", Using Price: " + unitPrice + " (User Type for Pricing: " + userTypeForPricing + ", Admin Order Mode: " + adminOrderMode + ")");
+	                System.out.println("Product category: " + (product.getCategory() != null ? product.getCategory().getCategoryName() : "NULL"));
+	                
+	                int quantity = entry.getQuantity();
+	                double totalPrice = unitPrice * quantity;
 
-	            CartItemDetails cartItem = new CartItemDetails(product.getId(), product, quantity, totalPrice);
-	            cartItems.add(cartItem);
-	            System.out.println("Cart item created - ID: " + cartItem.getId() + ", Total Price: " + cartItem.getTotalPrice() + ", Unit Price: " + unitPrice + ", User Type: " + user.getType());
-	        } else {
-	            System.out.println("Product not found for ID: " + entry.getProductId());
+	                grandTotal += totalPrice;
+
+	                CartItemDetails cartItem = new CartItemDetails(product.getId(), product, quantity, totalPrice);
+	                cartItems.add(cartItem);
+	                System.out.println("Cart item created - ID: " + cartItem.getId() + ", Total Price: " + cartItem.getTotalPrice() + ", Unit Price: " + unitPrice + ", User Type for Pricing: " + userTypeForPricing);
+	            } else {
+	                System.out.println("Product not found for ID: " + entry.getProductId());
+	            }
 	        }
-	    }
 
 	    System.out.println("Final cart items count: " + cartItems.size());
 	    System.out.println("Final grand total: " + grandTotal);

@@ -103,6 +103,79 @@
             opacity: 0.9;
         }
 
+        /* Admin Order Mode Banner */
+        .admin-order-banner {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 20px;
+            margin: 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .banner-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1200px;
+            margin: 0 auto;
+            gap: 20px;
+        }
+
+        .banner-content i {
+            font-size: 2rem;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .banner-text {
+            flex: 1;
+        }
+
+        .banner-text h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.3rem;
+        }
+
+        .banner-text p {
+            margin: 0 0 3px 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .banner-note {
+            font-style: italic;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        .user-name {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .user-type {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .btn-cancel-order {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn-cancel-order:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            color: white;
+        }
+
         .breadcrumb {
             display: flex;
             justify-content: center;
@@ -519,6 +592,24 @@
                 gap: 15px;
                 text-align: center;
             }
+
+            .admin-order-banner {
+                padding: 15px;
+            }
+
+            .banner-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .banner-text h3 {
+                font-size: 1.1rem;
+            }
+
+            .banner-text p {
+                font-size: 0.9rem;
+            }
         }
 
         /* Loading Animation */
@@ -604,14 +695,30 @@
         </div>
     </nav>
 
-    
-        <!-- Page Header -->
-        <div class="page-header">
-            <div class="header-content">
-                <h1 th:text="${category.categoryName}">Category Name</h1>
-                <p>Discover amazing products in this category</p>
+    <!-- Admin Order Mode Banner -->
+    <div th:if="${adminOrderMode}" class="admin-order-banner">
+        <div class="banner-content">
+            <i class="fas fa-user-plus"></i>
+            <div class="banner-text">
+                <h3>Creating Order for: <span th:text="${orderForUser.name}" class="user-name"></span></h3>
+                <p>Phone: <span th:text="${orderForUser.phone}"></span> | Type: <span th:text="${orderForUser.type}" class="user-type"></span></p>
+                <p class="banner-note">Shop normally - the order will be created for this user</p>
             </div>
+            <form th:action="@{/admin/order-creation/cancel}" method="post" style="display: inline;">
+                <button type="submit" class="btn-cancel-order">
+                    <i class="fas fa-times"></i> Cancel Order
+                </button>
+            </form>
         </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1 th:text="${category.categoryName}">Category Name</h1>
+            <p>Discover amazing products in this category</p>
+        </div>
+    </div>
 
     <!-- Filter and Sort Section -->
     <div class="filter-sort-section">
@@ -685,7 +792,7 @@
         <!-- Products Grid -->
         <div class="product-grid" id="productGrid">
                     <div th:each="prod : ${products}" class="product-card" 
-             th:data-price="${session.user != null and session.user.type == 'B2B' ? prod.b2bPrice : prod.retailPrice}" 
+             th:data-price="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B') ? prod.b2bPrice : ((adminOrderMode == null or !adminOrderMode) and session.user != null and session.user.type == 'B2B' ? prod.b2bPrice : prod.retailPrice)}" 
              th:data-color="${prod.status}" 
              th:data-size="${prod.stockQuantity}"
              th:data-name="${prod.productName}"
@@ -694,7 +801,7 @@
                 
                 <div class="product-image-container">
                     <img th:src="${prod.mainPhoto}" th:alt="${prod.productName}" loading="lazy">
-                    <div class="product-badge" th:if="${(session.user != null and session.user.type == 'B2B' ? prod.b2bPrice : prod.retailPrice) < 1000}">Sale</div>
+                    <div class="product-badge" th:if="${((adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B') ? prod.b2bPrice : ((adminOrderMode == null or !adminOrderMode) and session.user != null and session.user.type == 'B2B' ? prod.b2bPrice : prod.retailPrice)) < 1000}">Sale</div>
                     <div class="product-actions">
                         <button class="action-btn" th:onclick="'quickView(' + ${prod.id} + ')'" title="Quick View">
                             <i class="fas fa-eye"></i>
@@ -717,10 +824,27 @@
                         <span class="product-size" th:text="'Stock: ' + ${prod.stockQuantity}">Stock</span>
                     </div>
                     <div class="product-price">
-                        <span th:if="${session.user != null and session.user.type == 'B2B'}" th:text="'₹' + ${prod.b2bPrice}">₹0</span>
-                        <span th:if="${session.user == null or session.user.type != 'B2B'}" th:text="'₹' + ${prod.retailPrice}">₹0</span>
-                        <small th:if="${session.user != null and session.user.type == 'B2B'}" style="color: #666; font-size: 12px;">B2B Price</small>
-                        <small th:if="${session.user == null or session.user.type != 'B2B'}" style="color: #666; font-size: 12px;">Retail Price</small>
+                        <!-- Use orderForUser type if in admin order mode, otherwise use session user type -->
+                        <span th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B')}" 
+                              th:text="'₹' + ${prod.b2bPrice}">₹0</span>
+                        <span th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B')}" 
+                              th:text="'₹' + ${prod.retailPrice}">₹0</span>
+                        <span th:if="${adminOrderMode == null or !adminOrderMode}">
+                            <span th:if="${session.user != null and session.user.type == 'B2B'}" 
+                                  th:text="'₹' + ${prod.b2bPrice}">₹0</span>
+                            <span th:if="${session.user == null or session.user.type != 'B2B'}" 
+                                  th:text="'₹' + ${prod.retailPrice}">₹0</span>
+                        </span>
+                        <small th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B')}" 
+                               style="color: #666; font-size: 12px;">B2B Price</small>
+                        <small th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B')}" 
+                               style="color: #666; font-size: 12px;">Retail Price</small>
+                        <small th:if="${adminOrderMode == null or !adminOrderMode}">
+                            <small th:if="${session.user != null and session.user.type == 'B2B'}" 
+                                   style="color: #666; font-size: 12px;">B2B Price</small>
+                            <small th:if="${session.user == null or session.user.type != 'B2B'}" 
+                                   style="color: #666; font-size: 12px;">Retail Price</small>
+                        </small>
                     </div>
                     
                     <!-- Stock Status and Add to Cart Button -->

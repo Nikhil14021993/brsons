@@ -205,6 +205,99 @@
             text-align: center;
             border: 1px solid #f5c6cb;
         }
+
+        /* Admin Order Mode Banner */
+        .admin-order-banner {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 20px;
+            margin: 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .banner-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1200px;
+            margin: 0 auto;
+            gap: 20px;
+        }
+
+        .banner-content i {
+            font-size: 2rem;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .banner-text {
+            flex: 1;
+        }
+
+        .banner-text h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.3rem;
+        }
+
+        .banner-text p {
+            margin: 0 0 3px 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .banner-note {
+            font-style: italic;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        .user-name {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .user-type {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .btn-cancel-order {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn-cancel-order:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .admin-order-banner {
+                padding: 15px;
+            }
+
+            .banner-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .banner-text h3 {
+                font-size: 1.1rem;
+            }
+
+            .banner-text p {
+                font-size: 0.9rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -232,6 +325,23 @@
       
     </ul>
   </nav>
+
+  <!-- Admin Order Mode Banner -->
+  <div th:if="${adminOrderMode}" class="admin-order-banner">
+      <div class="banner-content">
+          <i class="fas fa-user-plus"></i>
+          <div class="banner-text">
+              <h3>Creating Order for: <span th:text="${orderForUser.name}" class="user-name"></span></h3>
+              <p>Phone: <span th:text="${orderForUser.phone}"></span> | Type: <span th:text="${orderForUser.type}" class="user-type"></span></p>
+              <p class="banner-note">Checkout will create the order for this user</p>
+          </div>
+          <form th:action="@{/admin/order-creation/cancel}" method="post" style="display: inline;">
+              <button type="submit" class="btn-cancel-order">
+                  <i class="fas fa-times"></i> Cancel Order
+              </button>
+          </form>
+      </div>
+  </div>
 
   <div class="page-content">
     <h1>Checkout</h1>
@@ -283,27 +393,26 @@
         
         <div class="form-group">
             <label>Bill Type:</label>
-            <!-- For retail users, bill type is always Pakka and cannot be changed -->
+            <!-- For B2B users (either session user or orderForUser in admin mode), allow bill type selection -->
             <select name="billType" id="billType" 
-                    th:if="${session.user != null and session.user.type == 'B2B'}"
-                    th:disabled="${session.user != null and session.user.type != 'B2B'}">
+                    th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B') or (session.user != null and session.user.type == 'B2B')}">
               <option value="Pakka">Pakka (with GST)</option>
               <option value="Kaccha">Kaccha</option>
             </select>
             
-            <!-- For retail users, show readonly input with Pakka -->
+            <!-- For retail users (either session user or orderForUser in admin mode), show readonly input with Pakka -->
             <input type="text" name="billType" id="billTypeRetail" 
                    value="Pakka" readonly 
-                   th:if="${session.user == null or session.user.type != 'B2B'}"
+                   th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B') or (session.user == null or session.user.type != 'B2B')}"
                    style="background-color: #f8f9fa; color: #6c757d;">
             
             <!-- Hidden input to ensure form submission works for retail users -->
             <input type="hidden" name="billType" value="Pakka" 
-                   th:if="${session.user == null or session.user.type != 'B2B'}">
+                   th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B') or (session.user == null or session.user.type != 'B2B')}">
             
             <!-- Note for retail users -->
             <small style="color: #6c757d; font-style: italic; display: block; margin-top: 5px;"
-                   th:if="${session.user == null or session.user.type != 'B2B'}">
+                   th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B') or (session.user == null or session.user.type != 'B2B')}">
                 <i class="fas fa-info-circle"></i> Retail customers always receive Pakka bills with GST
             </small>
         </div>
