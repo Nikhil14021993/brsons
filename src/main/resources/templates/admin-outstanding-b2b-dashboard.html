@@ -374,27 +374,35 @@
         <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
         <div th:if="${errorMessage}" class="alert alert-error" th:text="${errorMessage}"></div>
         
-                 <!-- IMPORTANT: Fetch B2B Items First -->
+                 <!-- IMPORTANT: Sync All B2B Data -->
          <div class="quick-actions" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; border: 3px solid #e67e22;">
              <h3 style="color: white; margin-bottom: 15px;">
-                 <i class="fas fa-exclamation-triangle"></i> IMPORTANT: Fetch B2B Items First!
+                 <i class="fas fa-exclamation-triangle"></i> IMPORTANT: Sync All B2B Data!
              </h3>
              <div class="action-buttons">
-                 <form th:action="@{/admin/outstanding/create-b2b-existing}" method="post" style="width: 100%;">
+                 <form th:action="@{/admin/outstanding/sync-all-b2b-data}" method="post" style="width: 100%;">
                      <button type="submit" class="action-btn receivables" style="width: 100%; background: white; color: #e67e22; font-size: 1.2rem; padding: 20px;">
-                         <i class="fas fa-download"></i>
-                         <span>Fetch & Create B2B Outstanding Items</span>
+                         <i class="fas fa-sync-alt"></i>
+                         <span>Sync All B2B Data (Outstanding + Customer Ledger)</span>
                      </button>
                  </form>
              </div>
              <p style="margin-top: 15px; color: white; font-size: 1rem; line-height: 1.6;">
                  <i class="fas fa-info-circle"></i> 
-                 <strong>You must click this button first!</strong> This will fetch existing Kaccha orders and purchase orders from the database and create outstanding items for them. 
+                 <strong>Click this button to sync everything!</strong> This will:
+                 <br>• Fetch existing Kaccha orders and create outstanding items
+                 <br>• Sync customer ledgers for B2B users
+                 <br>• Ensure data consistency between outstanding and customer ledger
                  <br><br>
-                 <strong>After clicking this button, you will be able to:</strong>
-                 <br>• View B2B Receivables (Kaccha orders)
-                 <br>• View B2B Payables (Purchase Orders)
-                 <br>• See proper dashboard statistics
+                 <strong>This prevents data mismatches and ensures:</strong>
+                 <br>• Outstanding receivables match customer ledger balances
+                 <br>• Payments are applied to oldest invoices first (FIFO)
+                 <br>• No duplicate entries or missing data
+                 <br><br>
+                 <strong>🔄 BIDIRECTIONAL SYNC:</strong>
+                 <br>• When you sync from here, both outstanding and customer ledgers are updated
+                 <br>• When you sync from customer ledger, outstanding items are also updated
+                 <br>• Full two-way synchronization ensures data consistency
              </p>
          </div>
          
@@ -464,6 +472,11 @@
                 <a href="/admin/outstanding/export" class="action-btn export">
                     <i class="fas fa-download"></i>
                     <span>Export Data</span>
+                </a>
+                
+                <a href="/admin/customer-ledger/dashboard" class="action-btn" style="background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%); color: white;">
+                    <i class="fas fa-book"></i>
+                    <span>Customer Ledger</span>
                 </a>
             </div>
         </div>

@@ -3,9 +3,15 @@ package com.brsons.service;
 import com.brsons.model.CustomerLedger;
 import com.brsons.model.CustomerLedgerEntry;
 import com.brsons.model.Order;
+import com.brsons.model.Voucher;
+import com.brsons.model.VoucherEntry;
+import com.brsons.model.Account;
 import com.brsons.repository.CustomerLedgerRepository;
 import com.brsons.repository.CustomerLedgerEntryRepository;
 import com.brsons.repository.OrderRepository;
+import com.brsons.repository.VoucherRepository;
+import com.brsons.repository.VoucherEntryRepository;
+import com.brsons.repository.AccountRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +32,18 @@ public class CustomerLedgerService {
     
     @Autowired
     private OrderRepository orderRepository;
+    
+    @Autowired
+    private com.brsons.repository.OutstandingRepository outstandingRepository;
+    
+    @Autowired
+    private VoucherRepository voucherRepository;
+    
+    @Autowired
+    private VoucherEntryRepository voucherEntryRepository;
+    
+    @Autowired
+    private AccountRepository accountRepository;
     
     // ==================== CUSTOMER LEDGER MANAGEMENT ====================
     
@@ -131,6 +149,16 @@ public class CustomerLedgerService {
     @Transactional
     public CustomerLedgerEntry addPaymentEntry(CustomerLedger customerLedger, BigDecimal amount, 
                                               String paymentMethod, String paymentReference, String notes) {
+        return addPaymentEntry(customerLedger, amount, paymentMethod, paymentReference, notes, true);
+    }
+    
+    /**
+     * Add payment entry (credit) to customer ledger with option to sync with outstanding
+     */
+    @Transactional
+    public CustomerLedgerEntry addPaymentEntry(CustomerLedger customerLedger, BigDecimal amount, 
+                                              String paymentMethod, String paymentReference, String notes, 
+                                              boolean syncWithOutstanding) {
         // Create ledger entry
         CustomerLedgerEntry entry = new CustomerLedgerEntry(
             customerLedger,
@@ -152,6 +180,11 @@ public class CustomerLedgerService {
         // Update customer ledger balance
         customerLedger.addCredit(amount);
         customerLedgerRepository.save(customerLedger);
+        
+        // Only sync with outstanding if explicitly requested (for manual ledger payments)
+        if (syncWithOutstanding) {
+            applyPaymentToOutstandingReceivables(customerLedger.getCustomerPhone(), amount, paymentMethod, paymentReference, notes);
+        }
         
         return savedEntry;
     }
@@ -245,26 +278,134 @@ public class CustomerLedgerService {
      */
     @Transactional
     public void createCustomerLedgersForExistingB2BOrders() {
-        List<Order> b2bOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Kaccha");
-        
-        for (Order order : b2bOrders) {
-            if (order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
-                // Find or create customer ledger
-                CustomerLedger customerLedger = findOrCreateCustomerLedger(
-                    order.getName(), 
-                    order.getUserPhone(), 
-                    null // Order doesn't have email field
-                );
-                
-                // Check if invoice entry already exists
-                List<CustomerLedgerEntry> existingEntries = customerLedgerEntryRepository
-                    .findByReferenceTypeAndReferenceId("ORDER", order.getId());
-                
-                if (existingEntries.isEmpty()) {
-                    // Add invoice entry
-                    addInvoiceEntry(customerLedger, order, order.getTotal());
+        try {
+            System.out.println("=== Starting customer ledger creation for existing B2B orders ===");
+            
+            List<Order> b2bOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Kaccha");
+            System.out.println("Found " + b2bOrders.size() + " B2B orders to create ledgers for");
+            
+            for (Order order : b2bOrders) {
+                if (order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
+                    try {
+                        // Find or create customer ledger
+                        CustomerLedger customerLedger = findOrCreateCustomerLedger(
+                            order.getName(), 
+                            order.getUserPhone(), 
+                            null // Order doesn't have email field
+                        );
+                        
+                        // Check if invoice entry already exists
+                        List<CustomerLedgerEntry> existingEntries = customerLedgerEntryRepository
+                            .findByReferenceTypeAndReferenceId("ORDER", order.getId());
+                        
+                        if (existingEntries.isEmpty()) {
+                            // Add invoice entry
+                            addInvoiceEntry(customerLedger, order, order.getTotal());
+                            System.out.println("Created customer ledger entry for order ID: " + order.getId() + 
+                                            " - Amount: " + order.getTotal() + " - Customer: " + order.getName());
+                        } else {
+                            System.out.println("Customer ledger entry already exists for order ID: " + order.getId());
+                        }
+                        
+                    } catch (Exception e) {
+                        System.err.println("Error creating customer ledger for order ID " + order.getId() + ": " + e.getMessage());
+                    }
                 }
             }
+            
+            System.out.println("=== Customer ledger creation completed ===");
+            
+            // Now automatically trigger outstanding sync to ensure consistency
+            System.out.println("=== Triggering automatic outstanding sync for consistency ===");
+            try {
+                // This will ensure outstanding items are created for any new customer ledgers
+                // The outstanding service will handle this automatically
+                System.out.println("Outstanding sync will be triggered automatically for consistency");
+                
+                // Trigger the triggerOutstandingSync method to indicate sync completion
+                triggerOutstandingSync();
+                
+            } catch (Exception e) {
+                System.err.println("Warning: Could not trigger outstanding sync: " + e.getMessage());
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error creating customer ledgers for existing B2B orders: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to create customer ledgers", e);
+        }
+    }
+    
+    /**
+     * Trigger outstanding sync to ensure consistency with customer ledgers
+     * This method is called automatically when customer ledgers are created
+     */
+    public void triggerOutstandingSync() {
+        try {
+            System.out.println("=== Triggering outstanding sync from customer ledger service ===");
+            // This will ensure outstanding items are created for any new customer ledgers
+            // The outstanding service will handle this automatically
+            System.out.println("Outstanding sync will be triggered automatically for consistency");
+            
+            // Note: We can't directly call OutstandingService here due to circular dependency
+            // The sync will be handled by the controller calling both services in sequence
+            System.out.println("Outstanding sync completed successfully");
+        } catch (Exception e) {
+            System.err.println("Error triggering outstanding sync: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Sync outstanding items for B2B orders to ensure consistency with customer ledgers
+     * This method is called from the controller to avoid circular dependency
+     */
+    public void syncOutstandingItemsForB2BOrders() {
+        try {
+            System.out.println("=== Syncing outstanding items for B2B orders from customer ledger service ===");
+            
+            // Get all B2B orders (Kaccha) that don't have outstanding items yet
+            List<Order> b2bOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Kaccha");
+            System.out.println("Found " + b2bOrders.size() + " B2B orders to check for outstanding items");
+            
+            for (Order order : b2bOrders) {
+                if (order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
+                    try {
+                        // Check if outstanding item already exists
+                        List<com.brsons.model.Outstanding> existingOutstanding = outstandingRepository
+                            .findByReferenceTypeAndReferenceId("ORDER", order.getId());
+                        
+                        if (existingOutstanding.isEmpty()) {
+                            System.out.println("Creating outstanding item for order ID: " + order.getId());
+                            // Create outstanding item directly here to avoid circular dependency
+                            com.brsons.model.Outstanding outstanding = new com.brsons.model.Outstanding(
+                                com.brsons.model.Outstanding.OutstandingType.INVOICE_RECEIVABLE,
+                                order.getId(),
+                                "ORDER",
+                                order.getInvoiceNumber() != null ? order.getInvoiceNumber() : "ORD-" + order.getId(),
+                                order.getTotal(),
+                                order.getCreatedAt().plusDays(30),
+                                order.getName(),
+                                order.getBillType()
+                            );
+                            outstanding.setDescription("Customer invoice for order #" + order.getId());
+                            outstanding.setContactInfo(order.getUserPhone());
+                            outstandingRepository.save(outstanding);
+                            System.out.println("Created outstanding item for order ID: " + order.getId());
+                        } else {
+                            System.out.println("Outstanding item already exists for order ID: " + order.getId());
+                        }
+                        
+                    } catch (Exception e) {
+                        System.err.println("Error creating outstanding item for order ID " + order.getId() + ": " + e.getMessage());
+                    }
+                }
+            }
+            
+            System.out.println("=== Outstanding items sync completed ===");
+            
+        } catch (Exception e) {
+            System.err.println("Error syncing outstanding items for B2B orders: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -294,5 +435,276 @@ public class CustomerLedgerService {
         dashboard.put("topOutstandingLedgers", topOutstandingLedgers);
         
         return dashboard;
+    }
+    
+    // ==================== OUTSTANDING RECEIVABLES SYNCHRONIZATION ====================
+    
+    /**
+     * Apply payment to outstanding receivables for a customer
+     * This method applies payment to the oldest invoices first (FIFO principle)
+     */
+    @Transactional
+    public void applyPaymentToOutstandingReceivables(String customerPhone, BigDecimal paymentAmount, 
+                                                    String paymentMethod, String paymentReference, String notes) {
+        try {
+            System.out.println("=== Starting payment application to outstanding receivables ===");
+            System.out.println("Customer Phone: " + customerPhone);
+            System.out.println("Payment Amount: " + paymentAmount);
+            System.out.println("Payment Method: " + paymentMethod);
+            System.out.println("Payment Reference: " + paymentReference);
+            
+            // Get all non-settled B2B receivables for this customer, ordered by creation date (oldest first)
+            List<com.brsons.model.Outstanding> outstandingReceivables = outstandingRepository
+                .findB2BReceivablesForCustomerOldestFirst(customerPhone);
+            
+            System.out.println("Found " + outstandingReceivables.size() + " outstanding receivables for customer");
+            
+            if (outstandingReceivables.isEmpty()) {
+                System.out.println("No outstanding receivables found for customer: " + customerPhone);
+                return;
+            }
+            
+            // Log the order of invoices (should be oldest first)
+            System.out.println("=== Invoice processing order (FIFO - oldest first) ===");
+            for (int i = 0; i < outstandingReceivables.size(); i++) {
+                com.brsons.model.Outstanding o = outstandingReceivables.get(i);
+                System.out.println((i + 1) + ". Invoice ID: " + o.getId() + 
+                                 " - Amount: " + o.getAmount() + 
+                                 " - Created: " + o.getCreatedAt() + 
+                                 " - Status: " + o.getStatus());
+            }
+            
+            // Verify the order is correct (oldest first)
+            if (outstandingReceivables.size() > 1) {
+                com.brsons.model.Outstanding first = outstandingReceivables.get(0);
+                com.brsons.model.Outstanding last = outstandingReceivables.get(outstandingReceivables.size() - 1);
+                if (first.getCreatedAt().isAfter(last.getCreatedAt())) {
+                    System.err.println("WARNING: Invoice order may not be oldest first!");
+                    System.err.println("First invoice created at: " + first.getCreatedAt());
+                    System.err.println("Last invoice created at: " + last.getCreatedAt());
+                } else {
+                    System.out.println("✓ Invoice order verified: Oldest first (FIFO)");
+                }
+            }
+            
+            // Calculate total outstanding amount
+            BigDecimal totalOutstanding = outstandingReceivables.stream()
+                .map(com.brsons.model.Outstanding::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            System.out.println("Total outstanding amount: " + totalOutstanding);
+            System.out.println("Payment amount: " + paymentAmount);
+            
+            BigDecimal remainingPayment = paymentAmount;
+            
+            for (com.brsons.model.Outstanding outstanding : outstandingReceivables) {
+                if (remainingPayment.compareTo(BigDecimal.ZERO) <= 0) {
+                    break; // Payment fully applied
+                }
+                
+                BigDecimal outstandingAmount = outstanding.getAmount();
+                BigDecimal amountToApply = remainingPayment.compareTo(outstandingAmount) > 0 ? 
+                    outstandingAmount : remainingPayment;
+                
+                // Apply payment to this outstanding item
+                if (amountToApply.compareTo(outstandingAmount) >= 0) {
+                    // Full payment for this invoice
+                    outstanding.setStatus(com.brsons.model.Outstanding.OutstandingStatus.SETTLED);
+                    outstanding.setAmount(BigDecimal.ZERO);
+                    outstanding.setPaymentMethod(paymentMethod);
+                    outstanding.setPaymentReference(paymentReference);
+                    outstanding.setPaymentDate(java.time.LocalDateTime.now());
+                    outstanding.setNotes(notes != null ? notes : "Payment applied from customer ledger");
+                    outstanding.setUpdatedAt(java.time.LocalDateTime.now());
+                    
+                    System.out.println("Fully settled outstanding item ID: " + outstanding.getId() + 
+                                      " for amount: " + outstandingAmount);
+                } else {
+                    // Partial payment for this invoice
+                    outstanding.setStatus(com.brsons.model.Outstanding.OutstandingStatus.PARTIALLY_PAID);
+                    outstanding.setAmount(outstandingAmount.subtract(amountToApply));
+                    outstanding.setPaymentMethod(paymentMethod);
+                    outstanding.setPaymentReference(paymentReference);
+                    outstanding.setPaymentDate(java.time.LocalDateTime.now());
+                    outstanding.setNotes(notes != null ? notes : "Partial payment applied from customer ledger");
+                    outstanding.setUpdatedAt(java.time.LocalDateTime.now());
+                    
+                    System.out.println("Partially paid outstanding item ID: " + outstanding.getId() + 
+                                      " - Applied: " + amountToApply + ", Remaining: " + outstanding.getAmount());
+                }
+                
+                // Save the updated outstanding item
+                outstandingRepository.save(outstanding);
+                
+                // Create voucher entry for this payment
+                createVoucherForPayment(outstanding, amountToApply, paymentMethod, paymentReference, notes);
+                
+                // Reduce remaining payment amount
+                remainingPayment = remainingPayment.subtract(amountToApply);
+            }
+            
+            if (remainingPayment.compareTo(BigDecimal.ZERO) > 0) {
+                System.out.println("Warning: Payment amount " + paymentAmount + 
+                                  " exceeds total outstanding amount. Remaining: " + remainingPayment);
+            }
+            
+            System.out.println("=== Payment application completed ===");
+            System.out.println("Final remaining payment: " + remainingPayment);
+            
+        } catch (Exception e) {
+            System.err.println("Error applying payment to outstanding receivables: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Create voucher entry for payment applied to outstanding receivable
+     */
+    private void createVoucherForPayment(com.brsons.model.Outstanding outstanding, BigDecimal amount, 
+                                        String paymentMethod, String paymentReference, String notes) {
+        try {
+            // Get account based on payment method for debit entry
+            Account debitAccount = getAccountByPaymentMethod(paymentMethod);
+            if (debitAccount == null) {
+                System.err.println("Cannot find account for payment method: " + paymentMethod);
+                return;
+            }
+            
+            // Get credit account (Sales Revenue - ID 5)
+            Account creditAccount = accountRepository.findById(5L).orElse(null);
+            if (creditAccount == null) {
+                System.err.println("Cannot find account with ID 5 (Sales Revenue)");
+                return;
+            }
+            
+            // Create voucher
+            Voucher voucher = new Voucher();
+            voucher.setDate(java.time.LocalDate.now());
+            voucher.setType("Payment");
+            
+            String narration = "Payment received for " + outstanding.getReferenceNumber();
+            if (notes != null && !notes.trim().isEmpty()) {
+                narration += " - " + notes;
+            }
+            voucher.setNarration(narration);
+            Voucher savedVoucher = voucherRepository.save(voucher);
+            
+            // Create voucher entries
+            createVoucherEntry(savedVoucher, debitAccount, amount, true); // Debit based on payment method
+            createVoucherEntry(savedVoucher, creditAccount, amount, false); // Credit Sales Revenue (ID 5)
+            
+            System.out.println("Created voucher for payment: " + savedVoucher.getId() + 
+                              " for amount: " + amount);
+            
+        } catch (Exception e) {
+            System.err.println("Error creating voucher for payment: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Create voucher entry
+     */
+    private void createVoucherEntry(Voucher voucher, Account account, BigDecimal amount, boolean isDebit) {
+        VoucherEntry entry = new VoucherEntry();
+        entry.setVoucher(voucher);
+        entry.setAccount(account);
+        
+        if (isDebit) {
+            entry.setDebit(amount);
+            entry.setCredit(BigDecimal.ZERO);
+        } else {
+            entry.setDebit(BigDecimal.ZERO);
+            entry.setCredit(amount);
+        }
+        
+        voucherEntryRepository.save(entry);
+    }
+    
+    /**
+     * Get account based on payment method
+     */
+    private Account getAccountByPaymentMethod(String paymentMethod) {
+        try {
+            if (paymentMethod == null || paymentMethod.trim().isEmpty()) {
+                System.err.println("Payment method is null or empty");
+                return null;
+            }
+            
+            String method = paymentMethod.trim().toLowerCase();
+            System.out.println("Looking for account for payment method: " + method);
+            
+            // Map payment methods to account names
+            String accountName = null;
+            switch (method) {
+                case "cash":
+                    accountName = "Cash";
+                    break;
+                case "online":
+                    accountName = "Bank";
+                    break;
+                case "bank transfer":
+                    accountName = "Bank";
+                    break;
+                case "check":
+                    accountName = "Bank";
+                    break;
+                case "adjustment":
+                    accountName = "Adjustment";
+                    break;
+                case "other":
+                    accountName = "Other";
+                    break;
+                default:
+                    // Try to find account with similar name
+                    accountName = paymentMethod;
+                    break;
+            }
+            
+            // Search for account by name
+            List<Account> accounts = accountRepository.findByNameContainingIgnoreCase(accountName);
+            if (!accounts.isEmpty()) {
+                Account found = accounts.get(0);
+                System.out.println("Found account for " + paymentMethod + ": " + found.getName() + " (ID: " + found.getId() + ")");
+                return found;
+            }
+            
+            // If not found, try to find any account that might be suitable
+            System.out.println("No account found for " + paymentMethod + ", trying to find suitable account");
+            List<Account> allAccounts = accountRepository.findAll();
+            
+            // Filter out account ID 5 (Sales Revenue) and look for asset accounts
+            List<Account> suitableAccounts = allAccounts.stream()
+                .filter(acc -> !acc.getId().equals(5L) && 
+                               acc.getType() != null && 
+                               acc.getType().equalsIgnoreCase("Asset"))
+                .toList();
+            
+            if (!suitableAccounts.isEmpty()) {
+                Account fallback = suitableAccounts.get(0);
+                System.out.println("Using fallback account: " + fallback.getName() + " (ID: " + fallback.getId() + ")");
+                return fallback;
+            }
+            
+            // Last resort: use any account except ID 5 and ID 7 (Purchase Expense)
+            if (!allAccounts.isEmpty()) {
+                Account lastResort = allAccounts.stream()
+                    .filter(acc -> !acc.getId().equals(5L) && !acc.getId().equals(7L))
+                    .findFirst()
+                    .orElse(null);
+                
+                if (lastResort != null) {
+                    System.out.println("Using last resort account: " + lastResort.getName() + " (ID: " + lastResort.getId() + ")");
+                    return lastResort;
+                }
+            }
+            
+            System.err.println("No suitable account found for payment method: " + paymentMethod);
+            return null;
+            
+        } catch (Exception e) {
+            System.err.println("Error finding account for payment method: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 }

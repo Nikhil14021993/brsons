@@ -230,8 +230,14 @@ public class CustomerLedgerController {
         }
         
         try {
+            // First create customer ledgers
             customerLedgerService.createCustomerLedgersForExistingB2BOrders();
-            return "Customer ledgers created successfully from existing B2B orders";
+            
+            // Then automatically trigger outstanding sync to ensure consistency
+            // This ensures that when customer ledgers are created, outstanding items are also synced
+            customerLedgerService.syncOutstandingItemsForB2BOrders();
+            
+            return "Customer ledgers created successfully from existing B2B orders. Outstanding items have also been synchronized for consistency.";
         } catch (Exception e) {
             return "Error: " + e.getMessage();
         }

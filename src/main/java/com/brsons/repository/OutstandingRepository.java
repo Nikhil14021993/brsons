@@ -96,4 +96,8 @@ public interface OutstandingRepository extends JpaRepository<Outstanding, Long> 
     // Count critical overdue items
     @Query("SELECT COUNT(o) FROM Outstanding o WHERE o.daysOverdue > 30 AND o.status != 'SETTLED'")
     Long countCriticalOverdueItems();
+    
+    // Find all non-settled B2B (Kaccha) receivables for a customer, oldest first
+    @Query("SELECT o FROM Outstanding o WHERE o.contactInfo = :contactInfo AND o.type = 'INVOICE_RECEIVABLE' AND o.orderType = 'Kaccha' AND o.status IN ('PENDING', 'OVERDUE', 'PARTIALLY_PAID') ORDER BY o.createdAt ASC")
+    List<Outstanding> findB2BReceivablesForCustomerOldestFirst(@Param("contactInfo") String contactInfo);
 }

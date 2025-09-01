@@ -356,10 +356,38 @@ public class OutstandingController {
         }
         
         try {
+            // First create outstanding items
             outstandingService.createB2BOutstandingForExistingItems();
-            redirectAttributes.addFlashAttribute("successMessage", "B2B outstanding items created successfully for existing Kaccha orders and POs!");
+            
+            // Then automatically sync customer ledgers to ensure consistency
+            outstandingService.syncCustomerLedgersForB2BOrders();
+            
+            redirectAttributes.addFlashAttribute("successMessage", "B2B outstanding items created successfully for existing Kaccha orders and POs! Customer ledgers have also been synchronized automatically.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "Error creating B2B outstanding items: " + e.getMessage());
+        }
+        
+        return "redirect:/admin/outstanding/dashboard/b2b";
+    }
+    
+    @PostMapping("/sync-all-b2b-data")
+    public String syncAllB2BData(HttpSession session, RedirectAttributes redirectAttributes) {
+        // Check if user is logged in and is admin
+        Object user = session.getAttribute("user");
+        if (user == null) {
+            return "redirect:/login";
+        }
+        
+        try {
+            // First sync outstanding items
+            outstandingService.createB2BOutstandingForExistingItems();
+            
+            // Then sync customer ledgers
+            outstandingService.syncCustomerLedgersForB2BOrders();
+            
+            redirectAttributes.addFlashAttribute("successMessage", "All B2B data synchronized successfully! Outstanding items and customer ledgers are now in sync.");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Error syncing B2B data: " + e.getMessage());
         }
         
         return "redirect:/admin/outstanding/dashboard/b2b";

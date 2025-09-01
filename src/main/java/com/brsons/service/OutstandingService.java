@@ -61,6 +61,9 @@ public class OutstandingService {
     @Autowired
     private CustomerLedgerService customerLedgerService;
     
+    @Autowired
+    private com.brsons.repository.CustomerLedgerEntryRepository customerLedgerEntryRepository;
+    
     // ==================== INITIALIZATION ====================
     
     @PostConstruct
@@ -75,6 +78,32 @@ public class OutstandingService {
     }
     
     // ==================== OUTSTANDING MANAGEMENT ====================
+    
+    /**
+     * Create outstanding item for purchase order
+     */
+    @Transactional
+    public Outstanding createPurchaseOrderOutstanding(PurchaseOrder po) {
+        // Check if outstanding already exists
+        List<Outstanding> existing = outstandingRepository.findByReferenceTypeAndReferenceId("PURCHASE_ORDER", po.getId());
+        if (!existing.isEmpty()) {
+            return existing.get(0);
+        }
+        
+        Outstanding outstanding = new Outstanding(
+            Outstanding.OutstandingType.INVOICE_PAYABLE,
+            po.getId(),
+            "PURCHASE_ORDER",
+            po.getPoNumber() != null ? po.getPoNumber() : "PO-" + po.getId(),
+            po.getTotalAmount(),
+            po.getExpectedDeliveryDate() != null ? po.getExpectedDeliveryDate() : 
+                po.getCreatedAt().plusDays(30),
+            po.getSupplier().getCompanyName(),
+            "Kaccha"
+        );
+        
+        return outstandingRepository.save(outstanding);
+    }
     
     /**
      * Create outstanding item for customer invoice
@@ -162,50 +191,6 @@ public class OutstandingService {
     }
     
     /**
-     * Create outstanding item for purchase order
-     */
-    @Transactional
-    public Outstanding createPurchaseOrderOutstanding(PurchaseOrder po) {
-        // Check if outstanding already exists
-        List<Outstanding> existing = outstandingRepository.findByReferenceTypeAndReferenceId("PURCHASE_ORDER", po.getId());
-        if (!existing.isEmpty()) {
-            return existing.get(0);
-        }
-        
-        Supplier supplier = po.getSupplier();
-        BigDecimal totalAmount = po.getTotalAmount();
-        
-        // Set due date based on payment terms
-        LocalDateTime dueDate = LocalDateTime.now().plusDays(30); // Default 30 days
-        if (po.getPaymentTerms() != null && po.getPaymentTerms().contains("days")) {
-            try {
-                String daysStr = po.getPaymentTerms().replaceAll("[^0-9]", "");
-                int days = Integer.parseInt(daysStr);
-                dueDate = LocalDateTime.now().plusDays(days);
-            } catch (NumberFormatException e) {
-                // Use default 30 days
-            }
-        }
-        
-        Outstanding outstanding = new Outstanding(
-            Outstanding.OutstandingType.PURCHASE_ORDER,
-            po.getId(),
-            "PURCHASE_ORDER",
-            po.getPoNumber() != null ? po.getPoNumber() : "PO-" + po.getId(),
-            totalAmount,
-            dueDate,
-            supplier != null ? supplier.getCompanyName() : "Unknown Supplier"
-        );
-        
-        outstanding.setDescription("Purchase Order #" + po.getId());
-        if (supplier != null) {
-            outstanding.setContactInfo(supplier.getPhone());
-        }
-        
-        return outstandingRepository.save(outstanding);
-    }
-    
-    /**
      * Update outstanding item status
      */
     @Transactional
@@ -265,7 +250,8 @@ public class OutstandingService {
                         paidAmount,
                         outstanding.getPaymentMethod(),
                         outstanding.getPaymentReference(),
-                        notes
+                        notes,
+                        false // Don't sync with outstanding to prevent duplicate vouchers
                     );
                     System.out.println("Updated customer ledger for partial payment of " + paidAmount);
                 }
@@ -327,7 +313,8 @@ public class OutstandingService {
                         remainingAmount,
                         outstanding.getPaymentMethod(),
                         outstanding.getPaymentReference(),
-                        notes
+                        notes,
+                        false // Don't sync with outstanding to prevent duplicate vouchers
                     );
                     System.out.println("Updated customer ledger for settlement of " + remainingAmount);
                 }
@@ -636,34 +623,48 @@ public class OutstandingService {
     }
     
     /**
-     * Create outstanding items for B2B orders (Kaccha bill type) and purchase orders
+     * Create B2B outstanding items for existing Kaccha orders and POs
      */
     @Transactional
     public void createB2BOutstandingForExistingItems() {
-        // Create outstanding for B2B orders (Kaccha bill type) without outstanding items
-        List<Order> b2bOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Kaccha");
-        for (Order order : b2bOrders) {
-            if (order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
-                // Check if outstanding already exists
-                List<Outstanding> existing = outstandingRepository.findByReferenceTypeAndReferenceId("ORDER", order.getId());
-                if (existing.isEmpty()) {
-                    // Set due date as 30 days from order creation
-                    LocalDateTime dueDate = order.getCreatedAt().plusDays(30);
-                    createCustomerOutstanding(order, dueDate);
+        try {
+            System.out.println("=== Starting B2B outstanding creation for existing items ===");
+            
+            // Create outstanding for Kaccha orders
+            List<Order> kacchaOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Kaccha");
+            System.out.println("Found " + kacchaOrders.size() + " Kaccha orders to process");
+            
+            for (Order order : kacchaOrders) {
+                if (order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
+                    createCustomerOutstanding(order, order.getCreatedAt().plusDays(30));
                 }
             }
-        }
-        
-        // Create outstanding for purchase orders without outstanding items
-        List<PurchaseOrder> pos = purchaseOrderRepository.findAll();
-        for (PurchaseOrder po : pos) {
-            if (po.getTotalAmount() != null && po.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
-                // Check if outstanding already exists
-                List<Outstanding> existing = outstandingRepository.findByReferenceTypeAndReferenceId("PURCHASE_ORDER", po.getId());
-                if (existing.isEmpty()) {
+            
+            // Create outstanding for Purchase Orders
+            List<PurchaseOrder> purchaseOrders = purchaseOrderRepository.findAll();
+            System.out.println("Found " + purchaseOrders.size() + " purchase orders to process");
+            
+            for (PurchaseOrder po : purchaseOrders) {
+                if (po.getTotalAmount() != null && po.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
                     createPurchaseOrderOutstanding(po);
                 }
             }
+            
+            System.out.println("=== B2B outstanding creation completed ===");
+            
+            // Now automatically trigger customer ledger sync to ensure consistency
+            System.out.println("=== Triggering automatic customer ledger sync for consistency ===");
+            try {
+                triggerCustomerLedgerSync();
+                System.out.println("Customer ledger sync triggered successfully");
+            } catch (Exception e) {
+                System.err.println("Warning: Could not trigger customer ledger sync: " + e.getMessage());
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error creating B2B outstanding items: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to create B2B outstanding items", e);
         }
     }
     
@@ -1131,6 +1132,71 @@ public class OutstandingService {
             
         } catch (Exception e) {
             return "Error: " + e.getMessage() + "\n" + e.getStackTrace();
+        }
+    }
+    
+    /**
+     * Sync customer ledgers for B2B orders to ensure consistency with outstanding items
+     */
+    @Transactional
+    public void syncCustomerLedgersForB2BOrders() {
+        try {
+            System.out.println("=== Starting customer ledger sync for B2B orders ===");
+            
+            // Get all B2B orders (Kaccha)
+            List<Order> b2bOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Kaccha");
+            System.out.println("Found " + b2bOrders.size() + " B2B orders to sync");
+            
+            for (Order order : b2bOrders) {
+                if (order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
+                    try {
+                        // Find or create customer ledger
+                        CustomerLedger customerLedger = customerLedgerService.findOrCreateCustomerLedger(
+                            order.getName(), 
+                            order.getUserPhone(), 
+                            null // Order doesn't have email field
+                        );
+                        
+                        // Check if invoice entry already exists
+                        List<CustomerLedgerEntry> existingEntries = customerLedgerEntryRepository
+                            .findByReferenceTypeAndReferenceId("ORDER", order.getId());
+                        
+                        if (existingEntries.isEmpty()) {
+                            // Add invoice entry
+                            customerLedgerService.addInvoiceEntry(customerLedger, order, order.getTotal());
+                            System.out.println("Created customer ledger entry for order ID: " + order.getId() + 
+                                            " - Amount: " + order.getTotal() + " - Customer: " + order.getName());
+                        } else {
+                            System.out.println("Customer ledger entry already exists for order ID: " + order.getId());
+                        }
+                        
+                    } catch (Exception e) {
+                        System.err.println("Error syncing customer ledger for order ID " + order.getId() + ": " + e.getMessage());
+                    }
+                }
+            }
+            
+            System.out.println("=== Customer ledger sync completed ===");
+            
+        } catch (Exception e) {
+            System.err.println("Error syncing customer ledgers for B2B orders: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to sync customer ledgers", e);
+        }
+    }
+    
+    /**
+     * Trigger customer ledger sync to ensure consistency with outstanding items
+     * This method is called automatically when outstanding items are created
+     */
+    public void triggerCustomerLedgerSync() {
+        try {
+            System.out.println("=== Triggering customer ledger sync from outstanding service ===");
+            // Actually call the customer ledger service to sync
+            customerLedgerService.createCustomerLedgersForExistingB2BOrders();
+            System.out.println("Customer ledger sync triggered successfully");
+        } catch (Exception e) {
+            System.err.println("Error triggering customer ledger sync: " + e.getMessage());
         }
     }
 }
