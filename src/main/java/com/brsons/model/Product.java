@@ -21,6 +21,9 @@ public class Product {
     @Column(name = "b2b_price")
     private Double b2bPrice;
     
+    @Column(name = "b2b_min_quantity")
+    private Integer b2bMinQuantity;
+    
     @Column(name = "purchase_price")
     private Double purchasePrice;
     
@@ -109,6 +112,9 @@ public class Product {
     
     public Double getB2bPrice() { return b2bPrice; }
     public void setB2bPrice(Double b2bPrice) { this.b2bPrice = b2bPrice; }
+    
+    public Integer getB2bMinQuantity() { return b2bMinQuantity; }
+    public void setB2bMinQuantity(Integer b2bMinQuantity) { this.b2bMinQuantity = b2bMinQuantity; }
     
     public Double getDiscount() { return discount; }
     public void setDiscount(Double discount) { this.discount = discount; }

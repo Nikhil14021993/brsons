@@ -374,6 +374,7 @@ public class AdminController {
             @RequestParam Double retailPrice,
             @RequestParam(required = false) Double purchasePrice,
             @RequestParam(required = false) Double b2bPrice,
+            @RequestParam(required = false) Integer b2bMinQuantity,
             @RequestParam(required = false) Double discount,
             @RequestParam(required = false) Integer stockQuantity,
             @RequestParam String status,
@@ -416,6 +417,7 @@ public class AdminController {
         product.setRetailPrice(retailPrice);
         product.setPurchasePrice(purchasePrice != null ? purchasePrice : retailPrice * 0.6); // Default purchase price as 60% of retail
         product.setB2bPrice(b2bPrice != null ? b2bPrice : retailPrice * 0.8); // Default B2B price
+        product.setB2bMinQuantity(b2bMinQuantity != null ? b2bMinQuantity : 1); // Default B2B minimum quantity
         product.setDiscount(discount != null ? discount : 0.0);
         product.setStockQuantity(stockQuantity != null ? stockQuantity : 0);
         product.setStatus(status != null ? status : "Active");
@@ -918,6 +920,7 @@ public class AdminController {
                                @RequestParam Double retailPrice,
                                @RequestParam(required = false) Double purchasePrice,
                                @RequestParam Double b2bPrice,
+                               @RequestParam(required = false) Integer b2bMinQuantity,
                                @RequestParam Double discount,
                                @RequestParam Integer stockQuantity,
                                @RequestParam String status,
@@ -947,6 +950,7 @@ public class AdminController {
             product.setRetailPrice(retailPrice);
             product.setPurchasePrice(purchasePrice != null ? purchasePrice : retailPrice * 0.6); // Default purchase price as 60% of retail
             product.setB2bPrice(b2bPrice);
+            product.setB2bMinQuantity(b2bMinQuantity != null ? b2bMinQuantity : 1);
             product.setDiscount(discount);
             product.setStockQuantity(stockQuantity);
             product.setStatus(status);

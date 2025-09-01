@@ -276,8 +276,29 @@ public class ShopController {
 	        cart = new HashMap<>();
 	    }
 
-	    // Update quantity if product already exists, else set to 1
-	    cart.put(productId, cart.getOrDefault(productId, 0) + 1);
+	    // Get product details to check B2B minimum quantity
+	    Product product = productRepository.findById(productId).orElse(null);
+	    if (product == null) {
+	        return ResponseEntity.badRequest().body("Product not found");
+	    }
+	    
+	    // Check if admin is in order creation mode and determine the correct user type
+	    Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	    User orderForUser = (User) session.getAttribute("orderForUser");
+	    String userTypeForQuantity = user.getType();
+	    
+	    if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+	        userTypeForQuantity = orderForUser.getType();
+	    }
+	    
+	    // Determine quantity to add based on user type and B2B minimum quantity
+	    int quantityToAdd = 1;
+	    if ("B2B".equals(userTypeForQuantity) && product.getB2bMinQuantity() != null && product.getB2bMinQuantity() > 1) {
+	        quantityToAdd = product.getB2bMinQuantity();
+	    }
+	    
+	    // Update quantity if product already exists, else set to quantityToAdd
+	    cart.put(productId, cart.getOrDefault(productId, 0) + quantityToAdd);
 
 	    // Store updated cart back into session
 	    session.setAttribute("cart", cart);
@@ -299,14 +320,14 @@ public class ShopController {
 	    int newQty;
 	    if (existingEntryOpt.isPresent()) {
 	        CartProductEntry entry = existingEntryOpt.get();
-	        entry.setQuantity(entry.getQuantity() + 1);
+	        entry.setQuantity(entry.getQuantity() + quantityToAdd);
 	        newQty = entry.getQuantity();
-	        System.out.println("Updated existing product quantity to: " + newQty);
+	        System.out.println("Updated existing product quantity to: " + newQty + " (added " + quantityToAdd + ")");
 	    } else {
-	        CartProductEntry newEntry = new CartProductEntry(productId, 1, user.getPhone());
+	        CartProductEntry newEntry = new CartProductEntry(productId, quantityToAdd, user.getPhone());
 	        productEntries.add(newEntry);
-	        newQty = 1;
-	        System.out.println("Added new product with quantity: " + newQty);
+	        newQty = quantityToAdd;
+	        System.out.println("Added new product with quantity: " + newQty + " (B2B min qty: " + (product.getB2bMinQuantity() != null ? product.getB2bMinQuantity() : "null") + ")");
 	    }
 
 	    addToCartRepository.save(cart1);
@@ -326,11 +347,18 @@ public class ShopController {
 	public ResponseEntity<?> updateCart(@PathVariable Long productId,
 	                                    @RequestParam int delta,
 	                                    HttpSession session) {
+	    
+	    System.out.println("=== UPDATE CART ENDPOINT HIT ===");
+	    System.out.println("Product ID: " + productId);
+	    System.out.println("Delta: " + delta);
+	    System.out.println("Session ID: " + session.getId());
 
 	    User user = (User) session.getAttribute("user");
 	    if (user == null) {
 	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Login required");
 	    }
+	    
+	    System.out.println("User ID: " + user.getId() + ", User Type: " + user.getType());
 	    
 	    // If admin is not in order creation mode, prevent updating cart
 	    if ("Admin".equals(user.getType())) {
@@ -343,35 +371,202 @@ public class ShopController {
 
 	    AddToCart cart = addToCartRepository.findByUserId(user.getId())
 	            .orElseThrow(() -> new RuntimeException("Cart not found"));
+	    
+	    System.out.println("Cart found - ID: " + cart.getId() + ", User ID: " + cart.getUserId());
+	    System.out.println("Total product entries in cart: " + cart.getProductQuantities().size());
 
 	    List<CartProductEntry> productEntries = cart.getProductQuantities();
+	    
+	    // Debug: Print all cart entries
+	    for (CartProductEntry entry : productEntries) {
+	        System.out.println("Cart entry - Product ID: " + entry.getProductId() + ", Quantity: " + entry.getQuantity());
+	    }
+	    
 	    Optional<CartProductEntry> entryOpt = productEntries.stream()
 	            .filter(e -> e.getProductId().equals(productId))
 	            .findFirst();
+	    
+	    System.out.println("Found cart entry: " + entryOpt.isPresent());
 
 	    if (entryOpt.isPresent()) {
 	        CartProductEntry entry = entryOpt.get();
-	        int updatedQty = entry.getQuantity() + delta;
+	        System.out.println("Found cart entry - Product ID: " + entry.getProductId() + ", Current Quantity: " + entry.getQuantity());
+	        
+	        // Get product details to check B2B minimum quantity
+	        Product product = productRepository.findById(productId).orElse(null);
+	        if (product == null) {
+	            return ResponseEntity.badRequest().body("Product not found");
+	        }
+	        
+	        // Check if admin is in order creation mode and determine the correct user type
+	        Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	        User orderForUser = (User) session.getAttribute("orderForUser");
+	        String userTypeForQuantity = user.getType();
+	        
+	        if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+	            userTypeForQuantity = orderForUser.getType();
+	        }
+	        
+	        // The frontend already calculates the correct delta based on user type and B2B minimum quantity
+	        int actualDelta = delta;
+	        
+	        System.out.println("Delta received from frontend: " + delta);
+	        System.out.println("Current quantity: " + entry.getQuantity());
+	        System.out.println("B2B min quantity: " + (product.getB2bMinQuantity() != null ? product.getB2bMinQuantity() : "null"));
+	        System.out.println("User type for quantity: " + userTypeForQuantity);
+	        
+	        int updatedQty = entry.getQuantity() + actualDelta;
+	        System.out.println("Updated quantity: " + updatedQty);
+	        
+	                // Check B2B minimum quantity constraint - allow going to 0 for removal
+        if ("B2B".equals(userTypeForQuantity) && product.getB2bMinQuantity() != null && product.getB2bMinQuantity() > 1) {
+            if (updatedQty < 0) {
+                System.out.println("Quantity below 0, rejecting update");
+                return ResponseEntity.badRequest().body("Quantity cannot be negative");
+            }
+        }
 
 	        if (updatedQty <= 0) {
+	            // Remove the entry from the list
 	            productEntries.remove(entry);
 	            updatedQty = 0;
+	            System.out.println("Product removed from cart, quantity: " + updatedQty);
+	            System.out.println("Remaining entries in cart: " + productEntries.size());
+	            
+	            // Explicitly set the updated list to ensure JPA tracks the change
+	            cart.setProductQuantities(productEntries);
 	        } else {
 	            entry.setQuantity(updatedQty);
+	            System.out.println("Product quantity updated to: " + updatedQty);
 	        }
-
+	        
 	        addToCartRepository.save(cart);
+	        System.out.println("Cart saved successfully");
 	        
 	        // Update cart count in session
 	        int totalItems = cart.getProductQuantities().stream()
 	                .mapToInt(CartProductEntry::getQuantity)
 	                .sum();
 	        session.setAttribute("cartCount", totalItems);
+	        System.out.println("Updated cart count in session: " + totalItems);
 	        
 	        return ResponseEntity.ok(Map.of("quantity", updatedQty));
+	    } else {
+	        return ResponseEntity.badRequest().body("Product not in cart");
 	    }
-
-	    return ResponseEntity.badRequest().body("Product not in cart");
+	}
+	
+	// New method for updating product quantities in shop view (separate from cart updates)
+	@PostMapping("/update-product-quantity/{productId}")
+	@ResponseBody
+	public ResponseEntity<?> updateProductQuantity(@PathVariable Long productId,
+	                                             @RequestParam int delta,
+	                                             HttpSession session) {
+	    
+	    User user = (User) session.getAttribute("user");
+	    if (user == null) {
+	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Login required");
+	    }
+	    
+	    // If admin is not in order creation mode, prevent updating
+	    if ("Admin".equals(user.getType())) {
+	        Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	        if (adminOrderMode == null || !adminOrderMode) {
+	            System.out.println("Admin user attempting to update product quantity directly, returning error");
+	            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin users can only update quantities in order creation mode");
+	        }
+	    }
+	    
+	    System.out.println("=== UPDATE PRODUCT QUANTITY ===");
+	    System.out.println("Product ID: " + productId + ", Delta: " + delta);
+	    System.out.println("User: " + user.getName() + " (" + user.getType() + ")");
+	    
+	    // Get product details to check B2B minimum quantity
+	    Product product = productRepository.findById(productId).orElse(null);
+	    if (product == null) {
+	        return ResponseEntity.badRequest().body("Product not found");
+	    }
+	    
+	    // Check if admin is in order creation mode and determine the correct user type
+	    Boolean adminOrderMode = (Boolean) session.getAttribute("adminOrderMode");
+	    User orderForUser = (User) session.getAttribute("orderForUser");
+	    String userTypeForQuantity = user.getType();
+	    
+	    if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+	        userTypeForQuantity = orderForUser.getType();
+	    }
+	    
+	    // The frontend already calculates the correct delta based on user type and B2B minimum quantity
+	    int actualDelta = delta;
+	    
+	    System.out.println("Delta received from frontend: " + delta + " (B2B min qty: " + (product.getB2bMinQuantity() != null ? product.getB2bMinQuantity() : "null") + ")");
+	    
+	    // Get or create cart
+	    AddToCart cart = addToCartRepository.findByUserId(user.getId()).orElse(null);
+	    if (cart == null) {
+	        // Create new cart if it doesn't exist
+	        cart = new AddToCart();
+	        cart.setUserId(user.getId());
+	        cart.setProductQuantities(new ArrayList<>());
+	    }
+	    
+	    List<CartProductEntry> productEntries = cart.getProductQuantities();
+	    Optional<CartProductEntry> entryOpt = productEntries.stream()
+	            .filter(e -> e.getProductId().equals(productId))
+	            .findFirst();
+	    
+	    int updatedQty = 0;
+	    
+	    if (entryOpt.isPresent()) {
+	        CartProductEntry entry = entryOpt.get();
+	        int currentQty = entry.getQuantity();
+	        updatedQty = currentQty + actualDelta;
+	        
+	        System.out.println("Updating existing product - Current Qty: " + currentQty + ", New Qty: " + updatedQty);
+	        
+	                // Check B2B minimum quantity constraint - allow going to 0 for removal
+        if ("B2B".equals(userTypeForQuantity) && product.getB2bMinQuantity() != null && product.getB2bMinQuantity() > 1) {
+            if (updatedQty < 0) {
+                return ResponseEntity.badRequest().body("Quantity cannot be negative");
+            }
+        }
+	        
+	        if (updatedQty <= 0) {
+	            // Remove the entry from the list
+	            productEntries.remove(entry);
+	            updatedQty = 0;
+	            System.out.println("Product removed from cart, quantity: " + updatedQty);
+	            System.out.println("Remaining entries in cart: " + productEntries.size());
+	        } else {
+	            entry.setQuantity(updatedQty);
+	            System.out.println("Product quantity updated to: " + updatedQty);
+	        }
+	        
+	        // Explicitly set the list back to ensure JPA tracks changes
+	        cart.setProductQuantities(productEntries);
+	    } else {
+	        // Product not in cart, add it
+	        if (actualDelta > 0) {
+	            CartProductEntry newEntry = new CartProductEntry(productId, actualDelta, user.getPhone());
+	            productEntries.add(newEntry);
+	            updatedQty = actualDelta;
+	            System.out.println("Added new product with quantity: " + updatedQty);
+	        } else {
+	            return ResponseEntity.badRequest().body("Cannot decrease quantity for product not in cart");
+	        }
+	    }
+	    
+	    addToCartRepository.save(cart);
+	    System.out.println("Cart saved successfully");
+	    
+	    // Update cart count in session
+	    int totalItems = cart.getProductQuantities().stream()
+	            .mapToInt(CartProductEntry::getQuantity)
+	            .sum();
+	    session.setAttribute("cartCount", totalItems);
+	    System.out.println("Updated cart count in session: " + totalItems);
+	    
+	    return ResponseEntity.ok(Map.of("quantity", updatedQty));
 	}
 	
 	@GetMapping("/cart")
@@ -420,11 +615,12 @@ public class ShopController {
 	        System.out.println("Product quantities count: " + cart.getProductQuantities().size());
 	    }
 
-	    	        for (CartProductEntry entry : cart.getProductQuantities()) {
-	            System.out.println("Processing entry - Product ID: " + entry.getProductId() + ", Quantity: " + entry.getQuantity());
-	            
-	            // Use a custom query to fetch product with category
-	            Product product = productRepository.findByIdWithCategory(entry.getProductId()).orElse(null);
+	    	        	    System.out.println("=== PROCESSING CART ENTRIES ===");
+	    for (CartProductEntry entry : cart.getProductQuantities()) {
+	        System.out.println("Processing entry - Product ID: " + entry.getProductId() + ", Quantity: " + entry.getQuantity());
+	        
+	        // Use a custom query to fetch product with category
+	        Product product = productRepository.findByIdWithCategory(entry.getProductId()).orElse(null);
 
 	            if (product != null) {
 	                // Determine which user type to use for pricing
@@ -445,9 +641,9 @@ public class ShopController {
 
 	                grandTotal += totalPrice;
 
-	                CartItemDetails cartItem = new CartItemDetails(product.getId(), product, quantity, totalPrice);
-	                cartItems.add(cartItem);
-	                System.out.println("Cart item created - ID: " + cartItem.getId() + ", Total Price: " + cartItem.getTotalPrice() + ", Unit Price: " + unitPrice + ", User Type for Pricing: " + userTypeForPricing);
+	                                CartItemDetails cartItem = new CartItemDetails(entry.getProductId(), product, quantity, totalPrice);
+                cartItems.add(cartItem);
+                System.out.println("Cart item created - ID: " + cartItem.getId() + " (Product ID), Total Price: " + cartItem.getTotalPrice() + ", Unit Price: " + unitPrice + ", User Type for Pricing: " + userTypeForPricing);
 	            } else {
 	                System.out.println("Product not found for ID: " + entry.getProductId());
 	            }

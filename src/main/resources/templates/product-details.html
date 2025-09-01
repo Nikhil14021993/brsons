@@ -783,9 +783,16 @@
                     <div class="cart-controls">
                         <div class="quantity-selector">
                             <span class="quantity-label">Quantity:</span>
+                            
+                            <!-- Show B2B minimum quantity info for B2B users -->
+                            <div th:if="${session.user != null and session.user.type == 'B2B' and product.b2bMinQuantity != null and product.b2bMinQuantity > 1}" 
+                                 style="font-size: 12px; color: #666; margin-bottom: 8px; text-align: center;">
+                                Min Qty: <span th:text="${product.b2bMinQuantity}">1</span>
+                            </div>
+                            
                             <div class="quantity-controls">
                                 <button class="quantity-btn" onclick="updateQuantity(-1)" id="decreaseBtn">-</button>
-                                <span class="quantity-display" id="quantityDisplay" th:text="${quantityInCart > 0 ? quantityInCart : 1}">1</span>
+                                <span class="quantity-display" id="quantityDisplay" th:text="${quantityInCart > 0 ? quantityInCart : (session.user != null and session.user.type == 'B2B' and product.b2bMinQuantity != null and product.b2bMinQuantity > 1 ? product.b2bMinQuantity : 1)}">1</span>
                                 <button class="quantity-btn" onclick="updateQuantity(1)" id="increaseBtn">+</button>
                             </div>
                         </div>
@@ -856,7 +863,7 @@
     <script th:inline="javascript">
         let images = /*[[${images}]]*/ [];
         let currentImageIndex = 0;
-        let currentQuantity = /*[[${quantityInCart > 0 ? quantityInCart : 1}]]*/ 1;
+        let currentQuantity = /*[[${quantityInCart > 0 ? quantityInCart : (session.user != null and session.user.type == 'B2B' and product.b2bMinQuantity != null and product.b2bMinQuantity > 1 ? product.b2bMinQuantity : 1)}]]*/ 1;
         const productId = /*[[${product.id}]]*/ 0;
 
         // Image gallery functionality
@@ -894,15 +901,41 @@
 
         // Quantity controls
         function updateQuantity(delta) {
-            const newQuantity = currentQuantity + delta;
-            if (newQuantity >= 1 && newQuantity <= 10) {
-                currentQuantity = newQuantity;
-                document.getElementById('quantityDisplay').textContent = currentQuantity;
-                
-                // Update button states
-                document.getElementById('decreaseBtn').disabled = newQuantity <= 1;
-                document.getElementById('increaseBtn').disabled = newQuantity >= 10;
+            const minQuantity = /*[[${product.b2bMinQuantity}]]*/ 1; // Default to 1 if not B2B or no min quantity
+            const stockQuantity = /*[[${product.stockQuantity}]]*/ 0;
+            const userType = /*[[${session.user != null ? session.user.type : null}]]*/ null;
+            
+            // Calculate the actual delta based on user type and B2B minimum quantity
+            let actualDelta = delta;
+            if (userType === 'B2B' && minQuantity > 1) {
+                actualDelta = delta * minQuantity; // For B2B users, increment/decrement by minQuantity
             }
+            
+            const newQuantity = currentQuantity + actualDelta;
+            
+            // Check B2B minimum quantity
+            if (userType === 'B2B' && minQuantity > 1) {
+                if (newQuantity < minQuantity) {
+                    alert(`Minimum quantity for B2B is ${minQuantity}!`);
+                    return;
+                }
+            } else if (newQuantity < 1) {
+                alert('Quantity cannot be less than 1!');
+                return;
+            }
+
+            if (newQuantity > stockQuantity && stockQuantity > 0) {
+                alert(`Only ${stockQuantity} items available in stock!`);
+                return;
+            }
+            
+            currentQuantity = newQuantity;
+            document.getElementById('quantityDisplay').textContent = currentQuantity;
+            
+            // Update button states
+            const effectiveMinQuantity = (userType === 'B2B' && minQuantity > 1) ? minQuantity : 1;
+            document.getElementById('decreaseBtn').disabled = newQuantity <= effectiveMinQuantity;
+            document.getElementById('increaseBtn').disabled = newQuantity >= stockQuantity || stockQuantity <= 0;
         }
 
         // Cart functionality
@@ -914,6 +947,15 @@
             const stockQuantity = /*[[${product.stockQuantity}]]*/ 0;
             if (stockQuantity <= 0) {
                 alert('This product is out of stock!');
+                return;
+            }
+            
+            // Check B2B minimum quantity
+            const minQuantity = /*[[${product.b2bMinQuantity}]]*/ 1;
+            const userType = /*[[${session.user != null ? session.user.type : null}]]*/ null;
+            
+            if (userType === 'B2B' && minQuantity > 1 && currentQuantity < minQuantity) {
+                alert(`Minimum quantity for B2B is ${minQuantity}!`);
                 return;
             }
             
@@ -1029,8 +1071,19 @@
             updateThumbnails();
             
             // Set initial button states
-            document.getElementById('decreaseBtn').disabled = currentQuantity <= 1;
-            document.getElementById('increaseBtn').disabled = currentQuantity >= 10;
+            const minQuantity = /*[[${product.b2bMinQuantity}]]*/ 1; // Default to 1 if not B2B or no min quantity
+            const stockQuantity = /*[[${product.stockQuantity}]]*/ 0;
+            const userType = /*[[${session.user != null ? session.user.type : null}]]*/ null;
+            
+            // Set initial quantity for B2B users if they don't have items in cart
+            if (userType === 'B2B' && minQuantity > 1 && currentQuantity === 1) {
+                currentQuantity = minQuantity;
+                document.getElementById('quantityDisplay').textContent = currentQuantity;
+            }
+            
+            const effectiveMinQuantity = (userType === 'B2B' && minQuantity > 1) ? minQuantity : 1;
+            document.getElementById('decreaseBtn').disabled = currentQuantity <= effectiveMinQuantity;
+            document.getElementById('increaseBtn').disabled = currentQuantity >= stockQuantity || stockQuantity <= 0;
             
             // Initialize cart count if available
             initializeCartCount();

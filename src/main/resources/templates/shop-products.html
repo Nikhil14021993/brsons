@@ -862,11 +862,25 @@
                     
                     <!-- Quantity Controls (initially hidden) -->
                     <div class="quantity-controls" th:id="'quantityControls_' + ${prod.id}" style="display: none;">
-                        <button class="quantity-btn minus" th:onclick="'updateQuantity(' + ${prod.id} + ', -1)'">
+                        <!-- Show B2B minimum quantity info for B2B users -->
+                        <div th:if="${session.user != null and session.user.type == 'B2B' and prod.b2bMinQuantity != null and prod.b2bMinQuantity > 1}" 
+                             style="font-size: 11px; color: #666; margin-bottom: 5px; text-align: center; width: 100%;">
+                            Min Qty: <span th:text="${prod.b2bMinQuantity}">1</span>
+                        </div>
+                        
+                        <button class="quantity-btn minus-btn" 
+                                th:data-product-id="${prod.id}"
+                                th:data-delta="-1"
+                                th:data-b2b-min="${prod.b2bMinQuantity != null ? prod.b2bMinQuantity : 1}"
+                                th:data-user-type="${session.user != null ? session.user.type : 'Retail'}">
                             <i class="fas fa-minus"></i>
                         </button>
                         <span class="quantity-display" th:id="'quantityDisplay_' + ${prod.id}">1</span>
-                        <button class="quantity-btn plus" th:onclick="'updateQuantity(' + ${prod.id} + ', 1)'">
+                        <button class="quantity-btn plus-btn" 
+                                th:data-product-id="${prod.id}"
+                                th:data-delta="1"
+                                th:data-b2b-min="${prod.b2bMinQuantity != null ? prod.b2bMinQuantity : 1}"
+                                th:data-user-type="${session.user != null ? session.user.type : 'Retail'}">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
@@ -1100,7 +1114,7 @@
         function updateQuantity(productId, delta) {
             console.log(`Updating quantity for product ${productId} with delta ${delta}`);
             
-            fetch(`/update-cart/${productId}?delta=${delta}`, {
+            fetch(`/update-product-quantity/${productId}?delta=${delta}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1169,6 +1183,9 @@
             
             // Initialize cart count if available
             initializeCartCount();
+            
+            // Setup quantity button event listeners
+            setupQuantityButtons();
             
             // Check session status
             checkSessionStatus();
@@ -1415,6 +1432,63 @@
             })
             .catch(error => {
                 console.log('Error checking cart details:', error);
+            });
+        }
+        
+        // Setup quantity button event listeners for shop products
+        function setupQuantityButtons() {
+            console.log('Setting up quantity buttons for shop products...');
+            
+            // Add event listeners for minus buttons
+            const minusButtons = document.querySelectorAll('.minus-btn');
+            console.log('Found', minusButtons.length, 'minus buttons in shop');
+            
+            minusButtons.forEach((button, index) => {
+                console.log(`Setting up minus button ${index + 1}:`, button);
+                button.addEventListener('click', function() {
+                    console.log('Minus button clicked in shop!');
+                    const productId = this.getAttribute('data-product-id');
+                    const delta = parseInt(this.getAttribute('data-delta'));
+                    const b2bMin = parseInt(this.getAttribute('data-b2b-min'));
+                    const userType = this.getAttribute('data-user-type');
+                    
+                    console.log('Button attributes - Product ID:', productId, 'Delta:', delta, 'B2B Min:', b2bMin, 'User Type:', userType);
+                    
+                    // For B2B users, increment/decrement by minimum quantity
+                    let actualDelta = delta;
+                    if (userType === 'B2B' && b2bMin > 1) {
+                        actualDelta = delta * b2bMin;
+                    }
+                    
+                    console.log('Minus button clicked - Product ID:', productId, 'Delta:', actualDelta);
+                    updateQuantity(productId, actualDelta);
+                });
+            });
+            
+            // Add event listeners for plus buttons
+            const plusButtons = document.querySelectorAll('.plus-btn');
+            console.log('Found', plusButtons.length, 'plus buttons in shop');
+            
+            plusButtons.forEach((button, index) => {
+                console.log(`Setting up plus button ${index + 1}:`, button);
+                button.addEventListener('click', function() {
+                    console.log('Plus button clicked in shop!');
+                    const productId = this.getAttribute('data-product-id');
+                    const delta = parseInt(this.getAttribute('data-delta'));
+                    const b2bMin = parseInt(this.getAttribute('data-b2b-min'));
+                    const userType = this.getAttribute('data-user-type');
+                    
+                    console.log('Button attributes - Product ID:', productId, 'Delta:', delta, 'B2B Min:', b2bMin, 'User Type:', userType);
+                    
+                    // For B2B users, increment/decrement by minimum quantity
+                    let actualDelta = delta;
+                    if (userType === 'B2B' && b2bMin > 1) {
+                        actualDelta = delta * b2bMin;
+                    }
+                    
+                    console.log('Plus button clicked - Product ID:', productId, 'Delta:', actualDelta);
+                    updateQuantity(productId, actualDelta);
+                });
             });
         }
     </script>

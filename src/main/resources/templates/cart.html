@@ -816,14 +816,32 @@
                     </div>
                     
                     <div class="quantity-controls">
-                        <button class="quantity-btn" th:onclick="'updateQuantity(' + ${item.id} + ', -1)'" th:disabled="${item.quantity <= 1}">-</button>
+                        <!-- Show B2B minimum quantity info for B2B users -->
+                        <div th:if="${session.user != null and session.user.type == 'B2B' and item.product.b2bMinQuantity != null and item.product.b2bMinQuantity > 1}" 
+                             style="font-size: 11px; color: #666; margin-bottom: 5px; text-align: center;">
+                            Min Qty: <span th:text="${item.product.b2bMinQuantity}">1</span>
+                        </div>
+                        
+                        <button class="quantity-btn minus-btn" 
+                                th:data-product-id="${item.id}"
+                                th:data-delta="-1"
+                                th:data-b2b-min="${item.product.b2bMinQuantity != null ? item.product.b2bMinQuantity : 1}"
+                                th:data-user-type="${session.user != null ? session.user.type : 'Retail'}"
+                                th:disabled="${item.quantity <= 0}">-</button>
+                        
                         <span class="quantity-display" th:text="${item.quantity}">1</span>
-                        <button class="quantity-btn" th:onclick="'updateQuantity(' + ${item.id} + ', 1)'" th:disabled="${item.quantity >= 10}">+</button>
+                        
+                        <button class="quantity-btn plus-btn" 
+                                th:data-product-id="${item.id}"
+                                th:data-delta="1"
+                                th:data-b2b-min="${item.product.b2bMinQuantity != null ? item.product.b2bMinQuantity : 1}"
+                                th:data-user-type="${session.user != null ? session.user.type : 'Retail'}"
+                                th:disabled="${item.quantity >= 100}">+</button>
                     </div>
                     
                     <div class="item-total" th:text="'₹' + ${item.totalPrice}">₹0</div>
                     
-                    <button class="remove-btn" th:onclick="'removeItem(' + ${item.id} + ')'" title="Remove Item">
+                    <button class="remove-btn remove-item-btn" th:data-product-id="${item.id}" title="Remove Item">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -886,22 +904,32 @@
     </div>
 
     <script>
-        // Update quantity functionality
-        async function updateQuantity(itemId, delta) {
+        // Update cart quantity functionality
+        async function updateCartQuantity(itemId, delta) {
+            console.log('updateCartQuantity called with itemId:', itemId, 'delta:', delta);
+            
             try {
-                const response = await fetch(`/update-cart/${itemId}?delta=${delta}`, {
+                const url = `/update-cart/${itemId}?delta=${delta}`;
+                console.log('Making request to:', url);
+                
+                const response = await fetch(url, {
                     method: 'POST'
                 });
                 
+                console.log('Response status:', response.status);
+                
                 if (response.ok) {
+                    console.log('Cart quantity updated successfully, reloading page...');
                     // Reload the page to reflect changes
                     window.location.reload();
                 } else {
-                    alert('Error updating quantity');
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    alert('Error updating cart quantity: ' + errorText);
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error updating quantity');
+                console.error('Error in updateCartQuantity:', error);
+                alert('Error updating cart quantity: ' + error.message);
             }
         }
 
@@ -983,7 +1011,87 @@
             
             // Initialize cart count if available
             initializeCartCount();
+            
+            // Add event listeners for quantity buttons
+            setupQuantityButtons();
+            setupRemoveButtons();
+            
+            console.log('DOM loaded, button setup complete');
         });
+        
+        // Setup quantity button event listeners
+        function setupQuantityButtons() {
+            console.log('Setting up quantity buttons...');
+            
+            // Add event listeners for minus buttons
+            const minusButtons = document.querySelectorAll('.minus-btn');
+            console.log('Found', minusButtons.length, 'minus buttons');
+            
+            minusButtons.forEach((button, index) => {
+                console.log(`Setting up minus button ${index + 1}:`, button);
+                button.addEventListener('click', function() {
+                    console.log('Minus button clicked!');
+                    const productId = this.getAttribute('data-product-id');
+                    const delta = parseInt(this.getAttribute('data-delta'));
+                    const b2bMin = parseInt(this.getAttribute('data-b2b-min'));
+                    const userType = this.getAttribute('data-user-type');
+                    
+                    console.log('Button attributes - Product ID:', productId, 'Delta:', delta, 'B2B Min:', b2bMin, 'User Type:', userType);
+                    
+                                         // For B2B users, increment/decrement by minimum quantity
+                     let actualDelta = delta;
+                     if (userType === 'B2B' && b2bMin > 1) {
+                         actualDelta = delta * b2bMin;
+                     }
+                     
+                     console.log('Minus button clicked - Product ID:', productId, 'Delta:', actualDelta);
+                     updateCartQuantity(productId, actualDelta);
+                });
+            });
+            
+            // Add event listeners for plus buttons
+            const plusButtons = document.querySelectorAll('.plus-btn');
+            console.log('Found', plusButtons.length, 'plus buttons');
+            
+            plusButtons.forEach((button, index) => {
+                console.log(`Setting up plus button ${index + 1}:`, button);
+                button.addEventListener('click', function() {
+                    console.log('Plus button clicked!');
+                    const productId = this.getAttribute('data-product-id');
+                    const delta = parseInt(this.getAttribute('data-delta'));
+                    const b2bMin = parseInt(this.getAttribute('data-b2b-min'));
+                    const userType = this.getAttribute('data-user-type');
+                    
+                    console.log('Button attributes - Product ID:', productId, 'Delta:', delta, 'B2B Min:', b2bMin, 'User Type:', userType);
+                    
+                                         // For B2B users, increment/decrement by minimum quantity
+                     let actualDelta = delta;
+                     if (userType === 'B2B' && b2bMin > 1) {
+                         actualDelta = delta * b2bMin;
+                     }
+                     
+                     console.log('Plus button clicked - Product ID:', productId, 'Delta:', actualDelta);
+                     updateCartQuantity(productId, actualDelta);
+                });
+            });
+        }
+        
+        // Setup remove button event listeners
+        function setupRemoveButtons() {
+            console.log('Setting up remove buttons...');
+            const removeButtons = document.querySelectorAll('.remove-item-btn');
+            console.log('Found', removeButtons.length, 'remove buttons');
+            
+            removeButtons.forEach((button, index) => {
+                console.log(`Setting up remove button ${index + 1}:`, button);
+                button.addEventListener('click', function() {
+                    console.log('Remove button clicked!');
+                    const productId = this.getAttribute('data-product-id');
+                    console.log('Remove button clicked - Product ID:', productId);
+                    removeItem(productId);
+                });
+            });
+        }
 
         // Initialize cart count
         function initializeCartCount() {

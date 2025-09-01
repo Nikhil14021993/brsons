@@ -1,7 +1,7 @@
 package com.brsons.model;
 
 public class CartItemDetails {
-    private Long id; // Product ID
+    private Long id; // Product ID (used for cart operations)
     private Product product;
     private int quantity;
     private double totalPrice;

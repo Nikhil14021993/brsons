@@ -386,6 +386,13 @@
                         </div>
                         
                         <div class="form-group">
+                            <label for="b2bMinQuantity">B2B Minimum Quantity</label>
+                            <input type="number" id="b2bMinQuantity" name="b2bMinQuantity" 
+                                   min="1" 
+                                   th:value="${product.b2bMinQuantity != null ? product.b2bMinQuantity : 1}">
+                        </div>
+                        
+                        <div class="form-group">
                             <label for="discount">Discount (%)</label>
                             <input type="number" id="discount" name="discount" 
                                    step="0.01" min="0" max="100" 
@@ -408,6 +415,9 @@
                         </div>
                         <div>
                             <strong>B2B Price:</strong> Wholesale price for business customers (typically 80% of retail)
+                        </div>
+                        <div>
+                            <strong>B2B Minimum Quantity:</strong> Minimum quantity B2B customers must order (e.g., 3, 5, 10)
                         </div>
                         <div>
                             <strong>Profit Margin:</strong> Retail price should be at least 1.67x purchase price for healthy margins

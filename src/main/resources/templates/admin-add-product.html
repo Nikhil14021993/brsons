@@ -326,16 +326,23 @@
                     <input type="number" step="0.01" th:field="*{b2bPrice}" placeholder="Auto-calculated as 80% of retail">
                 </div>
                 <div>
-                    <label>Discount (%):</label>
-                    <input type="number" step="0.01" th:field="*{discount}" placeholder="0.0">
+                    <label>B2B Minimum Quantity:</label>
+                    <input type="number" th:field="*{b2bMinQuantity}" placeholder="1" min="1">
                 </div>
             </div>
 
             <div class="form-row">
                 <div>
+                    <label>Discount (%):</label>
+                    <input type="number" step="0.01" th:field="*{discount}" placeholder="0.0">
+                </div>
+                <div>
                     <label>Stock Quantity:</label>
                     <input type="number" th:field="*{stockQuantity}" placeholder="0">
                 </div>
+            </div>
+
+            <div class="form-row">
                 <div>
                     <label>Image 1 (Mandatory):</label>
                     <input type="file" name="imageFile1" accept="image/*" required>
@@ -351,6 +358,7 @@
                     <li><strong>Purchase Price:</strong> Cost price from supplier (typically 60% of retail price)</li>
                     <li><strong>Retail Price:</strong> Selling price to end customers</li>
                     <li><strong>B2B Price:</strong> Wholesale price for business customers (auto-calculated as 80% of retail)</li>
+                    <li><strong>B2B Minimum Quantity:</strong> Minimum quantity B2B customers must order (e.g., 3, 5, 10)</li>
                     <li><strong>Profit Margin:</strong> Retail price should be at least 1.67x purchase price for healthy margins</li>
                 </ul>
             </div>
