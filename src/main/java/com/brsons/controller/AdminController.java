@@ -4,10 +4,14 @@ import com.brsons.model.Category;
 import com.brsons.model.Product;
 import com.brsons.model.ProductVariant;
 import com.brsons.model.User;
+import com.brsons.model.Order;
+import com.brsons.model.OrderItem;
 import com.brsons.repository.CategoryRepository;
 import com.brsons.repository.ProductRepository;
 import com.brsons.repository.ProductVariantRepository;
 import com.brsons.repository.UserRepository;
+import com.brsons.repository.OrderRepository;
+import com.brsons.repository.OrderItemRepository;
 import com.brsons.service.DayBookService;
 import com.brsons.service.OrderService;
 import com.brsons.service.AdminOrderService;
@@ -20,6 +24,8 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -69,10 +75,14 @@ public class AdminController {
 	
 	private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
 
-    public AdminController(CategoryRepository categoryRepository, ProductRepository productRepository) {
+    public AdminController(CategoryRepository categoryRepository, ProductRepository productRepository, OrderRepository orderRepository, OrderItemRepository orderItemRepository) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
+        this.orderRepository = orderRepository;
+        this.orderItemRepository = orderItemRepository;
     }
 	
 	
@@ -1013,6 +1023,102 @@ public class AdminController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("success", false, "message", "Error deleting variant: " + e.getMessage()));
         }
+    }
+
+    // ===== ORDER EDITING (Re-added minimal) =====
+    @GetMapping("/admin/orders/edit/{orderId}")
+    public String editOrderForm(@PathVariable Long orderId, HttpSession session, Model model) {
+        if (!isAdmin(session)) {
+            return "redirect:/";
+        }
+
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            model.addAttribute("error", "Order not found");
+            return "redirect:/admin/orders";
+        }
+
+        List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
+        List<Product> allProducts = productRepository.findByStatus("Active");
+
+        model.addAttribute("order", order);
+        model.addAttribute("orderItems", orderItems);
+        model.addAttribute("allProducts", allProducts);
+        return "admin-edit-order";
+    }
+
+    @PostMapping("/admin/orders/update/{orderId}")
+    public String updateOrder(@PathVariable Long orderId,
+                              @RequestParam String name,
+                              @RequestParam String userPhone,
+                              @RequestParam String addressLine1,
+                              @RequestParam(required = false) String addressLine2,
+                              @RequestParam String city,
+                              @RequestParam String state,
+                              @RequestParam String zipCode,
+                              @RequestParam String billType,
+                              @RequestParam(required = false) String buyerGstin,
+                              @RequestParam(required = false) List<Long> productIds,
+                              @RequestParam(required = false) List<Integer> quantities,
+                              HttpSession session,
+                              RedirectAttributes redirectAttributes) {
+        if (!isAdmin(session)) {
+            return "redirect:/";
+        }
+
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            redirectAttributes.addFlashAttribute("error", "Order not found");
+            return "redirect:/admin/orders";
+        }
+
+        // Update order fields
+        order.setName(name);
+        order.setUserPhone(userPhone);
+        order.setAddressLine1(addressLine1);
+        order.setAddressLine2(addressLine2);
+        order.setCity(city);
+        order.setState(state);
+        order.setZipCode(zipCode);
+        order.setBillType(billType);
+        order.setBuyerGstin(buyerGstin);
+
+        // Replace items
+        order.getOrderItems().clear();
+        BigDecimal subTotal = BigDecimal.ZERO;
+        if (productIds != null && quantities != null) {
+            for (int i = 0; i < productIds.size(); i++) {
+                Long pid = productIds.get(i);
+                Integer qty = i < quantities.size() ? quantities.get(i) : 0;
+                if (pid == null || qty == null || qty <= 0) continue;
+                Product p = productRepository.findById(pid).orElse(null);
+                if (p == null) continue;
+                BigDecimal unitPrice = "Kaccha".equalsIgnoreCase(billType)
+                        ? BigDecimal.valueOf(p.getB2bPrice() != null ? p.getB2bPrice() : 0.0)
+                        : BigDecimal.valueOf(p.getRetailPrice() != null ? p.getRetailPrice() : 0.0);
+                OrderItem item = new OrderItem();
+                item.setOrder(order);
+                item.setProductId(pid);
+                item.setQuantity(qty);
+                item.setUnitPrice(unitPrice);
+                item.setTotalPrice(unitPrice.multiply(BigDecimal.valueOf(qty)));
+                item.setUserType(billType);
+                item.setPriceType("Kaccha".equalsIgnoreCase(billType) ? "b2b" : "retail");
+                order.getOrderItems().add(item);
+                subTotal = subTotal.add(item.getTotalPrice());
+            }
+        }
+
+        BigDecimal gstRate = order.getGstRate() != null ? order.getGstRate() : new BigDecimal("18.00");
+        BigDecimal gstAmount = subTotal.multiply(gstRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+        BigDecimal total = subTotal.add(gstAmount);
+        order.setSubTotal(subTotal);
+        order.setGstAmount(gstAmount);
+        order.setTotal(total);
+
+        orderRepository.save(order);
+        redirectAttributes.addFlashAttribute("success", "Order updated successfully");
+        return "redirect:/admin/orders";
     }
 
 }

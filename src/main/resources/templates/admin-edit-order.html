@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Edit Order</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="page-content" style="max-width: 1000px; margin: 20px auto;">
+        <h2>Edit Order</h2>
+
+        <form th:action="@{'/admin/orders/update/' + ${order.id}}" method="post" id="editOrderForm">
+            <div style="display:grid; grid-template-columns: repeat(2,1fr); gap: 12px;">
+                <label>Name <input type="text" name="name" th:value="${order.name}" required></label>
+                <label>Phone <input type="text" name="userPhone" th:value="${order.userPhone}" required></label>
+                <label>Address 1 <input type="text" name="addressLine1" th:value="${order.addressLine1}" required></label>
+                <label>Address 2 <input type="text" name="addressLine2" th:value="${order.addressLine2}"></label>
+                <label>City <input type="text" name="city" th:value="${order.city}" required></label>
+                <label>State <input type="text" name="state" th:value="${order.state}" required></label>
+                <label>ZIP <input type="text" name="zipCode" th:value="${order.zipCode}" required></label>
+                <label>Bill Type
+                    <select name="billType" id="billType">
+                        <option value="Pakka" th:selected="${order.billType == 'Pakka'}">Pakka</option>
+                        <option value="Kaccha" th:selected="${order.billType == 'Kaccha'}">Kaccha</option>
+                    </select>
+                </label>
+                <label>Buyer GSTIN
+                    <input type="text" name="buyerGstin" th:value="${order.buyerGstin}">
+                </label>
+            </div>
+
+            <h3 style="margin-top:20px;">Products</h3>
+            <div id="productsContainer">
+                <div class="product-row" th:each="item, iStat : ${orderItems}" style="display:grid; grid-template-columns: 4fr 1fr 1fr 1fr auto; gap:8px; align-items:center; margin-bottom:8px;">
+                    <select name="productIds" class="product-select">
+                        <option value="">Select Product</option>
+                        <option th:each="p : ${allProducts}"
+                                th:value="${p.id}"
+                                th:text="${p.productName}"
+                                th:attr="data-retail=${p.retailPrice},data-b2b=${p.b2bPrice}"
+                                th:selected="${p.id == item.productId}">
+                        </option>
+                    </select>
+                    <input type="number" name="quantities" th:value="${item.quantity}" min="1">
+                    <span class="unit" th:text="${order.billType == 'Kaccha' ? '₹' + (item.unitPrice!=null?item.unitPrice:0) : '₹' + (item.unitPrice!=null?item.unitPrice:0)}">₹0.00</span>
+                    <span class="line-total" th:text="${'₹' + (item.totalPrice!=null?item.totalPrice:0)}">₹0.00</span>
+                    <button type="button" class="remove-btn">Delete</button>
+                </div>
+            </div>
+
+            <div id="productSelectTemplate" style="display:none;">
+                <select class="product-select">
+                    <option value="">Select Product</option>
+                    <option th:each="p : ${allProducts}"
+                            th:value="${p.id}"
+                            th:text="${p.productName}"
+                            th:attr="data-retail=${p.retailPrice},data-b2b=${p.b2bPrice}">
+                    </option>
+                </select>
+            </div>
+
+            <button type="button" id="addProductBtn">Add Product</button>
+
+            <h3 style="margin-top:16px;">Summary</h3>
+            <div>Subtotal: <strong id="subtotal">₹0.00</strong></div>
+            <div>GST (18%): <strong id="gstAmount">₹0.00</strong></div>
+            <div>Total: <strong id="total">₹0.00</strong></div>
+
+            <div style="margin-top:16px;">
+                <button type="submit">Save Changes</button>
+                <a th:href="@{/admin/orders}" style="margin-left:8px;">Cancel</a>
+            </div>
+        </form>
+
+        <script>
+            function recalcRow(row){
+                const sel = row.querySelector('select.product-select');
+                const qty = row.querySelector('input[name="quantities"]');
+                const unitSpan = row.querySelector('.unit');
+                const totalSpan = row.querySelector('.line-total');
+                if (!sel || !qty || !unitSpan || !totalSpan) return;
+                const opt = sel.options[sel.selectedIndex];
+                const billType = document.getElementById('billType').value;
+                const price = billType === 'Kaccha' ? Number(opt?.getAttribute('data-b2b')||0) : Number(opt?.getAttribute('data-retail')||0);
+                const q = Math.max(1, parseInt(qty.value||'1'));
+                unitSpan.textContent = '₹' + price.toFixed(2);
+                totalSpan.textContent = '₹' + (price*q).toFixed(2);
+            }
+            function recalcTotals(){
+                let sub = 0;
+                document.querySelectorAll('#productsContainer .product-row .line-total').forEach(s=>{
+                    const val = Number(String(s.textContent).replace('₹',''))||0;
+                    sub += val;
+                });
+                const gst = sub * 0.18;
+                const tot = sub + gst;
+                document.getElementById('subtotal').textContent = '₹' + sub.toFixed(2);
+                document.getElementById('gstAmount').textContent = '₹' + gst.toFixed(2);
+                document.getElementById('total').textContent = '₹' + tot.toFixed(2);
+            }
+            function wireRow(row){
+                const sel = row.querySelector('select.product-select');
+                const qty = row.querySelector('input[name="quantities"]');
+                const del = row.querySelector('.remove-btn');
+                if (sel) sel.addEventListener('change', ()=>{ recalcRow(row); recalcTotals(); });
+                if (qty) qty.addEventListener('input', ()=>{ recalcRow(row); recalcTotals(); });
+                if (del) del.addEventListener('click', ()=>{ row.remove(); recalcTotals(); });
+                recalcRow(row);
+            }
+            document.addEventListener('DOMContentLoaded', ()=>{
+                document.querySelectorAll('#productsContainer .product-row').forEach(wireRow);
+                recalcTotals();
+                const addBtn = document.getElementById('addProductBtn');
+                addBtn?.addEventListener('click', ()=>{
+                    const container = document.getElementById('productsContainer');
+                    const row = document.createElement('div');
+                    row.className = 'product-row';
+                    row.style.display = 'grid';
+                    row.style.gridTemplateColumns = '4fr 1fr 1fr 1fr auto';
+                    row.style.gap = '8px';
+                    row.style.alignItems = 'center';
+                    row.style.marginBottom = '8px';
+                    const templateSelect = document.querySelector('#productSelectTemplate select').cloneNode(true);
+                    row.innerHTML = '';
+                    const col1 = document.createElement('div'); col1.appendChild(templateSelect); templateSelect.name = 'productIds'; templateSelect.className='product-select';
+                    const col2 = document.createElement('div'); const q = document.createElement('input'); q.type='number'; q.name='quantities'; q.min='1'; q.value='1'; col2.appendChild(q);
+                    const col3 = document.createElement('div'); const u=document.createElement('span'); u.className='unit'; u.textContent='₹0.00'; col3.appendChild(u);
+                    const col4 = document.createElement('div'); const lt=document.createElement('span'); lt.className='line-total'; lt.textContent='₹0.00'; col4.appendChild(lt);
+                    const col5 = document.createElement('div'); const del=document.createElement('button'); del.type='button'; del.className='remove-btn'; del.textContent='Delete'; col5.appendChild(del);
+                    row.appendChild(col1); row.appendChild(col2); row.appendChild(col3); row.appendChild(col4); row.appendChild(col5);
+                    container.appendChild(row);
+                    wireRow(row); recalcTotals();
+                });
+            });
+        </script>
+    </div>
+</body>
+</html>

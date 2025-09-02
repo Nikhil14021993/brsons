@@ -804,6 +804,9 @@
                                 <button class="btn-edit" th:onclick="'updateStatus(' + ${order.id} + ')'">
                                     <i class="fas fa-edit"></i> Status
                                 </button>
+                                <button class="btn-edit" th:onclick="'editOrder(' + ${order.id} + ')'" style="background-color: #17a2b8;">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
                                 <button class="btn-view" th:onclick="'viewOrder(' + ${order.id} + ')'">
                                     <i class="fas fa-eye"></i> View
                                 </button>
@@ -1011,6 +1014,11 @@ document.getElementById("statusFilter").addEventListener("change", function () {
         function viewOrder(orderId) {
             // Redirect to order details page
             window.location.href = `/orders/${orderId}`;
+        }
+
+        function editOrder(orderId) {
+            // Redirect to order edit page
+            window.location.href = `/admin/orders/edit/${orderId}`;
         }
 
         function downloadInvoice(orderId) {
