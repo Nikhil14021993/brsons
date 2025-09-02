@@ -6,6 +6,7 @@ import com.brsons.model.ProductVariant;
 import com.brsons.model.User;
 import com.brsons.model.Order;
 import com.brsons.model.OrderItem;
+import com.brsons.model.Invoice;
 import com.brsons.repository.CategoryRepository;
 import com.brsons.repository.ProductRepository;
 import com.brsons.repository.ProductVariantRepository;
@@ -13,7 +14,7 @@ import com.brsons.repository.UserRepository;
 import com.brsons.repository.OrderRepository;
 import com.brsons.repository.OrderItemRepository;
 import com.brsons.service.DayBookService;
-import com.brsons.service.OrderService;
+
 import com.brsons.service.AdminOrderService;
 
 import com.brsons.dto.OrderDisplayDto;
@@ -22,12 +23,16 @@ import com.brsons.repository.InvoiceRepository;
 import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +40,18 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.time.ZoneId;
 import java.util.Date;
-import java.io.ByteArrayOutputStream;
+
+import com.lowagie.text.Document;
+
+import com.lowagie.text.Element;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import java.awt.Color;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -54,6 +70,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.beans.factory.annotation.Value;
 
 @Controller
 public class AdminController {
@@ -70,19 +87,21 @@ public class AdminController {
 	@Autowired
     private ProductVariantRepository productVariantRepository;
 	
-	@Autowired
-    private InvoiceRepository invoiceRepository;
-	
 	private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final InvoiceRepository invoiceRepository;
 
-    public AdminController(CategoryRepository categoryRepository, ProductRepository productRepository, OrderRepository orderRepository, OrderItemRepository orderItemRepository) {
+    @Value("${invoice.storage.dir:/opt/brsons/invoices}")
+    private String invoiceStorageDir;
+
+    public AdminController(CategoryRepository categoryRepository, ProductRepository productRepository, OrderRepository orderRepository, OrderItemRepository orderItemRepository, InvoiceRepository invoiceRepository) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
+        this.invoiceRepository = invoiceRepository;
     }
 	
 	
@@ -1117,8 +1136,150 @@ public class AdminController {
         order.setTotal(total);
 
         orderRepository.save(order);
-        redirectAttributes.addFlashAttribute("success", "Order updated successfully");
+        
+        // Regenerate invoice after order update
+        try {
+            regenerateInvoiceForOrder(order);
+            redirectAttributes.addFlashAttribute("success", "Order updated successfully and invoice regenerated");
+        } catch (Exception e) {
+            System.err.println("Error regenerating invoice: " + e.getMessage());
+            e.printStackTrace();
+            redirectAttributes.addFlashAttribute("success", "Order updated successfully, but invoice regeneration failed: " + e.getMessage());
+        }
+        
         return "redirect:/admin/orders";
+    }
+
+    /**
+     * Regenerates invoice for an order and updates the file path in invoices table
+     */
+    private void regenerateInvoiceForOrder(Order order) throws IOException {
+        // Generate new PDF invoice
+        byte[] pdfContent = generatePdfInvoice(order);
+        
+        // Save to disk and update database
+        Invoice updatedInvoice = savePdfToDiskAndDb(order, pdfContent);
+        
+        System.out.println("Invoice regenerated for order " + order.getId() + 
+                          " with new file path: " + updatedInvoice.getFilePath());
+    }
+    
+    /**
+     * Generate PDF invoice for an order (copied from OrderController)
+     */
+    private byte[] generatePdfInvoice(Order order) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4);
+        PdfWriter.getInstance(document, baos);
+        document.open();
+
+        // Header
+        Paragraph header = new Paragraph("INVOICE", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18));
+        header.setAlignment(Element.ALIGN_CENTER);
+        document.add(header);
+
+        // Invoice details
+        document.add(new Paragraph("Invoice Number: " + order.getInvoiceNumber()));
+        document.add(new Paragraph("Date: " + order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))));
+        document.add(new Paragraph("Customer: " + order.getName()));
+        document.add(new Paragraph("Phone: " + order.getUserPhone()));
+        document.add(new Paragraph("Address: " + order.getAddressLine1() + ", " + order.getCity() + ", " + order.getState()));
+        document.add(new Paragraph(" "));
+
+        // Items table
+        PdfPTable table = new PdfPTable(5);
+        table.setWidthPercentage(100);
+        table.setWidths(new float[]{1, 3, 1, 1, 1});
+
+        // Table headers
+        addTableHeader(table, "S.No");
+        addTableHeader(table, "Product");
+        addTableHeader(table, "Qty");
+        addTableHeader(table, "Price");
+        addTableHeader(table, "Total");
+
+        // Table data
+        int serialNumber = 1;
+        for (OrderItem item : order.getOrderItems()) {
+            Product product = productRepository.findById(item.getProductId()).orElse(null);
+            String productName = product != null ? product.getProductName() : "Unknown Product";
+            
+            addTableCell(table, String.valueOf(serialNumber++));
+            addTableCell(table, productName);
+            addTableCell(table, String.valueOf(item.getQuantity()));
+            addTableCell(table, "₹" + item.getUnitPrice());
+            addTableCell(table, "₹" + item.getTotalPrice());
+        }
+
+        document.add(table);
+        document.add(new Paragraph(" "));
+
+        // Totals
+        document.add(new Paragraph("Subtotal: ₹" + order.getSubTotal()));
+        document.add(new Paragraph("GST: ₹" + order.getGstAmount()));
+        document.add(new Paragraph("Total: ₹" + order.getTotal()));
+
+        document.close();
+        return baos.toByteArray();
+    }
+
+    /**
+     * Save PDF to disk and database (copied from OrderController)
+     */
+    private Invoice savePdfToDiskAndDb(Order order, byte[] pdfBytes) throws IOException {
+        String invoiceNumber = ensureInvoiceNumber(order);
+        String fileName = invoiceNumber + ".pdf";
+
+        Path dir = Paths.get(invoiceStorageDir);
+        ensureDirExists(dir);
+
+        Path filePath = dir.resolve(fileName);
+        Files.write(filePath, pdfBytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+
+        Invoice invoice = invoiceRepository.findByOrder_Id(order.getId()).orElse(new Invoice());
+        invoice.setOrder(order);
+        invoice.setInvoiceNumber(invoiceNumber);
+        invoice.setFileName(fileName);
+        invoice.setFilePath(filePath.toString());
+        return invoiceRepository.save(invoice);
+    }
+
+    /**
+     * Ensure invoice number exists (copied from OrderController)
+     */
+    private String ensureInvoiceNumber(Order order) {
+        if (order.getInvoiceNumber() == null || order.getInvoiceNumber().isBlank()) {
+            String inv = "INV-" + LocalDate.now().getYear() + "-" + String.format("%06d", order.getId());
+            order.setInvoiceNumber(inv);
+            orderRepository.save(order);
+        }
+        return order.getInvoiceNumber();
+    }
+
+    /**
+     * Ensure directory exists (copied from OrderController)
+     */
+    private void ensureDirExists(Path dir) throws IOException {
+        if (!Files.exists(dir)) Files.createDirectories(dir);
+    }
+
+    /**
+     * Add table header (copied from OrderController)
+     */
+    private void addTableHeader(PdfPTable table, String text) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, FontFactory.getFont(FontFactory.HELVETICA_BOLD)));
+        cell.setBackgroundColor(Color.LIGHT_GRAY);
+        cell.setPadding(5);
+        table.addCell(cell);
+    }
+
+    /**
+     * Add table cell (copied from OrderController)
+     */
+    private void addTableCell(PdfPTable table, String text) {
+        PdfPCell cell = new PdfPCell(new Phrase(text));
+        cell.setPadding(5);
+        table.addCell(cell);
     }
 
 }
