@@ -150,6 +150,15 @@ public class OutstandingService {
                 } else {
                     System.out.println("Customer ledger entry already exists for B2B order #" + order.getId() + ", skipping creation");
                 }
+                
+                // Apply advance payments to this new invoice (FIFO)
+                try {
+                    customerLedgerService.applyAdvancePaymentsToNewInvoice(order.getUserPhone(), savedOutstanding.getId(), order.getTotal());
+                    System.out.println("Applied advance payments to new invoice #" + savedOutstanding.getId());
+                } catch (Exception e) {
+                    System.err.println("Error applying advance payments to new invoice #" + savedOutstanding.getId() + ": " + e.getMessage());
+                }
+                
             } catch (Exception e) {
                 System.err.println("Error creating customer ledger entry for order #" + order.getId() + ": " + e.getMessage());
             }

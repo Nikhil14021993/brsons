@@ -6,12 +6,14 @@ import com.brsons.model.Order;
 import com.brsons.model.Voucher;
 import com.brsons.model.VoucherEntry;
 import com.brsons.model.Account;
+import com.brsons.model.PaymentEntry;
 import com.brsons.repository.CustomerLedgerRepository;
 import com.brsons.repository.CustomerLedgerEntryRepository;
 import com.brsons.repository.OrderRepository;
 import com.brsons.repository.VoucherRepository;
 import com.brsons.repository.VoucherEntryRepository;
 import com.brsons.repository.AccountRepository;
+import com.brsons.repository.PaymentEntryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +46,9 @@ public class CustomerLedgerService {
     
     @Autowired
     private AccountRepository accountRepository;
+    
+    @Autowired
+    private PaymentEntryRepository paymentEntryRepository;
     
     // ==================== CUSTOMER LEDGER MANAGEMENT ====================
     
@@ -389,8 +394,16 @@ public class CustomerLedgerService {
                             );
                             outstanding.setDescription("Customer invoice for order #" + order.getId());
                             outstanding.setContactInfo(order.getUserPhone());
-                            outstandingRepository.save(outstanding);
+                            com.brsons.model.Outstanding savedOutstanding = outstandingRepository.save(outstanding);
                             System.out.println("Created outstanding item for order ID: " + order.getId());
+                            
+                            // Apply advance payments to this new invoice (FIFO)
+                            try {
+                                applyAdvancePaymentsToNewInvoice(order.getUserPhone(), savedOutstanding.getId(), order.getTotal());
+                                System.out.println("Applied advance payments to new invoice #" + savedOutstanding.getId());
+                            } catch (Exception e) {
+                                System.err.println("Error applying advance payments to new invoice #" + savedOutstanding.getId() + ": " + e.getMessage());
+                            }
                         } else {
                             System.out.println("Outstanding item already exists for order ID: " + order.getId());
                         }
@@ -442,6 +455,7 @@ public class CustomerLedgerService {
     /**
      * Apply payment to outstanding receivables for a customer
      * This method applies payment to the oldest invoices first (FIFO principle)
+     * Any excess payment is stored as advance payment for future invoices
      */
     @Transactional
     public void applyPaymentToOutstandingReceivables(String customerPhone, BigDecimal paymentAmount, 
@@ -459,34 +473,6 @@ public class CustomerLedgerService {
             
             System.out.println("Found " + outstandingReceivables.size() + " outstanding receivables for customer");
             
-            if (outstandingReceivables.isEmpty()) {
-                System.out.println("No outstanding receivables found for customer: " + customerPhone);
-                return;
-            }
-            
-            // Log the order of invoices (should be oldest first)
-            System.out.println("=== Invoice processing order (FIFO - oldest first) ===");
-            for (int i = 0; i < outstandingReceivables.size(); i++) {
-                com.brsons.model.Outstanding o = outstandingReceivables.get(i);
-                System.out.println((i + 1) + ". Invoice ID: " + o.getId() + 
-                                 " - Amount: " + o.getAmount() + 
-                                 " - Created: " + o.getCreatedAt() + 
-                                 " - Status: " + o.getStatus());
-            }
-            
-            // Verify the order is correct (oldest first)
-            if (outstandingReceivables.size() > 1) {
-                com.brsons.model.Outstanding first = outstandingReceivables.get(0);
-                com.brsons.model.Outstanding last = outstandingReceivables.get(outstandingReceivables.size() - 1);
-                if (first.getCreatedAt().isAfter(last.getCreatedAt())) {
-                    System.err.println("WARNING: Invoice order may not be oldest first!");
-                    System.err.println("First invoice created at: " + first.getCreatedAt());
-                    System.err.println("Last invoice created at: " + last.getCreatedAt());
-                } else {
-                    System.out.println("✓ Invoice order verified: Oldest first (FIFO)");
-                }
-            }
-            
             // Calculate total outstanding amount
             BigDecimal totalOutstanding = outstandingReceivables.stream()
                 .map(com.brsons.model.Outstanding::getAmount)
@@ -496,55 +482,78 @@ public class CustomerLedgerService {
             
             BigDecimal remainingPayment = paymentAmount;
             
-            for (com.brsons.model.Outstanding outstanding : outstandingReceivables) {
-                if (remainingPayment.compareTo(BigDecimal.ZERO) <= 0) {
-                    break; // Payment fully applied
+            // Apply payment to existing outstanding invoices (FIFO - oldest first)
+            if (!outstandingReceivables.isEmpty()) {
+                // Log the order of invoices (should be oldest first)
+                System.out.println("=== Invoice processing order (FIFO - oldest first) ===");
+                for (int i = 0; i < outstandingReceivables.size(); i++) {
+                    com.brsons.model.Outstanding o = outstandingReceivables.get(i);
+                    System.out.println((i + 1) + ". Invoice ID: " + o.getId() + 
+                                     " - Amount: " + o.getAmount() + 
+                                     " - Created: " + o.getCreatedAt() + 
+                                     " - Status: " + o.getStatus());
                 }
                 
-                BigDecimal outstandingAmount = outstanding.getAmount();
-                BigDecimal amountToApply = remainingPayment.compareTo(outstandingAmount) > 0 ? 
-                    outstandingAmount : remainingPayment;
-                
-                // Apply payment to this outstanding item
-                if (amountToApply.compareTo(outstandingAmount) >= 0) {
-                    // Full payment for this invoice
-                    outstanding.setStatus(com.brsons.model.Outstanding.OutstandingStatus.SETTLED);
-                    outstanding.setAmount(BigDecimal.ZERO);
-                    outstanding.setPaymentMethod(paymentMethod);
-                    outstanding.setPaymentReference(paymentReference);
-                    outstanding.setPaymentDate(java.time.LocalDateTime.now());
-                    outstanding.setNotes(notes != null ? notes : "Payment applied from customer ledger");
-                    outstanding.setUpdatedAt(java.time.LocalDateTime.now());
+                for (com.brsons.model.Outstanding outstanding : outstandingReceivables) {
+                    if (remainingPayment.compareTo(BigDecimal.ZERO) <= 0) {
+                        break; // Payment fully applied
+                    }
                     
-                    System.out.println("Fully settled outstanding item ID: " + outstanding.getId() + 
-                                      " for amount: " + outstandingAmount);
-                } else {
-                    // Partial payment for this invoice
-                    outstanding.setStatus(com.brsons.model.Outstanding.OutstandingStatus.PARTIALLY_PAID);
-                    outstanding.setAmount(outstandingAmount.subtract(amountToApply));
-                    outstanding.setPaymentMethod(paymentMethod);
-                    outstanding.setPaymentReference(paymentReference);
-                    outstanding.setPaymentDate(java.time.LocalDateTime.now());
-                    outstanding.setNotes(notes != null ? notes : "Partial payment applied from customer ledger");
-                    outstanding.setUpdatedAt(java.time.LocalDateTime.now());
+                    BigDecimal outstandingAmount = outstanding.getAmount();
+                    BigDecimal amountToApply = remainingPayment.compareTo(outstandingAmount) > 0 ? 
+                        outstandingAmount : remainingPayment;
                     
-                    System.out.println("Partially paid outstanding item ID: " + outstanding.getId() + 
-                                      " - Applied: " + amountToApply + ", Remaining: " + outstanding.getAmount());
+                    // Apply payment to this outstanding item
+                    if (amountToApply.compareTo(outstandingAmount) >= 0) {
+                        // Full payment for this invoice
+                        outstanding.setStatus(com.brsons.model.Outstanding.OutstandingStatus.SETTLED);
+                        outstanding.setAmount(BigDecimal.ZERO);
+                        outstanding.setPaymentMethod(paymentMethod);
+                        outstanding.setPaymentReference(paymentReference);
+                        outstanding.setPaymentDate(java.time.LocalDateTime.now());
+                        outstanding.setNotes(notes != null ? notes : "Payment applied from customer ledger");
+                        outstanding.setUpdatedAt(java.time.LocalDateTime.now());
+                        
+                        System.out.println("Fully settled outstanding item ID: " + outstanding.getId() + 
+                                          " for amount: " + outstandingAmount);
+                    } else {
+                        // Partial payment for this invoice
+                        outstanding.setStatus(com.brsons.model.Outstanding.OutstandingStatus.PARTIALLY_PAID);
+                        outstanding.setAmount(outstandingAmount.subtract(amountToApply));
+                        outstanding.setPaymentMethod(paymentMethod);
+                        outstanding.setPaymentReference(paymentReference);
+                        outstanding.setPaymentDate(java.time.LocalDateTime.now());
+                        outstanding.setNotes(notes != null ? notes : "Partial payment applied from customer ledger");
+                        outstanding.setUpdatedAt(java.time.LocalDateTime.now());
+                        
+                        System.out.println("Partially paid outstanding item ID: " + outstanding.getId() + 
+                                          " - Applied: " + amountToApply + ", Remaining: " + outstanding.getAmount());
+                    }
+                    
+                    // Save the updated outstanding item
+                    outstandingRepository.save(outstanding);
+                    
+                    // Create voucher entry for this payment
+                    createVoucherForPayment(outstanding, amountToApply, paymentMethod, paymentReference, notes);
+                    
+                    // Reduce remaining payment amount
+                    remainingPayment = remainingPayment.subtract(amountToApply);
                 }
-                
-                // Save the updated outstanding item
-                outstandingRepository.save(outstanding);
-                
-                // Create voucher entry for this payment
-                createVoucherForPayment(outstanding, amountToApply, paymentMethod, paymentReference, notes);
-                
-                // Reduce remaining payment amount
-                remainingPayment = remainingPayment.subtract(amountToApply);
             }
             
+            // Handle advance payment if there's remaining amount
             if (remainingPayment.compareTo(BigDecimal.ZERO) > 0) {
-                System.out.println("Warning: Payment amount " + paymentAmount + 
-                                  " exceeds total outstanding amount. Remaining: " + remainingPayment);
+                System.out.println("=== Creating advance payment entry ===");
+                System.out.println("Advance amount: " + remainingPayment);
+                
+                // Get customer name for the payment entry
+                String customerName = getCustomerNameByPhone(customerPhone);
+                
+                // Create advance payment entry
+                createAdvancePaymentEntry(customerPhone, customerName, remainingPayment, 
+                                        paymentMethod, paymentReference, notes);
+                
+                System.out.println("Advance payment created successfully");
             }
             
             System.out.println("=== Payment application completed ===");
@@ -705,6 +714,171 @@ public class CustomerLedgerService {
             System.err.println("Error finding account for payment method: " + e.getMessage());
             e.printStackTrace();
             return null;
+        }
+    }
+    
+    // ==================== ADVANCE PAYMENT MANAGEMENT ====================
+    
+    /**
+     * Create advance payment entry for excess payment amount
+     */
+    @Transactional
+    private void createAdvancePaymentEntry(String customerPhone, String customerName, BigDecimal advanceAmount,
+                                         String paymentMethod, String paymentReference, String notes) {
+        try {
+            PaymentEntry advancePayment = new PaymentEntry();
+            advancePayment.setCustomerPhone(customerPhone);
+            advancePayment.setCustomerName(customerName);
+            advancePayment.setPaymentAmount(advanceAmount);
+            advancePayment.setPaymentType(paymentMethod);
+            advancePayment.setPaymentReference(paymentReference);
+            advancePayment.setPaymentDate(LocalDateTime.now());
+            advancePayment.setDescription("Advance payment - " + (notes != null ? notes : "Excess payment from customer ledger"));
+            advancePayment.setRemainingAmount(advanceAmount); // Full amount is available for future invoices
+            advancePayment.setIsAdvance(true);
+            advancePayment.setCreatedAt(LocalDateTime.now());
+            advancePayment.setCreatedBy("SYSTEM");
+            
+            paymentEntryRepository.save(advancePayment);
+            
+            System.out.println("Advance payment entry created: ID=" + advancePayment.getId() + 
+                             ", Amount=" + advanceAmount + ", Customer=" + customerName);
+            
+        } catch (Exception e) {
+            System.err.println("Error creating advance payment entry: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Get customer name by phone number
+     */
+    private String getCustomerNameByPhone(String customerPhone) {
+        try {
+            Optional<CustomerLedger> customerLedger = customerLedgerRepository.findByCustomerPhone(customerPhone);
+            if (customerLedger.isPresent()) {
+                return customerLedger.get().getCustomerName();
+            }
+            
+            // If not found in customer ledger, try to get from orders
+            List<Order> orders = orderRepository.findByUserPhone(customerPhone);
+            if (!orders.isEmpty()) {
+                return orders.get(0).getName();
+            }
+            
+            return "Unknown Customer";
+        } catch (Exception e) {
+            System.err.println("Error getting customer name: " + e.getMessage());
+            return "Unknown Customer";
+        }
+    }
+    
+    /**
+     * Apply advance payments to new outstanding receivables
+     * This method should be called when new invoices are created
+     */
+    @Transactional
+    public void applyAdvancePaymentsToNewInvoice(String customerPhone, Long outstandingId, BigDecimal invoiceAmount) {
+        try {
+            System.out.println("=== Applying advance payments to new invoice ===");
+            System.out.println("Customer Phone: " + customerPhone);
+            System.out.println("Outstanding ID: " + outstandingId);
+            System.out.println("Invoice Amount: " + invoiceAmount);
+            
+            // Get all unallocated advance payments for this customer (oldest first)
+            List<PaymentEntry> advancePayments = paymentEntryRepository.findUnallocatedPaymentsByCustomer(customerPhone);
+            
+            if (advancePayments.isEmpty()) {
+                System.out.println("No advance payments found for customer: " + customerPhone);
+                return;
+            }
+            
+            System.out.println("Found " + advancePayments.size() + " advance payments for customer");
+            
+            // Log advance payments details
+            for (int i = 0; i < advancePayments.size(); i++) {
+                PaymentEntry payment = advancePayments.get(i);
+                System.out.println("Advance Payment " + (i + 1) + ": ID=" + payment.getId() + 
+                                 ", Amount=" + payment.getRemainingAmount() + 
+                                 ", Date=" + payment.getPaymentDate());
+            }
+            
+            BigDecimal remainingInvoiceAmount = invoiceAmount;
+            
+            for (PaymentEntry advancePayment : advancePayments) {
+                if (remainingInvoiceAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                    break; // Invoice fully paid
+                }
+                
+                BigDecimal availableAdvance = advancePayment.getRemainingAmount();
+                BigDecimal amountToApply = remainingInvoiceAmount.compareTo(availableAdvance) > 0 ? 
+                    availableAdvance : remainingInvoiceAmount;
+                
+                // Update the advance payment entry
+                advancePayment.setRemainingAmount(availableAdvance.subtract(amountToApply));
+                paymentEntryRepository.save(advancePayment);
+                
+                // Get the outstanding item and apply payment
+                Optional<com.brsons.model.Outstanding> outstandingOpt = outstandingRepository.findById(outstandingId);
+                if (outstandingOpt.isPresent()) {
+                    com.brsons.model.Outstanding outstanding = outstandingOpt.get();
+                    
+                    if (amountToApply.compareTo(outstanding.getAmount()) >= 0) {
+                        // Full payment for this invoice
+                        outstanding.setStatus(com.brsons.model.Outstanding.OutstandingStatus.SETTLED);
+                        outstanding.setAmount(BigDecimal.ZERO);
+                        outstanding.setPaymentMethod(advancePayment.getPaymentType());
+                        outstanding.setPaymentReference(advancePayment.getPaymentReference());
+                        outstanding.setPaymentDate(LocalDateTime.now());
+                        outstanding.setNotes("Payment applied from advance payment ID: " + advancePayment.getId());
+                        outstanding.setUpdatedAt(LocalDateTime.now());
+                        
+                        System.out.println("Invoice fully settled with advance payment ID: " + advancePayment.getId());
+                    } else {
+                        // Partial payment for this invoice
+                        outstanding.setStatus(com.brsons.model.Outstanding.OutstandingStatus.PARTIALLY_PAID);
+                        outstanding.setAmount(outstanding.getAmount().subtract(amountToApply));
+                        outstanding.setPaymentMethod(advancePayment.getPaymentType());
+                        outstanding.setPaymentReference(advancePayment.getPaymentReference());
+                        outstanding.setPaymentDate(LocalDateTime.now());
+                        outstanding.setNotes("Partial payment from advance payment ID: " + advancePayment.getId());
+                        outstanding.setUpdatedAt(LocalDateTime.now());
+                        
+                        System.out.println("Invoice partially paid with advance payment ID: " + advancePayment.getId() + 
+                                         ", Applied: " + amountToApply + ", Remaining: " + outstanding.getAmount());
+                    }
+                    
+                    outstandingRepository.save(outstanding);
+                    
+                    // Create voucher entry for this payment
+                    createVoucherForPayment(outstanding, amountToApply, advancePayment.getPaymentType(), 
+                                          advancePayment.getPaymentReference(), "Advance payment applied");
+                }
+                
+                remainingInvoiceAmount = remainingInvoiceAmount.subtract(amountToApply);
+            }
+            
+            System.out.println("=== Advance payment application completed ===");
+            System.out.println("Remaining invoice amount: " + remainingInvoiceAmount);
+            
+        } catch (Exception e) {
+            System.err.println("Error applying advance payments to new invoice: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Get total advance payment amount for a customer
+     */
+    public BigDecimal getTotalAdvancePayment(String customerPhone) {
+        try {
+            List<PaymentEntry> advancePayments = paymentEntryRepository.findUnallocatedPaymentsByCustomer(customerPhone);
+            return advancePayments.stream()
+                .map(PaymentEntry::getRemainingAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        } catch (Exception e) {
+            System.err.println("Error getting total advance payment: " + e.getMessage());
+            return BigDecimal.ZERO;
         }
     }
 }

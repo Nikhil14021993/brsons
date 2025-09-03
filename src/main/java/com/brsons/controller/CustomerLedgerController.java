@@ -123,7 +123,11 @@ public class CustomerLedgerController {
             return "redirect:/admin/customer-ledger/list";
         }
         
+        // Get advance payment amount for this customer
+        BigDecimal advancePayment = customerLedgerService.getTotalAdvancePayment(customerLedger.get().getCustomerPhone());
+        
         model.addAttribute("customerLedger", customerLedger.get());
+        model.addAttribute("advancePayment", advancePayment);
         
         return "admin-customer-ledger-payment";
     }
