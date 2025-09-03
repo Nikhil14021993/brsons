@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.brsons.model.*;
 import com.brsons.repository.*;
+import java.time.LocalDateTime;
 
 @Service
 public class OrderAccountingService {
@@ -17,19 +18,25 @@ public class OrderAccountingService {
     private final LedgerEntryRepository ledgerRepo;
     private final InvoiceNumberService invoiceNumberService;
     private final OrderRepository orderRepository;
+    private final com.brsons.repository.OutstandingRepository outstandingRepository;
+    private final CustomerLedgerService customerLedgerService;
 
     public OrderAccountingService(
         ProductRepository productRepository,
         SellerProfileRepository sellerRepo,
         LedgerEntryRepository ledgerRepo,
         InvoiceNumberService invoiceNumberService,
-        OrderRepository orderRepository
+        OrderRepository orderRepository,
+        com.brsons.repository.OutstandingRepository outstandingRepository,
+        CustomerLedgerService customerLedgerService
     ) {
         this.productRepository = productRepository;
         this.sellerRepo = sellerRepo;
         this.ledgerRepo = ledgerRepo;
         this.invoiceNumberService = invoiceNumberService;
         this.orderRepository = orderRepository;
+        this.outstandingRepository = outstandingRepository;
+        this.customerLedgerService = customerLedgerService;
     }
 
     @Transactional
@@ -85,5 +92,47 @@ public class OrderAccountingService {
 
         // 7) Ledger entry
         ledgerRepo.save(new LedgerEntry(order.getId(), billType, total, "Sale - INV " + invoice));
+        
+        // 8) Create outstanding item for B2B orders (Kaccha) and apply advance payments
+        if ("Kaccha".equalsIgnoreCase(billType) && total.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                // Check if outstanding item already exists
+                List<com.brsons.model.Outstanding> existingOutstanding = outstandingRepository
+                    .findByReferenceTypeAndReferenceId("ORDER", order.getId());
+                
+                if (existingOutstanding.isEmpty()) {
+                    System.out.println("Creating outstanding item for new order ID: " + order.getId());
+                    
+                    // Create outstanding item
+                    com.brsons.model.Outstanding outstanding = new com.brsons.model.Outstanding(
+                        com.brsons.model.Outstanding.OutstandingType.INVOICE_RECEIVABLE,
+                        order.getId(),
+                        "ORDER",
+                        invoice,
+                        total,
+                        LocalDateTime.now().plusDays(30),
+                        order.getName(),
+                        billType
+                    );
+                    outstanding.setDescription("Customer invoice for order #" + order.getId());
+                    outstanding.setContactInfo(order.getUserPhone());
+                    com.brsons.model.Outstanding savedOutstanding = outstandingRepository.save(outstanding);
+                    
+                    System.out.println("Created outstanding item for new order ID: " + order.getId());
+                    
+                    // Apply advance payments to this new invoice (FIFO)
+                    try {
+                        customerLedgerService.applyAdvancePaymentsToNewInvoice(order.getUserPhone(), savedOutstanding.getId(), total);
+                        System.out.println("Applied advance payments to new invoice #" + savedOutstanding.getId());
+                    } catch (Exception e) {
+                        System.err.println("Error applying advance payments to new invoice #" + savedOutstanding.getId() + ": " + e.getMessage());
+                    }
+                } else {
+                    System.out.println("Outstanding item already exists for order ID: " + order.getId());
+                }
+            } catch (Exception e) {
+                System.err.println("Error creating outstanding item for order ID " + order.getId() + ": " + e.getMessage());
+            }
+        }
     }
 }
