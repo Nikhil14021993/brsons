@@ -4,23 +4,262 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Record Payment - BRSons</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .payment-form {
-            max-width: 600px;
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            padding: 30px;
+            max-width: 1200px;
             margin: 0 auto;
         }
+        
+        /* Breadcrumb Styling */
+        .breadcrumb {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px 25px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .breadcrumb-item {
+            display: inline;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .breadcrumb-item + .breadcrumb-item::before {
+            content: "›";
+            color: rgba(255, 255, 255, 0.7);
+            margin: 0 10px;
+        }
+        .breadcrumb-item a {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        .breadcrumb-item a:hover {
+            color: #ffd700;
+        }
+        .breadcrumb-item.active {
+            color: #ffd700;
+            font-weight: 600;
+        }
+        
+        /* Customer Info Card */
         .customer-info {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .customer-info h4 {
+            color: #2c3e50;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        .customer-info h5 {
+            color: #7f8c8d;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .customer-info h3 {
+            color: #27ae60;
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+        }
+        .customer-info p {
+            color: #34495e;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+        .customer-info i {
+            color: #667eea;
+            margin-right: 8px;
+            width: 20px;
+        }
+        .text-warning {
+            color: #f39c12 !important;
+            font-weight: 600;
+        }
+        
+        /* Payment Form Card */
+        .payment-form {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+        }
+        .card-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            padding: 25px 30px;
+            border: none;
+        }
+        .card-header h5 {
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+        .card-header i {
+            margin-right: 10px;
+        }
+        .card-body {
+            padding: 40px;
+        }
+        
+        /* Form Styling */
+        .form-label {
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+        .form-control, .form-select, textarea {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 12px 15px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+            font-family: inherit;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .form-control:focus, .form-select:focus, textarea:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            outline: none;
+        }
+        .input-group-text {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-right: none;
+            color: #667eea;
+            font-weight: 600;
+            border-radius: 10px 0 0 10px;
+        }
+        .input-group .form-control {
+            border-left: none;
+            border-radius: 0 10px 10px 0;
+        }
+        .form-text {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        
+        /* Button Styling */
+        .btn {
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        /* Grid Layout */
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            margin: 0 -15px;
+        }
+        .col-12 {
+            flex: 0 0 100%;
+            max-width: 100%;
+            padding: 0 15px;
+        }
+        .col-md-6 {
+            flex: 0 0 50%;
+            max-width: 50%;
+            padding: 0 15px;
+        }
+        .mb-3 {
+            margin-bottom: 1rem;
+        }
+        .mb-4 {
+            margin-bottom: 1.5rem;
+        }
+        .text-md-end {
+            text-align: right;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .col-md-6 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+            .text-md-end {
+                text-align: left;
+            }
+            .container {
+                padding: 15px;
+            }
+            .card-body {
+                padding: 25px;
+            }
         }
     </style>
 </head>
 <body>
-    <div th:replace="~{fragments/header :: header}"></div>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">Brsons Fashion</div>
+        <ul class="navbar-links">
+            <li><a th:href="@{/}"><i class="fas fa-home"></i> Home</a></li>
+            <li th:if="${session.user != null and session.user.type == 'Admin'}">
+                <a th:href="@{/admin}"><i class="fas fa-cog"></i> Admin</a>
+            </li>
+            <li><a th:href="@{/shop}"><i class="fas fa-shopping-bag"></i> Shop</a></li>
+            <li th:if="${session.user != null}">
+                <a th:href="@{/orders}"><i class="fas fa-list"></i> Orders</a>
+            </li>
+            <li><a href="#"><i class="fas fa-star"></i> Services</a></li>
+            <li><a href="#"><i class="fas fa-tags"></i> Pricing</a></li>
+            <li><a href="#"><i class="fas fa-info-circle"></i> About</a></li>
+            <li><a href="#"><i class="fas fa-envelope"></i> Contact</a></li>
+            <li th:if="${session.user == null}"><a th:href="@{/login}"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+            <li th:if="${session.user != null}"><a th:href="@{/logout}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+        </ul>
+    </nav>
     
-    <div class="container mt-4">
+    <div class="container">
         <!-- Breadcrumb -->
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
@@ -32,42 +271,34 @@
         </nav>
         
         <!-- Customer Information -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card customer-info">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h4><i class="fas fa-user"></i> <span th:text="${customerLedger.customerName}">Customer Name</span></h4>
-                                <p class="mb-1"><i class="fas fa-phone"></i> <span th:text="${customerLedger.customerPhone}">Phone</span></p>
-                                <p class="mb-0" th:if="${customerLedger.customerEmail}">
-                                    <i class="fas fa-envelope"></i> <span th:text="${customerLedger.customerEmail}">Email</span>
-                                </p>
-                            </div>
-                            <div class="col-md-6 text-md-end">
-                                <h5>Current Balance</h5>
-                                <h3 th:text="'₹' + ${#numbers.formatDecimal(customerLedger.currentBalance, 1, 2)}">₹0.00</h3>
-                                <div th:if="${advancePayment != null && advancePayment > 0}" class="mt-2">
-                                    <small class="text-warning">
-                                        <i class="fas fa-credit-card"></i> 
-                                        Advance Credit: ₹<span th:text="${#numbers.formatDecimal(advancePayment, 1, 2)}">0.00</span>
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
+        <div class="customer-info">
+            <div class="row">
+                <div class="col-md-6">
+                    <h4><i class="fas fa-user"></i> <span th:text="${customerLedger.customerName}">Customer Name</span></h4>
+                    <p><i class="fas fa-phone"></i> <span th:text="${customerLedger.customerPhone}">Phone</span></p>
+                    <p th:if="${customerLedger.customerEmail}">
+                        <i class="fas fa-envelope"></i> <span th:text="${customerLedger.customerEmail}">Email</span>
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <h5>Current Balance</h5>
+                    <h3 th:text="'₹' + ${#numbers.formatDecimal(customerLedger.currentBalance, 1, 2)}">₹0.00</h3>
+                    <div th:if="${advancePayment != null && advancePayment > 0}">
+                        <small class="text-warning">
+                            <i class="fas fa-credit-card"></i> 
+                            Advance Credit: ₹<span th:text="${#numbers.formatDecimal(advancePayment, 1, 2)}">0.00</span>
+                        </small>
                     </div>
                 </div>
             </div>
         </div>
         
         <!-- Payment Form -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card payment-form">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-plus"></i> Record Payment</h5>
-                    </div>
-                    <div class="card-body">
+        <div class="payment-form">
+            <div class="card-header">
+                <h5><i class="fas fa-plus"></i> Record Payment</h5>
+            </div>
+            <div class="card-body">
                         <form th:action="@{/admin/customer-ledger/{id}/payment(id=${customerLedger.id})}" method="post">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
@@ -118,39 +349,37 @@
                             </div>
                             
                             <!-- Payment Preview -->
-                            <div class="alert alert-info">
-                                <h6><i class="fas fa-info-circle"></i> Payment Preview</h6>
+                            <div style="background: #e3f2fd; border: 1px solid #bbdefb; border-radius: 10px; padding: 20px; margin: 20px 0;">
+                                <h6 style="color: #1976d2; margin-bottom: 15px;"><i class="fas fa-info-circle"></i> Payment Preview</h6>
                                 <div class="row">
                                     <div class="col-md-3">
-                                        <strong>Current Balance:</strong><br>
-                                        <span class="text-danger">₹<span th:text="${#numbers.formatDecimal(customerLedger.currentBalance, 1, 2)}">0.00</span></span>
+                                        <strong style="color: #2c3e50;">Current Balance:</strong><br>
+                                        <span style="color: #e74c3c; font-weight: 600;">₹<span th:text="${#numbers.formatDecimal(customerLedger.currentBalance, 1, 2)}">0.00</span></span>
                                     </div>
                                     <div class="col-md-3">
-                                        <strong>Payment Amount:</strong><br>
-                                        <span class="text-success" id="previewAmount">₹0.00</span>
+                                        <strong style="color: #2c3e50;">Payment Amount:</strong><br>
+                                        <span style="color: #27ae60; font-weight: 600;" id="previewAmount">₹0.00</span>
                                     </div>
                                     <div class="col-md-3">
-                                        <strong>Balance After:</strong><br>
-                                        <span class="text-primary" id="previewBalance">₹0.00</span>
+                                        <strong style="color: #2c3e50;">Balance After:</strong><br>
+                                        <span style="color: #3498db; font-weight: 600;" id="previewBalance">₹0.00</span>
                                     </div>
                                     <div class="col-md-3">
-                                        <strong>Advance Credit:</strong><br>
-                                        <span class="text-warning" id="previewAdvance">₹0.00</span>
+                                        <strong style="color: #2c3e50;">Advance Credit:</strong><br>
+                                        <span style="color: #f39c12; font-weight: 600;" id="previewAdvance">₹0.00</span>
                                     </div>
                                 </div>
-                                <div class="row mt-2">
-                                    <div class="col-12">
-                                        <small class="text-muted">
-                                            <i class="fas fa-lightbulb"></i> 
-                                            <strong>Payment Allocation:</strong> Payments are applied to oldest invoices first (FIFO). 
-                                            Any excess amount becomes advance credit for future invoices.
-                                        </small>
-                                    </div>
+                                <div style="margin-top: 15px;">
+                                    <small style="color: #7f8c8d;">
+                                        <i class="fas fa-lightbulb"></i> 
+                                        <strong>Payment Allocation:</strong> Payments are applied to oldest invoices first (FIFO). 
+                                        Any excess amount becomes advance credit for future invoices.
+                                    </small>
                                 </div>
                             </div>
                             
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-success">
+                            <div style="display: flex; gap: 15px; margin-top: 30px;">
+                                <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-save"></i> Record Payment
                                 </button>
                                 <a th:href="@{/admin/customer-ledger/{id}(id=${customerLedger.id})}" 
@@ -159,15 +388,9 @@
                                 </a>
                             </div>
                         </form>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
-    
-    <div th:replace="~{fragments/footer :: footer}"></div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Payment preview calculation
         const amountInput = document.getElementById('amount');
