@@ -354,15 +354,21 @@ private String invoiceStorageDir;
 	    productTable.addCell(new PdfPCell(new Phrase("Sub Total:", headerFont)));
 	    productTable.addCell(new PdfPCell(new Phrase("₹" + (order.getSubTotal() != null ? order.getSubTotal().toString() : "0.00"), normalFont)));
 
-	    // GST Rate
-	    productTable.addCell(emptyCell);
-	    productTable.addCell(new PdfPCell(new Phrase("GST Rate:", headerFont)));
-	    productTable.addCell(new PdfPCell(new Phrase((order.getGstRate() != null ? order.getGstRate().toString() : "0") + "%", normalFont)));
+	    // Check if this is a B2B order by looking at order items
+	    boolean isB2BOrder = isB2BOrder(order);
 
-	    // GST Amount
-	    productTable.addCell(emptyCell);
-	    productTable.addCell(new PdfPCell(new Phrase("GST Amount:", headerFont)));
-	    productTable.addCell(new PdfPCell(new Phrase("₹" + (order.getGstAmount() != null ? order.getGstAmount().toString() : "0.00"), normalFont)));
+	    // Only show GST for non-B2B orders
+	    if (!isB2BOrder) {
+	        // GST Rate
+	        productTable.addCell(emptyCell);
+	        productTable.addCell(new PdfPCell(new Phrase("GST Rate:", headerFont)));
+	        productTable.addCell(new PdfPCell(new Phrase((order.getGstRate() != null ? order.getGstRate().toString() : "0") + "%", normalFont)));
+
+	        // GST Amount
+	        productTable.addCell(emptyCell);
+	        productTable.addCell(new PdfPCell(new Phrase("GST Amount:", headerFont)));
+	        productTable.addCell(new PdfPCell(new Phrase("₹" + (order.getGstAmount() != null ? order.getGstAmount().toString() : "0.00"), normalFont)));
+	    }
 
 	    // Total Amount (bold & highlighted)
 	    
@@ -442,6 +448,18 @@ private String invoiceStorageDir;
 	    invoice.setFileName(fileName);
 	    invoice.setFilePath(filePath.toString());
 	    return invoiceRepository.save(invoice);
+	}
+	
+	// Helper method to check if an order is from B2B user
+	private boolean isB2BOrder(Order order) {
+	    if (order.getOrderItems() != null) {
+	        for (OrderItem item : order.getOrderItems()) {
+	            if ("B2B".equalsIgnoreCase(item.getUserType())) {
+	                return true;
+	            }
+	        }
+	    }
+	    return false;
 	}
 
 }

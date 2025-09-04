@@ -61,9 +61,14 @@ public class OrderAccountingService {
             }
         }
 
-        // 2) GST
-        BigDecimal rate = gstRatePct == null ? BigDecimal.ZERO : gstRatePct;
-        BigDecimal gstAmt = sub.multiply(rate).divide(BigDecimal.valueOf(100));
+        // 2) GST - only calculate for non-B2B users
+        BigDecimal rate = BigDecimal.ZERO;
+        BigDecimal gstAmt = BigDecimal.ZERO;
+        
+        if (!"B2B".equalsIgnoreCase(userType)) {
+            rate = gstRatePct == null ? BigDecimal.ZERO : gstRatePct;
+            gstAmt = sub.multiply(rate).divide(BigDecimal.valueOf(100));
+        }
 
         // 3) Total
         BigDecimal total = sub.add(gstAmt);

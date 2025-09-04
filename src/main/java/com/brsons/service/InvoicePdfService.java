@@ -118,6 +118,9 @@ public class InvoicePdfService {
             BigDecimal gstAmount = order.getGstAmount();
             BigDecimal grandTotal = order.getTotal();
 
+            // Check if this is a B2B order by looking at order items
+            boolean isB2BOrder = isB2BOrder(order);
+
             PdfPCell emptyCell = new PdfPCell(new Phrase(""));
             emptyCell.setColspan(3);
             emptyCell.setBorder(Rectangle.NO_BORDER);
@@ -125,9 +128,12 @@ public class InvoicePdfService {
             table.addCell(head("Subtotal"));
             table.addCell(body(subTotal.toString()));
 
-            table.addCell(emptyCell);
-            table.addCell(head("GST (5%)"));
-            table.addCell(body(gstAmount.toString()));
+            // Only show GST for non-B2B orders
+            if (!isB2BOrder) {
+                table.addCell(emptyCell);
+                table.addCell(head("GST (5%)"));
+                table.addCell(body(gstAmount.toString()));
+            }
 
             table.addCell(emptyCell);
             table.addCell(head("Grand Total"));
@@ -224,6 +230,9 @@ public class InvoicePdfService {
             BigDecimal gstAmount = order.getGstAmount();
             BigDecimal grandTotal = order.getTotal();
 
+            // Check if this is a B2B order by looking at order items
+            boolean isB2BOrder = isB2BOrder(order);
+
             for (OrderItem item : orderItems) {
                 Product product = productRepository.findById(item.getProductId())
                         .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
@@ -249,8 +258,11 @@ public class InvoicePdfService {
             table.addCell(emptyCell);
             table.addCell(body("SubTotal : " +subTotal.toString()));
             
-            table.addCell(emptyCell);
-            table.addCell(body("GST (5%) : " +gstAmount.toString()));
+            // Only show GST for non-B2B orders
+            if (!isB2BOrder) {
+                table.addCell(emptyCell);
+                table.addCell(body("GST (5%) : " +gstAmount.toString()));
+            }
             
             table.addCell(emptyCell);              
             table.addCell(body("Grand Total : " + grandTotal));
@@ -285,5 +297,17 @@ public class InvoicePdfService {
         PdfPCell c = new PdfPCell(new Phrase(s, f));
         c.setPadding(5f);
         return c;
+    }
+    
+    // Helper method to check if an order is from B2B user
+    private boolean isB2BOrder(Order order) {
+        if (order.getOrderItems() != null) {
+            for (OrderItem item : order.getOrderItems()) {
+                if ("B2B".equalsIgnoreCase(item.getUserType())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
