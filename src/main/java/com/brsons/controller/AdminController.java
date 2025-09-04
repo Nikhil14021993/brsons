@@ -1060,9 +1060,14 @@ public class AdminController {
         List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
         List<Product> allProducts = productRepository.findByStatus("Active");
 
+        // Get user type for this order
+        User orderUser = userRepository.findByEmailOrPhone("", order.getUserPhone()).orElse(null);
+        String userType = orderUser != null ? orderUser.getType() : "Retail";
+
         model.addAttribute("order", order);
         model.addAttribute("orderItems", orderItems);
         model.addAttribute("allProducts", allProducts);
+        model.addAttribute("userType", userType);
         return "admin-edit-order";
     }
 

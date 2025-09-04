@@ -20,10 +20,14 @@
                 <label>State <input type="text" name="state" th:value="${order.state}" required></label>
                 <label>ZIP <input type="text" name="zipCode" th:value="${order.zipCode}" required></label>
                 <label>Bill Type
-                    <select name="billType" id="billType">
-                        <option value="Pakka" th:selected="${order.billType == 'Pakka'}">Pakka</option>
+                    <select name="billType" id="billType" th:disabled="${userType == 'B2B'}">
+                        <option value="Pakka" th:selected="${order.billType == 'Pakka'}" 
+                                th:disabled="${userType == 'B2B'}">Pakka</option>
                         <option value="Kaccha" th:selected="${order.billType == 'Kaccha'}">Kaccha</option>
                     </select>
+                    <small th:if="${userType == 'B2B'}" class="text-muted d-block mt-1">
+                        <i class="fas fa-lock me-1"></i> B2B users always receive Kaccha bills (credit basis)
+                    </small>
                 </label>
                 <label>Buyer GSTIN
                     <input type="text" name="buyerGstin" th:value="${order.buyerGstin}">
@@ -81,7 +85,8 @@
                 const totalSpan = row.querySelector('.line-total');
                 if (!sel || !qty || !unitSpan || !totalSpan) return;
                 const opt = sel.options[sel.selectedIndex];
-                const billType = document.getElementById('billType').value;
+                const billTypeSelect = document.getElementById('billType');
+                const billType = billTypeSelect.disabled ? 'Pakka' : billTypeSelect.value;
                 const price = billType === 'Kaccha' ? Number(opt?.getAttribute('data-b2b')||0) : Number(opt?.getAttribute('data-retail')||0);
                 const q = Math.max(1, parseInt(qty.value||'1'));
                 unitSpan.textContent = '₹' + price.toFixed(2);

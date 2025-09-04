@@ -873,14 +873,21 @@
                     <span class="summary-value">Free</span>
                 </div>
                 
-                <div class="summary-row">
+                <!-- Tax row - only show for non-B2B users -->
+                <div class="summary-row" th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B') or (adminOrderMode == null or !adminOrderMode) and (session.user == null or session.user.type != 'B2B')}">
                     <span class="summary-label">Tax (18%)</span>
                     <span class="summary-value" th:text="'₹' + ${#numbers.formatDecimal(grandTotal * 0.18, 1, 2)}">₹0.00</span>
                 </div>
                 
                 <div class="summary-row total-row">
                     <span class="summary-label">Total</span>
-                    <span class="summary-value" th:text="'₹' + ${#numbers.formatDecimal(grandTotal * 1.18, 1, 2)}">₹0.00</span>
+                    <!-- Show total with tax for non-B2B users, without tax for B2B users -->
+                    <span class="summary-value" 
+                          th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B') or (adminOrderMode == null or !adminOrderMode) and (session.user == null or session.user.type != 'B2B')}"
+                          th:text="'₹' + ${#numbers.formatDecimal(grandTotal * 1.18, 1, 2)}">₹0.00</span>
+                    <span class="summary-value" 
+                          th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B') or (adminOrderMode == null or !adminOrderMode) and (session.user != null and session.user.type == 'B2B')}"
+                          th:text="'₹' + ${#numbers.formatDecimal(grandTotal, 1, 2)}">₹0.00</span>
                 </div>
 
                 <div class="cart-actions">

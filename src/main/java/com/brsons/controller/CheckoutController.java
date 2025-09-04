@@ -265,7 +265,7 @@ public class CheckoutController {
             // Finalize GST + invoice + ledger with dynamic pricing based on user type
             String userTypeForFinalization = (adminOrderMode != null && adminOrderMode && orderForUser != null) ? 
                 orderForUser.getType() : user.getType();
-            orderAccountingService.finalizeTotalsAndInvoice(order, new BigDecimal("5.00"), order.getBillType(), userTypeForFinalization);
+            orderAccountingService.finalizeTotalsAndInvoice(order, new BigDecimal("18.00"), order.getBillType(), userTypeForFinalization);
             
             // Clear cart
             checkoutService.clearCart(user.getPhone());
@@ -384,7 +384,7 @@ public class CheckoutController {
         orderRepository.save(order);
         
         // ✅ Finalize GST + invoice + ledger with dynamic pricing based on user type
-        orderAccountingService.finalizeTotalsAndInvoice(order, new BigDecimal("5.00"), order.getBillType(), user.getType());
+        orderAccountingService.finalizeTotalsAndInvoice(order, new BigDecimal("20.00"), order.getBillType(), user.getType());
         
         // Temporarily disabled invoice generation to fix database issues
         // TODO: Re-enable after database schema is updated

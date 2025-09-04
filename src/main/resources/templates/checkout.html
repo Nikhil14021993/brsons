@@ -391,31 +391,12 @@
             <input type="text" name="zipCode" id="zipCode" required>
         </div>
         
-        <div class="form-group">
-            <label>Bill Type:</label>
-            <!-- For B2B users (either session user or orderForUser in admin mode), allow bill type selection -->
-            <select name="billType" id="billType" 
-                    th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B') or (session.user != null and session.user.type == 'B2B')}">
-              <option value="Pakka">Pakka (with GST)</option>
-              <option value="Kaccha">Kaccha</option>
-            </select>
-            
-            <!-- For retail users (either session user or orderForUser in admin mode), show readonly input with Pakka -->
-            <input type="text" name="billType" id="billTypeRetail" 
-                   value="Pakka" readonly 
-                   th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B') or (session.user == null or session.user.type != 'B2B')}"
-                   style="background-color: #f8f9fa; color: #6c757d;">
-            
-            <!-- Hidden input to ensure form submission works for retail users -->
-            <input type="hidden" name="billType" value="Pakka" 
-                   th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B') or (session.user == null or session.user.type != 'B2B')}">
-            
-            <!-- Note for retail users -->
-            <small style="color: #6c757d; font-style: italic; display: block; margin-top: 5px;"
-                   th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B') or (session.user == null or session.user.type != 'B2B')}">
-                <i class="fas fa-info-circle"></i> Retail customers always receive Pakka bills with GST
-            </small>
-        </div>
+        <!-- Bill Type is automatically assigned based on user type (completely hidden) -->
+        <!-- Hidden input to ensure form submission works for all users -->
+        <input type="hidden" name="billType" value="Pakka" 
+               th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B') or (session.user == null or session.user.type != 'B2B')}">
+        <input type="hidden" name="billType" value="Kaccha" 
+               th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B') or (session.user != null and session.user.type == 'B2B')}">
 
         <div class="form-group">
             <label>Buyer GSTIN (optional):</label>
@@ -464,20 +445,13 @@
   <script>
     // Function to get bill type value based on user type
     function getBillTypeValue() {
-        const billTypeSelect = document.getElementById('billType');
-        const billTypeRetail = document.getElementById('billTypeRetail');
-        
-        // If B2B user, get value from select dropdown
-        if (billTypeSelect && !billTypeSelect.disabled) {
-            return billTypeSelect.value;
+        // Get the hidden input value (automatically set based on user type)
+        const hiddenBillType = document.querySelector('input[name="billType"][type="hidden"]');
+        if (hiddenBillType) {
+            return hiddenBillType.value;
         }
         
-        // If retail user, return "Pakka" (always)
-        if (billTypeRetail) {
-            return billTypeRetail.value;
-        }
-        
-        // Fallback to "Pakka" for retail users
+        // Fallback to "Pakka" for all users
         return "Pakka";
     }
     

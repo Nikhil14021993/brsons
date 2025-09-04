@@ -143,20 +143,44 @@
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="billType" id="billTypePakka" value="Pakka" checked>
-                                            <label class="form-check-label" for="billTypePakka">
+                                            <input class="form-check-input" type="radio" name="billType" id="billTypePakka" value="Pakka" 
+                                                   th:checked="${orderForUser.type != 'B2B'}"
+                                                   th:disabled="${orderForUser.type == 'B2B'}">
+                                            <label class="form-check-label" for="billTypePakka"
+                                                   th:class="${orderForUser.type == 'B2B' ? 'form-check-label text-muted' : 'form-check-label'}">
                                                 <strong>Pakka</strong> - Regular invoice with GST
+                                                <span th:if="${orderForUser.type == 'B2B'}" class="text-muted small d-block">
+                                                    <i class="fas fa-lock me-1"></i> Not available for B2B users
+                                                </span>
                                             </label>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="billType" id="billTypeKaccha" value="Kaccha">
-                                            <label class="form-check-label" for="billTypeKaccha">
+                                            <input class="form-check-input" type="radio" name="billType" id="billTypeKaccha" value="Kaccha" 
+                                                   th:checked="${orderForUser.type == 'B2B'}"
+                                                   th:disabled="${orderForUser.type != 'B2B'}"
+                                                   th:class="${orderForUser.type != 'B2B' ? 'form-check-input disabled' : 'form-check-input'}">
+                                            <label class="form-check-label" for="billTypeKaccha"
+                                                   th:class="${orderForUser.type != 'B2B' ? 'form-check-label text-muted' : 'form-check-label'}">
                                                 <strong>Kaccha</strong> - B2B order (credit basis)
+                                                <span th:if="${orderForUser.type != 'B2B'}" class="text-muted small d-block">
+                                                    <i class="fas fa-lock me-1"></i> Only available for B2B users
+                                                </span>
                                             </label>
                                         </div>
                                     </div>
+                                </div>
+                                
+                                <!-- Note for users -->
+                                <div class="alert alert-info mt-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <span th:if="${orderForUser.type == 'B2B'}">
+                                        <strong>B2B users always receive Kaccha bills (credit basis).</strong> The Pakka option is not available for B2B customers.
+                                    </span>
+                                    <span th:if="${orderForUser.type != 'B2B'}">
+                                        <strong>Retail users receive Pakka bills with GST.</strong> The Kaccha option is only available for B2B customers.
+                                    </span>
                                 </div>
                             </div>
                         </div>
