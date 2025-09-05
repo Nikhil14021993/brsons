@@ -248,13 +248,19 @@
                         <a href="/admin/customer-ledger/outstanding" class="btn btn-warning me-2">
                             <i class="fas fa-exclamation-triangle"></i> Outstanding Ledgers
                         </a>
-                        <a href="/admin/customer-ledger/create-from-b2b-orders" class="btn btn-success" 
-                           onclick="return confirm('This will create customer ledgers from existing B2B orders. Continue?')">
+                        <button onclick="syncFromB2BOrders()" class="btn btn-success" id="syncBtn">
                             <i class="fas fa-sync"></i> Sync from B2B Orders
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
+        </div>
+        
+        <!-- Success Message Area -->
+        <div id="syncMessage" class="alert alert-success alert-dismissible fade" role="alert" style="display: none; margin: 20px;">
+            <i class="fas fa-check-circle"></i>
+            <span id="syncMessageText"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
         
         <!-- Statistics Cards -->
@@ -522,6 +528,68 @@
                 this.style.transform = 'scale(1)';
             });
         });
+        
+        // Sync from B2B Orders function
+        function syncFromB2BOrders() {
+            // Show confirmation dialog
+            if (!confirm('This will create customer ledgers from existing B2B orders. Continue?')) {
+                return;
+            }
+            
+            const syncBtn = document.getElementById('syncBtn');
+            const originalText = syncBtn.innerHTML;
+            
+            // Show loading state
+            syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+            syncBtn.disabled = true;
+            
+            // Make AJAX call
+            fetch('/admin/customer-ledger/create-from-b2b-orders', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.text())
+            .then(result => {
+                // Show success message
+                const syncMessage = document.getElementById('syncMessage');
+                const syncMessageText = document.getElementById('syncMessageText');
+                
+                if (result.startsWith('Error:')) {
+                    syncMessage.className = 'alert alert-danger alert-dismissible fade show';
+                    syncMessageText.textContent = result;
+                } else {
+                    syncMessage.className = 'alert alert-success alert-dismissible fade show';
+                    syncMessageText.textContent = result;
+                }
+                
+                syncMessage.style.display = 'block';
+                
+                // Scroll to message
+                syncMessage.scrollIntoView({ behavior: 'smooth' });
+                
+                // Refresh the page after 2 seconds to show updated data
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                
+                // Show error message
+                const syncMessage = document.getElementById('syncMessage');
+                const syncMessageText = document.getElementById('syncMessageText');
+                
+                syncMessage.className = 'alert alert-danger alert-dismissible fade show';
+                syncMessageText.textContent = 'Error syncing from B2B orders: ' + error.message;
+                syncMessage.style.display = 'block';
+                
+                // Reset button
+                syncBtn.innerHTML = originalText;
+                syncBtn.disabled = false;
+            });
+        }
     </script>
 </body>
 </html>
