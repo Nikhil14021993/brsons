@@ -385,8 +385,14 @@
             <div>
                 <h1><i class="fas fa-hand-holding-usd"></i> B2B Receivables</h1>
                 <p>Money owed to us from business customers (Kaccha orders)</p>
+                <div id="autoSyncStatus" class="mt-2" style="font-size: 0.9rem; color: #28a745;">
+                    <i class="fas fa-sync-alt fa-spin"></i> Auto-syncing with customer ledger...
+                </div>
             </div>
             <div class="header-actions">
+                <button onclick="syncCustomerLedgers()" class="btn btn-success" id="syncBtn">
+                    <i class="fas fa-sync-alt"></i> Manual Sync
+                </button>
                 <a href="/admin/outstanding/dashboard/b2b" class="btn btn-purple">
                     <i class="fas fa-building"></i> B2B Dashboard
                 </a>
@@ -627,6 +633,57 @@
     <script>
         let currentItemId = null;
         let currentAction = null;
+        
+        // Hide auto-sync status after page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const autoSyncStatus = document.getElementById('autoSyncStatus');
+                if (autoSyncStatus) {
+                    autoSyncStatus.innerHTML = '<i class="fas fa-check-circle"></i> Auto-sync completed';
+                    autoSyncStatus.style.color = '#28a745';
+                    setTimeout(function() {
+                        autoSyncStatus.style.display = 'none';
+                    }, 2000);
+                }
+            }, 1000);
+        });
+        
+        // Sync Customer Ledgers Function
+        function syncCustomerLedgers() {
+            const syncBtn = document.getElementById('syncBtn');
+            const originalText = syncBtn.innerHTML;
+            
+            // Show loading state
+            syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+            syncBtn.disabled = true;
+            
+            fetch('/admin/outstanding/sync-customer-ledgers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.text())
+            .then(result => {
+                if (result.startsWith('success:')) {
+                    const message = result.substring(8); // Remove 'success: ' prefix
+                    alert('Sync completed successfully!\n' + message);
+                    // Refresh the page to show updated data
+                    location.reload();
+                } else {
+                    alert('Sync failed: ' + result);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error syncing customer ledgers: ' + error.message);
+            })
+            .finally(() => {
+                // Restore button state
+                syncBtn.innerHTML = originalText;
+                syncBtn.disabled = false;
+            });
+        }
         
         // Status Update Functions
         function updateStatus(itemId, newStatus) {

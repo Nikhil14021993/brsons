@@ -3,6 +3,7 @@ package com.brsons.controller;
 import com.brsons.model.CustomerLedger;
 import com.brsons.model.CustomerLedgerEntry;
 import com.brsons.service.CustomerLedgerService;
+import com.brsons.service.OutstandingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -20,6 +21,9 @@ public class CustomerLedgerController {
     
     @Autowired
     private CustomerLedgerService customerLedgerService;
+    
+    @Autowired
+    private OutstandingService outstandingService;
     
     // ==================== DASHBOARD ====================
     
@@ -76,6 +80,16 @@ public class CustomerLedgerController {
         Optional<CustomerLedger> customerLedger = customerLedgerService.getCustomerLedgerById(id);
         if (customerLedger.isEmpty()) {
             return "redirect:/admin/customer-ledger/list";
+        }
+        
+        // Automatically sync customer ledger with outstanding items when page is loaded
+        try {
+            System.out.println("Auto-syncing customer ledger #" + id + " with outstanding items...");
+            String syncResult = outstandingService.forceSyncCustomerLedgers();
+            System.out.println("Auto-sync result: " + syncResult);
+        } catch (Exception e) {
+            System.err.println("Error during auto-sync: " + e.getMessage());
+            // Don't fail the page load if sync fails
         }
         
         List<CustomerLedgerEntry> entries = customerLedgerService.getCustomerLedgerEntries(id);

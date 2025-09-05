@@ -329,6 +329,18 @@
         .btn-download:hover {
             background: #229954;
         }
+        
+        /* Disabled button styles */
+        .action-buttons button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #95a5a6 !important;
+        }
+        
+        .action-buttons button:disabled:hover {
+            background: #95a5a6 !important;
+            transform: none;
+        }
 
         .empty-state {
             text-align: center;
@@ -801,10 +813,15 @@
                         </td>
                         <td>
                             <div class="action-buttons">
-                                <button class="btn-edit" th:onclick="'updateStatus(' + ${order.id} + ')'">
+                                <button class="btn-edit" th:onclick="'updateStatus(' + ${order.id} + ')'" 
+                                        th:disabled="${!order.canModify}" 
+                                        th:title="${!order.canModify ? 'Order cannot be modified - fully settled' : 'Update order status'}">
                                     <i class="fas fa-edit"></i> Status
                                 </button>
-                                <button class="btn-edit" th:onclick="'editOrder(' + ${order.id} + ')'" style="background-color: #17a2b8;">
+                                <button class="btn-edit" th:onclick="'editOrder(' + ${order.id} + ')'" 
+                                        style="background-color: #17a2b8;" 
+                                        th:disabled="${!order.canModify}"
+                                        th:title="${!order.canModify ? 'Order cannot be modified - fully settled' : 'Edit order details'}">
                                     <i class="fas fa-edit"></i> Edit
                                 </button>
                                 <button class="btn-view" th:onclick="'viewOrder(' + ${order.id} + ')'">
@@ -813,6 +830,10 @@
                                 <button class="btn-download" th:onclick="'downloadInvoice(' + ${order.id} + ')'">
                                     <i class="fas fa-download"></i> Invoice
                                 </button>
+                            </div>
+                            <!-- Show warning for non-modifiable orders -->
+                            <div th:if="${!order.canModify}" style="margin-top: 5px; font-size: 0.8rem; color: #e74c3c; font-weight: 500;">
+                                <i class="fas fa-lock"></i> Settled
                             </div>
                         </td>
                     </tr>

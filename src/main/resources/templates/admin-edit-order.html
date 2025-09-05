@@ -25,6 +25,8 @@
                                 th:disabled="${userType == 'B2B'}">Pakka</option>
                         <option value="Kaccha" th:selected="${order.billType == 'Kaccha'}">Kaccha</option>
                     </select>
+                    <!-- Hidden field to ensure billType is sent when select is disabled -->
+                    <input type="hidden" name="billType" th:value="${order.billType}" th:if="${userType == 'B2B'}">
                     <small th:if="${userType == 'B2B'}" class="text-muted d-block mt-1">
                         <i class="fas fa-lock me-1"></i> B2B users always receive Kaccha bills (credit basis)
                     </small>
@@ -78,6 +80,19 @@
         </form>
 
         <script>
+            // Ensure billType is properly handled for B2B users
+            document.addEventListener('DOMContentLoaded', function() {
+                const billTypeSelect = document.getElementById('billType');
+                const hiddenBillType = document.querySelector('input[name="billType"][type="hidden"]');
+                
+                if (billTypeSelect && hiddenBillType) {
+                    // Update hidden field when select changes
+                    billTypeSelect.addEventListener('change', function() {
+                        hiddenBillType.value = this.value;
+                    });
+                }
+            });
+            
             function recalcRow(row){
                 const sel = row.querySelector('select.product-select');
                 const qty = row.querySelector('input[name="quantities"]');

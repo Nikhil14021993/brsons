@@ -14,7 +14,7 @@ import com.brsons.repository.UserRepository;
 import com.brsons.repository.OrderRepository;
 import com.brsons.repository.OrderItemRepository;
 import com.brsons.service.DayBookService;
-
+import com.brsons.service.OutstandingService;
 import com.brsons.service.AdminOrderService;
 
 import com.brsons.dto.OrderDisplayDto;
@@ -80,6 +80,9 @@ public class AdminController {
 	
 	@Autowired
     private AdminOrderService adminOrderService;
+	
+	@Autowired
+    private OutstandingService outstandingService;
 	
 	@Autowired
     private UserRepository userRepository;
@@ -296,6 +299,12 @@ public class AdminController {
             List<OrderDisplayDto> allOrders = adminOrderService.getAllOrders();
             AdminOrderService.OrderStatistics stats = adminOrderService.getOrderStatistics();
             
+            // Add modification status for each order
+            for (OrderDisplayDto order : allOrders) {
+                boolean canModify = outstandingService.canModifyOrder(order.getId());
+                order.setCanModify(canModify);
+            }
+            
             model.addAttribute("orders", allOrders);
             model.addAttribute("stats", stats);
             return "admin-orders";
@@ -308,6 +317,12 @@ public class AdminController {
         if (isAdmin(session)) {
             List<OrderDisplayDto> b2bOrders = adminOrderService.getB2BOrders();
             AdminOrderService.OrderStatistics stats = adminOrderService.getB2BOrderStatistics();
+            
+            // Add modification status for each order
+            for (OrderDisplayDto order : b2bOrders) {
+                boolean canModify = outstandingService.canModifyOrder(order.getId());
+                order.setCanModify(canModify);
+            }
             
             model.addAttribute("orders", b2bOrders);
             model.addAttribute("stats", stats);
@@ -1080,7 +1095,7 @@ public class AdminController {
                               @RequestParam String city,
                               @RequestParam String state,
                               @RequestParam String zipCode,
-                              @RequestParam String billType,
+                              @RequestParam(required = false) String billType,
                               @RequestParam(required = false) String buyerGstin,
                               @RequestParam(required = false) List<Long> productIds,
                               @RequestParam(required = false) List<Integer> quantities,
@@ -1096,6 +1111,23 @@ public class AdminController {
             return "redirect:/admin/orders";
         }
 
+        // Check if order can be modified based on outstanding status
+        if (!outstandingService.canModifyOrder(orderId)) {
+            redirectAttributes.addFlashAttribute("error", "Cannot modify order that has been fully settled");
+            return "redirect:/admin/orders";
+        }
+
+        // Store old order data for comparison
+        Order oldOrder = new Order();
+        oldOrder.setId(order.getId());
+        oldOrder.setName(order.getName());
+        oldOrder.setUserPhone(order.getUserPhone());
+        oldOrder.setTotal(order.getTotal());
+        oldOrder.setBillType(order.getBillType());
+
+        // Handle billType - if not provided, use existing order's bill type
+        String finalBillType = (billType != null && !billType.trim().isEmpty()) ? billType : order.getBillType();
+
         // Update order fields
         order.setName(name);
         order.setUserPhone(userPhone);
@@ -1104,7 +1136,7 @@ public class AdminController {
         order.setCity(city);
         order.setState(state);
         order.setZipCode(zipCode);
-        order.setBillType(billType);
+        order.setBillType(finalBillType);
         order.setBuyerGstin(buyerGstin);
 
         // Replace items
@@ -1117,7 +1149,7 @@ public class AdminController {
                 if (pid == null || qty == null || qty <= 0) continue;
                 Product p = productRepository.findById(pid).orElse(null);
                 if (p == null) continue;
-                BigDecimal unitPrice = "Kaccha".equalsIgnoreCase(billType)
+                BigDecimal unitPrice = "Kaccha".equalsIgnoreCase(finalBillType)
                         ? BigDecimal.valueOf(p.getB2bPrice() != null ? p.getB2bPrice() : 0.0)
                         : BigDecimal.valueOf(p.getRetailPrice() != null ? p.getRetailPrice() : 0.0);
                 OrderItem item = new OrderItem();
@@ -1126,8 +1158,8 @@ public class AdminController {
                 item.setQuantity(qty);
                 item.setUnitPrice(unitPrice);
                 item.setTotalPrice(unitPrice.multiply(BigDecimal.valueOf(qty)));
-                item.setUserType(billType);
-                item.setPriceType("Kaccha".equalsIgnoreCase(billType) ? "b2b" : "retail");
+                item.setUserType(finalBillType);
+                item.setPriceType("Kaccha".equalsIgnoreCase(finalBillType) ? "b2b" : "retail");
                 order.getOrderItems().add(item);
                 subTotal = subTotal.add(item.getTotalPrice());
             }
@@ -1141,6 +1173,16 @@ public class AdminController {
         order.setTotal(total);
 
         orderRepository.save(order);
+        
+        // Handle outstanding and customer ledger updates
+        try {
+            outstandingService.handleOrderUpdate(oldOrder, order);
+            System.out.println("Updated outstanding and customer ledger for order #" + order.getId());
+        } catch (Exception e) {
+            System.err.println("Error updating outstanding and customer ledger for order #" + order.getId() + ": " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Order updated but failed to update financial records: " + e.getMessage());
+            return "redirect:/admin/orders";
+        }
         
         // Regenerate invoice after order update
         try {

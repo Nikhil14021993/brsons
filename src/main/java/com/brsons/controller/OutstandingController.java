@@ -141,6 +141,16 @@ public class OutstandingController {
             return "redirect:/login";
         }
         
+        // Automatically sync customer ledgers when page is loaded
+        try {
+            System.out.println("Auto-syncing customer ledgers on B2B receivables page load...");
+            String syncResult = outstandingService.forceSyncCustomerLedgers();
+            System.out.println("Auto-sync result: " + syncResult);
+        } catch (Exception e) {
+            System.err.println("Error during auto-sync: " + e.getMessage());
+            // Don't fail the page load if sync fails
+        }
+        
         // Get B2B receivables (Kaccha orders only)
         List<Outstanding> b2bReceivables = outstandingService.getB2BReceivables();
         Map<String, Object> dashboard = outstandingService.getB2BOutstandingDashboard();
@@ -322,6 +332,23 @@ public class OutstandingController {
         try {
             outstandingService.markAsSettled(id, notes, paymentMethod, paymentReference);
             return "success";
+        } catch (Exception e) {
+            return "error: " + e.getMessage();
+        }
+    }
+    
+    @PostMapping("/sync-customer-ledgers")
+    @ResponseBody
+    public String syncCustomerLedgers(HttpSession session) {
+        // Check if user is logged in and is admin
+        Object user = session.getAttribute("user");
+        if (user == null) {
+            return "unauthorized";
+        }
+        
+        try {
+            String result = outstandingService.forceSyncCustomerLedgers();
+            return "success: " + result;
         } catch (Exception e) {
             return "error: " + e.getMessage();
         }

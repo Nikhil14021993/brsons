@@ -64,6 +64,9 @@ public class OutstandingService {
     @Autowired
     private com.brsons.repository.CustomerLedgerEntryRepository customerLedgerEntryRepository;
     
+    @Autowired
+    private com.brsons.repository.CustomerLedgerRepository customerLedgerRepository;
+    
     // ==================== INITIALIZATION ====================
     
     @PostConstruct
@@ -252,21 +255,44 @@ public class OutstandingService {
         if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE && 
             "Kaccha".equals(outstanding.getOrderType())) {
             try {
+                System.out.println("Syncing partial payment with customer ledger for B2B receivable...");
                 Optional<CustomerLedger> customerLedger = customerLedgerService.getCustomerLedgerByPhone(outstanding.getContactInfo());
                 if (customerLedger.isPresent()) {
-                    customerLedgerService.addPaymentEntry(
+                    // Create payment entry directly with proper reference information
+                    CustomerLedgerEntry paymentEntry = new CustomerLedgerEntry(
                         customerLedger.get(),
-                        paidAmount,
-                        outstanding.getPaymentMethod(),
-                        outstanding.getPaymentReference(),
-                        notes,
-                        false // Don't sync with outstanding to prevent duplicate vouchers
+                        "Partial payment for " + outstanding.getReferenceType() + " #" + outstanding.getReferenceNumber() + 
+                        (notes != null ? " - " + notes : ""),
+                        "PAYMENT", // Entry type
+                        outstanding.getId(), // Reference the outstanding item
+                        "PAY-" + System.currentTimeMillis()
                     );
-                    System.out.println("Updated customer ledger for partial payment of " + paidAmount);
+                    
+                    paymentEntry.setCreditAmount(paidAmount);
+                    paymentEntry.setBalanceAfter(customerLedger.get().getCurrentBalance().subtract(paidAmount));
+                    paymentEntry.setPaymentMethod(outstanding.getPaymentMethod());
+                    paymentEntry.setPaymentReference(outstanding.getPaymentReference());
+                    paymentEntry.setNotes(notes);
+                    
+                    // Update customer ledger balance
+                    customerLedger.get().addCredit(paidAmount);
+                    customerLedgerRepository.save(customerLedger.get());
+                    
+                    // Save the payment entry
+                    customerLedgerEntryRepository.save(paymentEntry);
+                    
+                    System.out.println("Successfully updated customer ledger for partial payment of " + paidAmount + 
+                                     " for customer: " + customerLedger.get().getCustomerName());
+                } else {
+                    System.err.println("Customer ledger not found for phone: " + outstanding.getContactInfo());
                 }
             } catch (Exception e) {
                 System.err.println("Error updating customer ledger for partial payment: " + e.getMessage());
+                e.printStackTrace();
             }
+        } else {
+            System.out.println("Not a B2B receivable - skipping customer ledger sync. Type: " + outstanding.getType() + 
+                             ", Order Type: " + outstanding.getOrderType());
         }
         
         // If fully paid, mark as settled
@@ -315,21 +341,43 @@ public class OutstandingService {
         if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE && 
             "Kaccha".equals(outstanding.getOrderType())) {
             try {
+                System.out.println("Syncing full settlement with customer ledger for B2B receivable...");
                 Optional<CustomerLedger> customerLedger = customerLedgerService.getCustomerLedgerByPhone(outstanding.getContactInfo());
                 if (customerLedger.isPresent()) {
-                    customerLedgerService.addPaymentEntry(
+                    // Create payment entry directly with proper reference information
+                    CustomerLedgerEntry paymentEntry = new CustomerLedgerEntry(
                         customerLedger.get(),
-                        remainingAmount,
-                        outstanding.getPaymentMethod(),
-                        outstanding.getPaymentReference(),
-                        notes,
-                        false // Don't sync with outstanding to prevent duplicate vouchers
+                        "Full settlement for " + outstanding.getReferenceType() + " #" + outstanding.getReferenceNumber() + 
+                        (notes != null ? " - " + notes : ""),
+                        "PAYMENT", // Entry type
+                        outstanding.getId(), // Reference the outstanding item
+                        "PAY-" + System.currentTimeMillis()
                     );
-                    System.out.println("Updated customer ledger for settlement of " + remainingAmount);
+                    
+                    paymentEntry.setCreditAmount(remainingAmount);
+                    paymentEntry.setBalanceAfter(customerLedger.get().getCurrentBalance().subtract(remainingAmount));
+                    paymentEntry.setPaymentMethod(outstanding.getPaymentMethod());
+                    paymentEntry.setPaymentReference(outstanding.getPaymentReference());
+                    paymentEntry.setNotes(notes);
+                    
+                    // Update customer ledger balance
+                    customerLedger.get().addCredit(remainingAmount);
+                    customerLedgerRepository.save(customerLedger.get());
+                    
+                    // Save the payment entry
+                    customerLedgerEntryRepository.save(paymentEntry);
+                    System.out.println("Successfully updated customer ledger for full settlement of " + remainingAmount + 
+                                     " for customer: " + customerLedger.get().getCustomerName());
+                } else {
+                    System.err.println("Customer ledger not found for phone: " + outstanding.getContactInfo());
                 }
             } catch (Exception e) {
                 System.err.println("Error updating customer ledger for settlement: " + e.getMessage());
+                e.printStackTrace();
             }
+        } else {
+            System.out.println("Not a B2B receivable - skipping customer ledger sync. Type: " + outstanding.getType() + 
+                             ", Order Type: " + outstanding.getOrderType());
         }
         
         return outstandingRepository.save(outstanding);
@@ -599,6 +647,357 @@ public class OutstandingService {
         System.out.println("Updated overdue status for " + pendingItems.size() + " outstanding items");
     }
     
+    /**
+     * Handle order updates - adjust outstanding items and customer ledger
+     */
+    @Transactional
+    public void handleOrderUpdate(Order oldOrder, Order newOrder) {
+        try {
+            // Find existing outstanding item for this order
+            List<Outstanding> existingOutstanding = outstandingRepository.findByReferenceTypeAndReferenceId("ORDER", oldOrder.getId());
+            
+            if (!existingOutstanding.isEmpty()) {
+                Outstanding outstanding = existingOutstanding.get(0);
+                
+                // Check if order can be modified (not fully settled)
+                if (outstanding.getStatus() == Outstanding.OutstandingStatus.SETTLED) {
+                    throw new RuntimeException("Cannot modify order that is fully settled");
+                }
+                
+                // Calculate amount difference
+                BigDecimal oldAmount = oldOrder.getTotal() != null ? oldOrder.getTotal() : BigDecimal.ZERO;
+                BigDecimal newAmount = newOrder.getTotal() != null ? newOrder.getTotal() : BigDecimal.ZERO;
+                BigDecimal amountDifference = newAmount.subtract(oldAmount);
+                
+                // Update outstanding amount
+                BigDecimal currentAmount = outstanding.getAmount();
+                BigDecimal newOutstandingAmount = currentAmount.add(amountDifference);
+                
+                // Ensure outstanding amount doesn't go negative
+                if (newOutstandingAmount.compareTo(BigDecimal.ZERO) < 0) {
+                    newOutstandingAmount = BigDecimal.ZERO;
+                }
+                
+                outstanding.setAmount(newOutstandingAmount);
+                outstanding.setUpdatedAt(LocalDateTime.now());
+                outstanding.setDescription("Customer invoice for order #" + newOrder.getId() + " (Updated)");
+                outstanding.setCustomerSupplierName(newOrder.getName());
+                outstanding.setContactInfo(newOrder.getUserPhone());
+                outstanding.setOrderType(newOrder.getBillType());
+                
+                outstandingRepository.save(outstanding);
+                
+                // Update customer ledger if this is a B2B order
+                if ("Kaccha".equals(newOrder.getBillType()) && amountDifference.compareTo(BigDecimal.ZERO) != 0) {
+                    try {
+                        CustomerLedger customerLedger = customerLedgerService.findOrCreateCustomerLedger(
+                            newOrder.getName(), 
+                            newOrder.getUserPhone(), 
+                            null
+                        );
+                        
+                        // Create adjustment entry for the amount difference
+                        String adjustmentReason = amountDifference.compareTo(BigDecimal.ZERO) > 0 ? 
+                            "Order amount increased" : "Order amount decreased";
+                        
+                        customerLedgerService.addAdjustmentEntry(
+                            customerLedger, 
+                            amountDifference.abs(), 
+                            amountDifference.compareTo(BigDecimal.ZERO) > 0, 
+                            adjustmentReason, 
+                            "Order #" + newOrder.getId() + " modification"
+                        );
+                        
+                        System.out.println("Updated customer ledger for order #" + newOrder.getId() + " with adjustment: " + amountDifference);
+                    } catch (Exception e) {
+                        System.err.println("Error updating customer ledger for order #" + newOrder.getId() + ": " + e.getMessage());
+                    }
+                }
+                
+                System.out.println("Updated outstanding item for order #" + newOrder.getId() + " from " + oldAmount + " to " + newAmount);
+            }
+        } catch (Exception e) {
+            System.err.println("Error handling order update for order #" + oldOrder.getId() + ": " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    /**
+     * Handle order cancellation - reverse outstanding items and customer ledger
+     */
+    @Transactional
+    public void handleOrderCancellation(Order order) {
+        try {
+            // Find existing outstanding item for this order
+            List<Outstanding> existingOutstanding = outstandingRepository.findByReferenceTypeAndReferenceId("ORDER", order.getId());
+            
+            if (!existingOutstanding.isEmpty()) {
+                Outstanding outstanding = existingOutstanding.get(0);
+                
+                // Check if order can be cancelled (not fully settled)
+                if (outstanding.getStatus() == Outstanding.OutstandingStatus.SETTLED) {
+                    throw new RuntimeException("Cannot cancel order that is fully settled");
+                }
+                
+                // Check if already cancelled to prevent duplicate processing
+                if (outstanding.getStatus() == Outstanding.OutstandingStatus.CANCELLED) {
+                    System.out.println("Outstanding item for order #" + order.getId() + " is already cancelled, skipping duplicate processing");
+                    return;
+                }
+                
+                // Mark outstanding as cancelled
+                outstanding.setStatus(Outstanding.OutstandingStatus.CANCELLED);
+                outstanding.setUpdatedAt(LocalDateTime.now());
+                outstanding.setNotes("Order cancelled - " + (outstanding.getNotes() != null ? outstanding.getNotes() : ""));
+                outstanding.setAmount(BigDecimal.ZERO); // Set amount to zero for cancelled orders
+                
+                outstandingRepository.save(outstanding);
+                
+                // Reverse customer ledger entry if this is a B2B order
+                if ("Kaccha".equals(order.getBillType()) && order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
+                    try {
+                        CustomerLedger customerLedger = customerLedgerService.findOrCreateCustomerLedger(
+                            order.getName(), 
+                            order.getUserPhone(), 
+                            null
+                        );
+                        
+                        // Check if cancellation credit entry already exists to prevent duplicates
+                        List<CustomerLedgerEntry> existingCancellationEntries = customerLedgerEntryRepository
+                            .findByReferenceTypeAndReferenceId("ORDER", order.getId());
+                        
+                        boolean hasCancellationEntry = false;
+                        for (CustomerLedgerEntry entry : existingCancellationEntries) {
+                            if ("ADJUSTMENT".equals(entry.getReferenceType()) && 
+                                entry.getParticulars() != null && 
+                                entry.getParticulars().contains("Order cancellation")) {
+                                hasCancellationEntry = true;
+                                System.out.println("Found existing cancellation entry: " + entry.getParticulars());
+                                break;
+                            }
+                        }
+                        
+                        System.out.println("Checking for cancellation entries for order #" + order.getId() + 
+                                         " - Found " + existingCancellationEntries.size() + " entries, hasCancellation: " + hasCancellationEntry);
+                        
+                        if (!hasCancellationEntry) {
+                            // Create reversal entry (credit to reverse the original debit)
+                            customerLedgerService.addAdjustmentEntry(
+                                customerLedger, 
+                                order.getTotal(), 
+                                false, // Credit entry to reverse the original debit
+                                "Order cancellation", 
+                                "Reversal for cancelled order #" + order.getId()
+                            );
+                            
+                            System.out.println("Reversed customer ledger entry for cancelled order #" + order.getId());
+                        } else {
+                            System.out.println("Cancellation credit entry already exists for order #" + order.getId() + ", skipping duplicate creation");
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Error reversing customer ledger for cancelled order #" + order.getId() + ": " + e.getMessage());
+                    }
+                }
+                
+                System.out.println("Cancelled outstanding item for order #" + order.getId());
+            }
+        } catch (Exception e) {
+            System.err.println("Error handling order cancellation for order #" + order.getId() + ": " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    /**
+     * Check if an order can be modified or cancelled
+     */
+    public boolean canModifyOrder(Long orderId) {
+        List<Outstanding> existingOutstanding = outstandingRepository.findByReferenceTypeAndReferenceId("ORDER", orderId);
+        
+        if (existingOutstanding.isEmpty()) {
+            return true; // No outstanding item, can modify
+        }
+        
+        Outstanding outstanding = existingOutstanding.get(0);
+        return outstanding.getStatus() != Outstanding.OutstandingStatus.SETTLED;
+    }
+    
+    /**
+     * Get outstanding amount for an order
+     */
+    public BigDecimal getOutstandingAmountForOrder(Long orderId) {
+        List<Outstanding> existingOutstanding = outstandingRepository.findByReferenceTypeAndReferenceId("ORDER", orderId);
+        
+        if (existingOutstanding.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        
+        return existingOutstanding.get(0).getAmount();
+    }
+    
+    
+    /**
+     * Force sync customer ledgers with outstanding items for B2B receivables
+     */
+    @Transactional
+    public String forceSyncCustomerLedgers() {
+        try {
+            System.out.println("=== Starting forced customer ledger sync ===");
+            
+            // Get all B2B receivables (INVOICE_RECEIVABLE with Kaccha order type)
+            List<Outstanding> b2bReceivables = outstandingRepository.findByTypeAndOrderType(
+                Outstanding.OutstandingType.INVOICE_RECEIVABLE, "Kaccha");
+            System.out.println("Found " + b2bReceivables.size() + " B2B receivables to sync");
+            
+            int syncedCount = 0;
+            int errorCount = 0;
+            
+            for (Outstanding outstanding : b2bReceivables) {
+                try {
+                    // Skip cancelled outstanding items - they should not be synced
+                    if (outstanding.getStatus() == Outstanding.OutstandingStatus.CANCELLED) {
+                        System.out.println("Skipping cancelled outstanding item #" + outstanding.getId());
+                        continue;
+                    }
+                    
+                    // Find or create customer ledger
+                    CustomerLedger customerLedger = customerLedgerService.findOrCreateCustomerLedger(
+                        outstanding.getCustomerSupplierName(),
+                        outstanding.getContactInfo(),
+                        null
+                    );
+                    
+                    // Find the original invoice entry for this order
+                    List<CustomerLedgerEntry> invoiceEntries = customerLedgerEntryRepository
+                        .findByReferenceTypeAndReferenceId("ORDER", outstanding.getReferenceId());
+                    
+                    if (!invoiceEntries.isEmpty()) {
+                        CustomerLedgerEntry invoiceEntry = invoiceEntries.get(0);
+                        BigDecimal originalAmount = invoiceEntry.getDebitAmount();
+                        BigDecimal currentOutstandingAmount = outstanding.getAmount();
+                        BigDecimal paidAmount = originalAmount.subtract(currentOutstandingAmount);
+                        
+                        // Check if we need to create payment entries
+                        if (paidAmount.compareTo(BigDecimal.ZERO) > 0) {
+                            // Check if payment entries already exist for this outstanding item
+                            // Look for payment entries that reference this outstanding item
+                            List<CustomerLedgerEntry> paymentEntries = customerLedgerEntryRepository
+                                .findByReferenceTypeAndReferenceId("PAYMENT", outstanding.getId());
+                            
+                            // Also check for payment entries that might reference the order (legacy entries)
+                            List<CustomerLedgerEntry> orderPaymentEntries = customerLedgerEntryRepository
+                                .findByReferenceTypeAndReferenceId("ORDER", outstanding.getReferenceId());
+                            
+                            // Filter to only payment type entries from order references
+                            List<CustomerLedgerEntry> allPaymentEntries = new ArrayList<>();
+                            
+                            // Add payment entries that directly reference the outstanding item
+                            allPaymentEntries.addAll(paymentEntries);
+                            
+                            // Add payment entries that reference the order (legacy)
+                            for (CustomerLedgerEntry entry : orderPaymentEntries) {
+                                if ("PAYMENT".equals(entry.getReferenceType())) {
+                                    allPaymentEntries.add(entry);
+                                }
+                            }
+                            
+                            // Check if we already have payment entries that match the paid amount
+                            boolean hasMatchingPayment = false;
+                            BigDecimal totalExistingPayments = BigDecimal.ZERO;
+                            
+                            System.out.println("=== Checking existing payment entries for outstanding item #" + outstanding.getId() + " ===");
+                            System.out.println("Found " + allPaymentEntries.size() + " existing payment entries");
+                            
+                            for (CustomerLedgerEntry paymentEntry : allPaymentEntries) {
+                                System.out.println("Payment entry: " + paymentEntry.getParticulars() + 
+                                                 ", Amount: ₹" + paymentEntry.getCreditAmount() + 
+                                                 ", Reference: " + paymentEntry.getReferenceType() + "/" + paymentEntry.getReferenceId());
+                                if (paymentEntry.getCreditAmount() != null) {
+                                    totalExistingPayments = totalExistingPayments.add(paymentEntry.getCreditAmount());
+                                }
+                            }
+                            
+                            // Also check for advance payments that might have been applied to this invoice
+                            // Look for "Payment Received" entries that could be advance payments
+                            List<CustomerLedgerEntry> allCustomerEntries = customerLedgerEntryRepository
+                                .findByCustomerLedgerIdOrderByEntryDateDesc(customerLedger.getId());
+                            
+                            BigDecimal advancePaymentsApplied = BigDecimal.ZERO;
+                            for (CustomerLedgerEntry entry : allCustomerEntries) {
+                                if ("PAYMENT".equals(entry.getReferenceType()) && 
+                                    entry.getParticulars() != null && 
+                                    entry.getParticulars().contains("Payment Received") &&
+                                    entry.getCreditAmount() != null) {
+                                    advancePaymentsApplied = advancePaymentsApplied.add(entry.getCreditAmount());
+                                }
+                            }
+                            
+                            System.out.println("Total existing payments: ₹" + totalExistingPayments + 
+                                             ", Advance payments: ₹" + advancePaymentsApplied + 
+                                             ", Required: ₹" + paidAmount);
+                            
+                            // If the total existing payments + advance payments match the paid amount, don't create new entries
+                            BigDecimal totalAvailablePayments = totalExistingPayments.add(advancePaymentsApplied);
+                            if (totalAvailablePayments.compareTo(paidAmount) >= 0) {
+                                hasMatchingPayment = true;
+                                System.out.println("✓ Payment entries already exist (including advance payments) - skipping creation");
+                            } else {
+                                System.out.println("✗ Need to create payment entry - existing: ₹" + totalAvailablePayments + ", required: ₹" + paidAmount);
+                            }
+                            
+                            if (!hasMatchingPayment) {
+                                // Create payment entry for the paid amount
+                                CustomerLedgerEntry paymentEntry = new CustomerLedgerEntry(
+                                    customerLedger,
+                                    "Payment for " + invoiceEntry.getParticulars() + " (Paid: ₹" + paidAmount + ", Remaining: ₹" + currentOutstandingAmount + ")",
+                                    "PAYMENT",
+                                    outstanding.getId(),
+                                    "PAY-" + System.currentTimeMillis()
+                                );
+                                
+                                paymentEntry.setCreditAmount(paidAmount);
+                                paymentEntry.setBalanceAfter(customerLedger.getCurrentBalance().subtract(paidAmount));
+                                paymentEntry.setPaymentMethod(outstanding.getPaymentMethod() != null ? outstanding.getPaymentMethod() : "Cash");
+                                paymentEntry.setPaymentReference(outstanding.getPaymentReference());
+                                
+                                // Update customer ledger balance
+                                customerLedger.addCredit(paidAmount);
+                                customerLedgerRepository.save(customerLedger);
+                                
+                                // Save the payment entry
+                                customerLedgerEntryRepository.save(paymentEntry);
+                                
+                                syncedCount++;
+                                System.out.println("Created payment entry for outstanding item #" + outstanding.getId() + 
+                                                 " - Paid: ₹" + paidAmount + ", Remaining: ₹" + currentOutstandingAmount);
+                            } else {
+                                System.out.println("Payment entries already exist for outstanding item #" + outstanding.getId() + 
+                                                 " - Total existing payments: ₹" + totalExistingPayments + ", Required: ₹" + paidAmount);
+                            }
+                        } else {
+                            System.out.println("No payment needed for outstanding item #" + outstanding.getId() + " (Amount: ₹" + currentOutstandingAmount + ")");
+                        }
+                    } else {
+                        System.out.println("No invoice entry found for outstanding item #" + outstanding.getId());
+                    }
+                    
+                } catch (Exception e) {
+                    errorCount++;
+                    System.err.println("Error syncing outstanding item #" + outstanding.getId() + ": " + e.getMessage());
+                }
+            }
+            
+            String result = "Sync completed. Synced: " + syncedCount + ", Errors: " + errorCount;
+            System.out.println("=== " + result + " ===");
+            return result;
+            
+        } catch (Exception e) {
+            String error = "Error during forced sync: " + e.getMessage();
+            System.err.println(error);
+            e.printStackTrace();
+            return error;
+        }
+    }
+
     /**
      * Create outstanding items for existing orders and POs
      */

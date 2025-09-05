@@ -13,6 +13,7 @@ public class OrderDisplayDto {
     private String billType;
     private BigDecimal total;
     private String orderStatus;
+    private boolean canModify = true; // Default to true
     
     // Constructor
     public OrderDisplayDto(Long id, String invoiceNumber, LocalDateTime createdAt, String name, 
@@ -99,5 +100,13 @@ public class OrderDisplayDto {
     
     public void setOrderStatus(String orderStatus) {
         this.orderStatus = orderStatus;
+    }
+    
+    public boolean isCanModify() {
+        return canModify;
+    }
+    
+    public void setCanModify(boolean canModify) {
+        this.canModify = canModify;
     }
 }

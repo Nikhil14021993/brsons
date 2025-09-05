@@ -36,6 +36,7 @@ import com.brsons.model.Order;
 import com.brsons.model.OrderItem;
 import com.brsons.model.Product;
 import com.brsons.service.OrderService;
+import com.brsons.service.OutstandingService;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -76,6 +77,9 @@ public class OrderController {
 	    private EntityManager entityManager;
 @Autowired
 OrderService orderService;
+
+@Autowired
+private OutstandingService outstandingService;
 
 @Autowired
 private ProductRepository productRepository;
@@ -159,6 +163,18 @@ private String invoiceStorageDir;
 	            return ResponseEntity.badRequest().body("Order cannot be cancelled");
 	        }
 	        
+	        // Check if order can be cancelled based on outstanding status
+	        if (!outstandingService.canModifyOrder(orderId)) {
+	            return ResponseEntity.badRequest().body("Order cannot be cancelled as it has been fully settled");
+	        }
+	        
+	        // Handle outstanding and customer ledger reversal
+	        try {
+	            outstandingService.handleOrderCancellation(order);
+	        } catch (Exception e) {
+	            return ResponseEntity.badRequest().body("Cannot cancel order: " + e.getMessage());
+	        }
+	        
 	        // Restore stock quantities for all items in the order
 	        List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
 	        for (OrderItem item : orderItems) {
@@ -171,7 +187,7 @@ private String invoiceStorageDir;
 	                
 	                // Update product status if it was "Out of Stock" and now has stock
 	                if ("Out of Stock".equals(product.getStatus()) && restoredStock > 0) {
-	                    product.setStatus("Active");
+	                product.setStatus("Active");
 	                }
 	                
 	                // Save updated product

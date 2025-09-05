@@ -9,6 +9,7 @@ import com.brsons.model.OrderItem;
 import com.brsons.model.Product;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,6 +26,9 @@ public class AdminOrderService {
     
     @Autowired
     private ProductRepository productRepository;
+    
+    @Autowired
+    private OutstandingService outstandingService;
     
     	public List<OrderDisplayDto> getAllOrders() {
 		// Filter to show only orders with bill_type = 'Pakka'
@@ -81,18 +85,32 @@ public class AdminOrderService {
         return order != null ? convertToDto(order) : null;
     }
     
+    @Transactional
     public boolean updateOrderStatus(Long orderId, String newStatus) {
         Order order = orderRepository.findById(orderId).orElse(null);
         if (order != null) {
             String oldStatus = order.getOrderStatus();
             
+            // Check if order can be modified based on outstanding status
+            if (!outstandingService.canModifyOrder(orderId)) {
+                throw new RuntimeException("Cannot modify order that has been fully settled");
+            }
+            
             // Handle stock management based on status change
             if ("Cancelled".equals(newStatus) && !"Cancelled".equals(oldStatus)) {
-                // Order is being cancelled - restore stock quantities
+                // Order is being cancelled - handle outstanding and ledger reversal
+                try {
+                    outstandingService.handleOrderCancellation(order);
+                } catch (Exception e) {
+                    throw new RuntimeException("Cannot cancel order: " + e.getMessage());
+                }
+                // Restore stock quantities
                 restoreStockQuantities(order);
             } else if (!"Cancelled".equals(newStatus) && "Cancelled".equals(oldStatus)) {
                 // Order is being uncancelled - reduce stock quantities again
                 reduceStockQuantities(order);
+                // Note: Outstanding items are not recreated when uncancelling
+                // This would require recreating the original outstanding item
             }
             
             order.setOrderStatus(newStatus);
