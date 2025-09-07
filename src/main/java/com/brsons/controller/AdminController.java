@@ -16,6 +16,7 @@ import com.brsons.repository.OrderItemRepository;
 import com.brsons.service.DayBookService;
 import com.brsons.service.OutstandingService;
 import com.brsons.service.AdminOrderService;
+import com.brsons.service.OrderService;
 
 import com.brsons.dto.OrderDisplayDto;
 import com.brsons.repository.InvoiceRepository;
@@ -83,6 +84,9 @@ public class AdminController {
 	
 	@Autowired
     private OutstandingService outstandingService;
+    
+    @Autowired
+    private OrderService orderService;
 	
 	@Autowired
     private UserRepository userRepository;
@@ -1327,6 +1331,67 @@ public class AdminController {
         PdfPCell cell = new PdfPCell(new Phrase(text));
         cell.setPadding(5);
         table.addCell(cell);
+    }
+    
+    /**
+     * Admin-specific order cancellation - can cancel orders with any status
+     */
+    @PostMapping("/admin/orders/{orderId}/cancel")
+    @ResponseBody
+    public String adminCancelOrder(@PathVariable Long orderId, HttpSession session) {
+        if (!isAdmin(session)) {
+            return "unauthorized";
+        }
+        
+        try {
+            // Get order details
+            Order order = orderService.getOrderById(orderId);
+            if (order == null) {
+                return "Order not found";
+            }
+            
+            // Check if order can be cancelled based on outstanding status
+            if (!outstandingService.canModifyOrder(orderId)) {
+                return "Order cannot be cancelled as it has been fully settled";
+            }
+            
+            // Handle outstanding and customer ledger reversal
+            try {
+                outstandingService.handleOrderCancellation(order);
+            } catch (Exception e) {
+                return "Cannot cancel order: " + e.getMessage();
+            }
+            
+            // Restore stock quantities for all items in the order
+            List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
+            for (OrderItem item : orderItems) {
+                Product product = productRepository.findById(item.getProductId()).orElse(null);
+                if (product != null) {
+                    // Restore the quantity that was ordered
+                    int currentStock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
+                    int restoredStock = currentStock + item.getQuantity();
+                    product.setStockQuantity(restoredStock);
+                    
+                    // Update product status if it was "Out of Stock" and now has stock
+                    if ("Out of Stock".equals(product.getStatus()) && restoredStock > 0) {
+                        product.setStatus("Active");
+                    }
+                    
+                    // Save updated product
+                    productRepository.save(product);
+                }
+            }
+            
+            // Update order status to cancelled
+            order.setOrderStatus("Cancelled");
+            orderService.updateOrder(order);
+            
+            return "success";
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Error cancelling order: " + e.getMessage();
+        }
     }
 
 }

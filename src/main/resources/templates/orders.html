@@ -761,9 +761,11 @@
                             <i class="fas fa-download"></i> Download Invoice
                         </button>
                         
-                        <!-- Cancel Button for orders within 14 days -->
-                        <button th:if="${order.createdAt != null and order.orderStatus != null and order.orderStatus != 'Cancelled' and order.orderStatus != 'Delivered'}"
+                        <!-- Cancel Button - Users can only cancel Pending orders, Admins can cancel any order -->
+                        <button th:if="${order.createdAt != null and order.orderStatus != null and order.orderStatus != 'Cancelled' and 
+                                    ((session.user != null and session.user.type == 'Admin') or order.orderStatus == 'Pending')}"
                                 onclick="cancelOrder(this)" th:data-order-id="${order.id}"
+                                th:data-is-admin="${session.user != null and session.user.type == 'Admin'}"
                                 style="background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">
                             Cancel Order
                         </button>
@@ -946,8 +948,12 @@
             
             showLoading(true);
             
-            // Call the cancel order endpoint
-            fetch(`/orders/${currentOrderId}/cancel`, {
+            // Check if user is admin to determine which endpoint to use
+            const isAdmin = document.querySelector(`button[data-order-id="${currentOrderId}"]`).getAttribute('data-is-admin') === 'true';
+            const endpoint = isAdmin ? `/admin/orders/${currentOrderId}/cancel` : `/orders/${currentOrderId}/cancel`;
+            
+            // Call the appropriate cancel order endpoint
+            fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -956,7 +962,7 @@
             .then(response => response.text())
             .then(result => {
                 showLoading(false);
-                if (result.includes('successfully')) {
+                if (result.includes('successfully') || result === 'success') {
                     alert('Order cancelled successfully!');
                     closeCancelModal();
                     

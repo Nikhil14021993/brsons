@@ -24,13 +24,6 @@ public class TrialBalanceController {
         this.trialBalanceService = trialBalanceService;
     }
 
-    @GetMapping("/trial-balance-ui")
-    public String trialBalancePage(HttpSession session) {
-    	if (isAdmin(session)) {
-        return "trial_balance"; // trial_balance.html
-    	}
-    	return "redirect:/";
-    }
 
     @GetMapping("/trial-balance-tally")
     public String trialBalanceTallyPage(HttpSession session) {

@@ -157,11 +157,10 @@ private String invoiceStorageDir;
 	            return ResponseEntity.status(404).body("Order not found");
 	        }
 	        
-	        // Check if order can be cancelled (within 14 days and not delivered/cancelled)
-	        if (order.getOrderStatus() != null && 
-	            (order.getOrderStatus().equals("Delivered") || order.getOrderStatus().equals("Cancelled"))) {
-	            return ResponseEntity.badRequest().body("Order cannot be cancelled");
-	        }
+        // Check if order can be cancelled - users can only cancel Pending orders
+        if (order.getOrderStatus() == null || !order.getOrderStatus().equals("Pending")) {
+            return ResponseEntity.badRequest().body("Order can only be cancelled while it's in Pending status");
+        }
 	        
 	        // Check if order can be cancelled based on outstanding status
 	        if (!outstandingService.canModifyOrder(orderId)) {
