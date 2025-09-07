@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Accounts Loading</title>
+</head>
+<body>
+    <h1>Test Accounts Loading</h1>
+    <p>Open browser console to see account data</p>
+    
+    <script>
+        // Test if we can access the accounts endpoint
+        fetch('/admin/vouchers/test-accounts')
+            .then(response => response.text())
+            .then(html => {
+                console.log('Response received');
+                // Extract accounts from the response
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const scriptTags = doc.querySelectorAll('script');
+                scriptTags.forEach(script => {
+                    if (script.textContent.includes('accounts')) {
+                        console.log('Found accounts script:', script.textContent);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching accounts:', error);
+            });
+    </script>
+</body>
+</html>

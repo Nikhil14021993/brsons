@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test AJAX Accounts Loading</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; }
+        .result { background: white; padding: 10px; margin: 10px 0; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>Test AJAX Accounts Loading</h1>
+    
+    <div class="debug">
+        <h3>Test AJAX Endpoints</h3>
+        <button onclick="testDebugAccounts()">Test /admin/vouchers/debug-accounts</button>
+        <button onclick="testSimpleAccounts()">Test /admin/vouchers/simple-accounts</button>
+        <button onclick="testVoucherForm()">Test /admin/vouchers/new</button>
+    </div>
+    
+    <div id="results" class="result">
+        <h3>Results will appear here</h3>
+    </div>
+
+    <script>
+        function testDebugAccounts() {
+            console.log('Testing debug-accounts endpoint...');
+            fetch('/admin/vouchers/debug-accounts')
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Debug accounts data:', data);
+                    document.getElementById('results').innerHTML = 
+                        '<h3>Debug Accounts Result</h3><p>Found ' + data.length + ' accounts</p><pre>' + 
+                        JSON.stringify(data, null, 2) + '</pre>';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('results').innerHTML = 
+                        '<h3>Debug Accounts Error</h3><p>' + error.message + '</p>';
+                });
+        }
+        
+        function testSimpleAccounts() {
+            console.log('Testing simple-accounts endpoint...');
+            fetch('/admin/vouchers/simple-accounts')
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Simple accounts data:', data);
+                    document.getElementById('results').innerHTML = 
+                        '<h3>Simple Accounts Result</h3><p>Found ' + data.length + ' accounts</p><pre>' + 
+                        JSON.stringify(data, null, 2) + '</pre>';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('results').innerHTML = 
+                        '<h3>Simple Accounts Error</h3><p>' + error.message + '</p>';
+                });
+        }
+        
+        function testVoucherForm() {
+            console.log('Testing voucher form...');
+            fetch('/admin/vouchers/new')
+                .then(response => response.text())
+                .then(html => {
+                    console.log('Voucher form HTML received');
+                    // Look for accounts in the HTML
+                    const accountsMatch = html.match(/const thymeleafAccounts = (\[.*?\]);/);
+                    if (accountsMatch) {
+                        try {
+                            const accounts = JSON.parse(accountsMatch[1]);
+                            console.log('Accounts found in voucher form:', accounts);
+                            document.getElementById('results').innerHTML = 
+                                '<h3>Voucher Form Result</h3><p>Found ' + accounts.length + ' accounts in voucher form</p><pre>' + 
+                                JSON.stringify(accounts, null, 2) + '</pre>';
+                        } catch (e) {
+                            console.error('Error parsing accounts:', e);
+                            document.getElementById('results').innerHTML = 
+                                '<h3>Voucher Form Error</h3><p>Error parsing accounts: ' + e.message + '</p>';
+                        }
+                    } else {
+                        document.getElementById('results').innerHTML = 
+                            '<h3>Voucher Form Result</h3><p>No accounts found in voucher form HTML</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Voucher form error:', error);
+                    document.getElementById('results').innerHTML = 
+                        '<h3>Voucher Form Error</h3><p>' + error.message + '</p>';
+                });
+        }
+    </script>
+</body>
+</html>

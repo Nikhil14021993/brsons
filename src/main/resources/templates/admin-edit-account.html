@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Edit Account</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+        }
+        .page-content {
+            padding: 20px;
+        }
+        .form-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        .form-row {
+            display: flex;
+            gap: 20px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .required {
+            color: red;
+        }
+        .help-text {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">Cloth Shop</div>
+        <ul class="navbar-links">
+            <li><a th:href="@{/}">Home</a></li>
+            <li th:if="${session.user != null and session.user.type == 'Admin'}">
+                <a th:href="@{/admin}">Admin</a>
+            </li>
+            <li><a th:href="@{/shop}">Shop</a></li>
+            <li th:if="${session.user != null}">
+                <a th:href="@{/orders}">Orders</a>
+            </li>
+            <li><a href="#">Services</a></li>
+            <li><a href="#">Pricing</a></li>
+            <li><a href="#">About Us</a></li>
+            <li><a href="#">Contact Us</a></li>
+            
+            <!-- Dynamic Login/Logout -->
+            <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+            <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+        </ul>
+    </nav>
+
+    <div class="page-content">
+        <div class="form-container">
+            <a th:href="@{/admin/accounts}" class="back-link">← Back to Accounts</a>
+            <h1>Edit Account</h1>
+
+            <form th:action="@{/admin/accounts/update}" method="post">
+                <input type="hidden" name="id" th:value="${account.id}">
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="code">Account Code <span class="required">*</span></label>
+                        <input type="text" id="code" name="code" required 
+                               th:value="${account.code}"
+                               placeholder="e.g., 1001, 2001">
+                        <div class="help-text">Unique code for the account</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="name">Account Name <span class="required">*</span></label>
+                        <input type="text" id="name" name="name" required 
+                               th:value="${account.name}"
+                               placeholder="e.g., Cash, Bank, Sales">
+                        <div class="help-text">Name of the account</div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="type">Account Type <span class="required">*</span></label>
+                        <select id="type" name="type" required>
+                            <option value="">Select Account Type</option>
+                            <option th:each="accountType : ${accountTypes}" 
+                                    th:value="${accountType}" 
+                                    th:selected="${accountType == account.type}"
+                                    th:text="${accountType}"></option>
+                        </select>
+                        <div class="help-text">ASSET, LIABILITY, INCOME, EXPENSE, or EQUITY</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="parentId">Parent Account</label>
+                        <select id="parentId" name="parentId">
+                            <option value="">Select Parent Account (Optional)</option>
+                            <option th:each="parent : ${parentAccounts}" 
+                                    th:value="${parent.id}" 
+                                    th:selected="${parent.id == account.parent?.id}"
+                                    th:text="${parent.getFullName() + ' (' + parent.type + ')'}"></option>
+                        </select>
+                        <div class="help-text">Leave empty for main account. Select any account to create a sub-account under it.</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" 
+                              th:text="${account.description}"
+                              placeholder="Optional description of the account"></textarea>
+                </div>
+
+                <button type="submit">Update Account</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 package com.brsons.controller;
 
 import com.brsons.dto.TrialBalanceRow;
+import com.brsons.dto.HierarchicalTrialBalanceRow;
 import com.brsons.model.User;
 import com.brsons.service.TrialBalanceService;
 
@@ -30,6 +31,14 @@ public class TrialBalanceController {
     	}
     	return "redirect:/";
     }
+
+    @GetMapping("/trial-balance-tally")
+    public String trialBalanceTallyPage(HttpSession session) {
+    	if (isAdmin(session)) {
+        return "trial_balance_tally"; // trial_balance_tally.html
+    	}
+    	return "redirect:/";
+    }
     private boolean isAdmin(HttpSession session) {
         User user = (User) session.getAttribute("user");
         return user != null && "Admin".equalsIgnoreCase(user.getType());
@@ -46,5 +55,17 @@ public class TrialBalanceController {
         return trialBalanceService.getTrialBalance(startDate, endDate);
     	}
     	return trialBalanceService.getTrialBalance(customDate, customDate);
+    }
+
+    @GetMapping("/hierarchical-trial-balance")
+    @ResponseBody
+    public List<HierarchicalTrialBalanceRow> getHierarchicalTrialBalance(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate, 
+            HttpSession session) {
+    	if (isAdmin(session)) {
+        return trialBalanceService.getHierarchicalTrialBalance(startDate, endDate);
+    	}
+    	return trialBalanceService.getHierarchicalTrialBalance(customDate, customDate);
     }
 }

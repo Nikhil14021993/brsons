@@ -31,4 +31,16 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 	
 	// Find accounts by name containing the given text (case insensitive)
 	List<Account> findByNameContainingIgnoreCase(String name);
+	
+	// Find parent accounts (accounts with no parent)
+	List<Account> findByParentIsNullAndIsActiveTrue();
+	
+	// Find sub-accounts by parent
+	List<Account> findByParentIdAndIsActiveTrue(Long parentId);
+	
+	// Find accounts by type
+	List<Account> findByTypeAndIsActiveTrue(String type);
+	
+	// Find all active accounts
+	List<Account> findByIsActiveTrue();
 }

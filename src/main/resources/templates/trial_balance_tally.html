@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Trial Balance - Tally Style</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0;
+            background: #f4f6f8;
+        }
+        .page-content {
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.2rem;
+        }
+        .form-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        .form-container label {
+            margin: 0 10px;
+            font-weight: bold;
+            color: #495057;
+        }
+        .form-container input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin: 0 10px;
+            font-size: 14px;
+        }
+        .form-container button {
+            background: #007bff;
+            color: white;
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .form-container button:hover {
+            background: #0056b3;
+        }
+        .trial-balance-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .trial-balance-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            border: none;
+        }
+        .trial-balance-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            vertical-align: top;
+        }
+        .trial-balance-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .account-name {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        .parent-account {
+            font-weight: 600;
+            color: #2c3e50;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            user-select: none;
+        }
+        .parent-account:hover {
+            background-color: #e9ecef;
+        }
+        .parent-account .amount {
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .sub-account .amount {
+            font-weight: 500;
+            font-size: 13px;
+        }
+        .sub-account {
+            color: #6c757d;
+            padding-left: 20px;
+        }
+        .sub-account.level-1 {
+            padding-left: 30px;
+        }
+        .sub-account.level-2 {
+            padding-left: 40px;
+        }
+        .sub-account.level-3 {
+            padding-left: 50px;
+        }
+        .sub-account.level-4 {
+            padding-left: 60px;
+        }
+        .sub-account.level-5 {
+            padding-left: 70px;
+        }
+        .expand-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            text-align: center;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .expand-icon.expanded::before {
+            content: "▼";
+        }
+        .expand-icon.collapsed::before {
+            content: "▶";
+        }
+        .amount {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+        }
+        .debit-amount {
+            color: #dc3545;
+        }
+        .credit-amount {
+            color: #28a745;
+        }
+        .zero-amount {
+            color: #6c757d;
+        }
+        .totals-row {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .totals-row td {
+            border: none;
+            padding: 15px 12px;
+        }
+        .account-type-header {
+            background: #e9ecef;
+            color: #495057;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 8px 16px;
+            border: 1px solid #007bff;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+        .back-link:hover {
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        .controls {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+        .controls button {
+            background: #6c757d;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 12px;
+        }
+        .controls button:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">Cloth Shop</div>
+        <ul class="navbar-links">
+            <li><a th:href="@{/}">Home</a></li>
+            <li th:if="${session.user != null and session.user.type == 'Admin'}">
+                <a th:href="@{/admin}">Admin</a>
+            </li>
+            <li><a th:href="@{/shop}">Shop</a></li>
+            <li th:if="${session.user != null}">
+                <a th:href="@{/orders}">Orders</a>
+            </li>
+            <li><a href="#">Services</a></li>
+            <li><a href="#">Pricing</a></li>
+            <li><a href="#">About Us</a></li>
+            <li><a href="#">Contact Us</a></li>
+            
+            <!-- Dynamic Login/Logout -->
+            <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+            <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+        </ul>
+    </nav>
+
+    <div class="page-content">
+        <div class="container">
+            <a th:href="@{/admin}" class="back-link">← Back to Admin Panel</a>
+            <h1>Trial Balance - Tally Style</h1>
+
+            <div class="form-container">
+                <form id="trialBalanceForm">
+                    <label>Start Date:</label>
+                    <input type="date" id="startDate" required>
+                    <label>End Date:</label>
+                    <input type="date" id="endDate" required>
+                    <button type="submit">Get Trial Balance</button>
+                </form>
+            </div>
+
+            <div class="controls">
+                <button onclick="expandAll()">Expand All</button>
+                <button onclick="collapseAll()">Collapse All</button>
+            </div>
+
+            <div id="loadingMessage" class="loading" style="display: none;">
+                Loading trial balance...
+            </div>
+
+            <div id="noDataMessage" class="no-data" style="display: none;">
+                No data available for the selected date range.
+            </div>
+
+            <table id="trialBalanceTable" class="trial-balance-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th style="width: 50%;">Account Name</th>
+                        <th style="width: 25%;">Debit (₹)</th>
+                        <th style="width: 25%;">Credit (₹)</th>
+                    </tr>
+                </thead>
+                <tbody id="trialBalanceBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let trialBalanceData = [];
+        let currentStartDate = '';
+        let currentEndDate = '';
+
+        document.getElementById("trialBalanceForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+            loadTrialBalance();
+        });
+
+        function loadTrialBalance() {
+            const startDate = document.getElementById("startDate").value;
+            const endDate = document.getElementById("endDate").value;
+
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+
+            currentStartDate = startDate;
+            currentEndDate = endDate;
+
+            showLoading(true);
+            hideTable();
+            hideNoData();
+
+            fetch(`/accounting/hierarchical-trial-balance?startDate=${startDate}&endDate=${endDate}`)
+                .then(response => response.json())
+                .then(data => {
+                    trialBalanceData = data;
+                    renderTrialBalance();
+                    showLoading(false);
+                })
+                .catch(error => {
+                    console.error('Error loading trial balance:', error);
+                    showLoading(false);
+                    showNoData();
+                });
+        }
+
+        function renderTrialBalance() {
+            console.log("=== RENDER TRIAL BALANCE DEBUG ===");
+            console.log("Trial balance data:", trialBalanceData);
+            console.log("Data length:", trialBalanceData ? trialBalanceData.length : "null");
+            
+            const tbody = document.getElementById("trialBalanceBody");
+            tbody.innerHTML = "";
+
+            if (!trialBalanceData || trialBalanceData.length === 0) {
+                console.log("No data available, showing no data message");
+                showNoData();
+                return;
+            }
+
+            let totalDebit = 0;
+            let totalCredit = 0;
+            let currentType = '';
+
+            trialBalanceData.forEach((account, index) => {
+                console.log(`Processing account ${index}:`, account);
+                
+                // Add account type header if changed
+                if (currentType !== account.accountType) {
+                    currentType = account.accountType;
+                    console.log("Adding type header for:", account.accountType);
+                    addTypeHeader(tbody, account.accountType);
+                }
+
+                // Render account and all its nested children recursively
+                renderAccountHierarchy(tbody, account, 0);
+                
+                totalDebit += parseFloat(account.totalDebit || 0);
+                totalCredit += parseFloat(account.totalCredit || 0);
+            });
+
+            // Add totals row
+            addTotalsRow(tbody, totalDebit, totalCredit);
+            
+            showTable();
+        }
+
+        function renderAccountHierarchy(tbody, account, level) {
+            console.log(`Rendering account at level ${level}:`, account.accountName);
+            
+            // Add the current account
+            addAccountRow(tbody, account, level, level === 0, account.parentAccountId);
+            
+            // Recursively render sub-accounts
+            if (account.subAccounts && account.subAccounts.length > 0) {
+                console.log(`Rendering ${account.subAccounts.length} sub-accounts for:`, account.accountName);
+                account.subAccounts.forEach(subAccount => {
+                    renderAccountHierarchy(tbody, subAccount, level + 1);
+                });
+            }
+        }
+
+        function addTypeHeader(tbody, accountType) {
+            const row = document.createElement("tr");
+            row.className = "account-type-header";
+            row.innerHTML = `
+                <td colspan="3">${accountType} ACCOUNTS</td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        function addAccountRow(tbody, account, level, isParent, parentId = null) {
+            const row = document.createElement("tr");
+            row.className = isParent ? "parent-account" : `sub-account level-${level}`;
+            row.setAttribute('data-account-id', account.accountId);
+            row.setAttribute('data-parent-id', parentId);
+            row.setAttribute('data-level', level);
+            
+            // Check if this account has children (regardless of level)
+            if (account.subAccounts && account.subAccounts.length > 0) {
+                row.setAttribute('data-has-children', 'true');
+                row.setAttribute('data-expanded', 'false');
+                row.style.cursor = 'pointer';
+                row.onclick = () => toggleAccount(account.accountId);
+            }
+
+            const expandIcon = account.subAccounts && account.subAccounts.length > 0 
+                ? '<span class="expand-icon collapsed"></span>' 
+                : '<span class="expand-icon" style="visibility: hidden;"></span>';
+
+            // Create proper indentation based on level
+            const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
+            const accountName = isParent 
+                ? `${expandIcon}${account.accountName}` 
+                : `${indent}${expandIcon}└─ ${account.accountName}`;
+
+            const debitAmount = parseFloat(account.totalDebit);
+            const creditAmount = parseFloat(account.totalCredit);
+
+            row.innerHTML = `
+                <td class="account-name">${accountName}</td>
+                <td class="amount ${debitAmount > 0 ? 'debit-amount' : 'zero-amount'}">
+                    ${debitAmount > 0 ? debitAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}) : '0.00'}
+                </td>
+                <td class="amount ${creditAmount > 0 ? 'credit-amount' : 'zero-amount'}">
+                    ${creditAmount > 0 ? creditAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}) : '0.00'}
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        }
+
+        function addTotalsRow(tbody, totalDebit, totalCredit) {
+            const row = document.createElement("tr");
+            row.className = "totals-row";
+            row.innerHTML = `
+                <td><strong>TOTAL</strong></td>
+                <td class="amount"><strong>${totalDebit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></td>
+                <td class="amount"><strong>${totalCredit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        function toggleAccount(accountId) {
+            const parentRow = document.querySelector(`tr[data-account-id="${accountId}"][data-has-children="true"]`);
+            if (!parentRow) return;
+
+            const isExpanded = parentRow.getAttribute('data-expanded') === 'true';
+            const expandIcon = parentRow.querySelector('.expand-icon');
+            
+            // Toggle all descendants recursively
+            toggleAccountChildren(accountId, !isExpanded);
+
+            // Update parent row
+            parentRow.setAttribute('data-expanded', !isExpanded);
+            expandIcon.className = isExpanded ? 'expand-icon collapsed' : 'expand-icon expanded';
+        }
+
+        function toggleAccountChildren(accountId, show) {
+            // Find all direct children
+            const directChildren = document.querySelectorAll(`tr[data-parent-id="${accountId}"]`);
+            
+            directChildren.forEach(childRow => {
+                const childAccountId = childRow.getAttribute('data-account-id');
+                const hasChildren = childRow.getAttribute('data-has-children') === 'true';
+                
+                // Show/hide the direct child
+                childRow.style.display = show ? 'table-row' : 'none';
+                
+                // If this child has children and we're hiding, hide all its descendants too
+                if (hasChildren) {
+                    if (!show) {
+                        // When hiding, always hide all descendants
+                        toggleAccountChildren(childAccountId, false);
+                        // Update the child's expanded state to collapsed
+                        childRow.setAttribute('data-expanded', 'false');
+                        const childExpandIcon = childRow.querySelector('.expand-icon');
+                        if (childExpandIcon) {
+                            childExpandIcon.className = 'expand-icon collapsed';
+                        }
+                    } else {
+                        // When showing, only show if the child was previously expanded
+                        const wasExpanded = childRow.getAttribute('data-expanded') === 'true';
+                        if (wasExpanded) {
+                            toggleAccountChildren(childAccountId, true);
+                        }
+                    }
+                }
+            });
+        }
+
+        function expandAll() {
+            // Find all top-level parent accounts (level 0)
+            const topLevelParents = document.querySelectorAll('tr[data-level="0"][data-has-children="true"]');
+            topLevelParents.forEach(row => {
+                const accountId = row.getAttribute('data-account-id');
+                const isExpanded = row.getAttribute('data-expanded') === 'true';
+                if (!isExpanded) {
+                    toggleAccount(parseInt(accountId));
+                }
+            });
+        }
+
+        function collapseAll() {
+            // Find all parent accounts and collapse them
+            const parentRows = document.querySelectorAll('tr[data-has-children="true"]');
+            parentRows.forEach(row => {
+                const accountId = row.getAttribute('data-account-id');
+                const isExpanded = row.getAttribute('data-expanded') === 'true';
+                if (isExpanded) {
+                    toggleAccount(parseInt(accountId));
+                }
+            });
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingMessage').style.display = show ? 'block' : 'none';
+        }
+
+        function showTable() {
+            document.getElementById('trialBalanceTable').style.display = 'table';
+        }
+
+        function hideTable() {
+            document.getElementById('trialBalanceTable').style.display = 'none';
+        }
+
+        function showNoData() {
+            document.getElementById('noDataMessage').style.display = 'block';
+        }
+
+        function hideNoData() {
+            document.getElementById('noDataMessage').style.display = 'none';
+        }
+
+        // Set default dates
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            document.getElementById('startDate').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+        });
+    </script>
+</body>
+</html>

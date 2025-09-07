@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Account Management</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .page-content {
+            padding: 20px;
+        }
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+            padding: 6px 12px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .accounts-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .accounts-table th,
+        .accounts-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .accounts-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+        .accounts-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .sub-account {
+            padding-left: 30px;
+            color: #6c757d;
+        }
+        .account-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .type-asset { background-color: #d4edda; color: #155724; }
+        .type-liability { background-color: #f8d7da; color: #721c24; }
+        .type-income { background-color: #d1ecf1; color: #0c5460; }
+        .type-expense { background-color: #fff3cd; color: #856404; }
+        .type-equity { background-color: #e2e3e5; color: #383d41; }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .alert-danger {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">Cloth Shop</div>
+        <ul class="navbar-links">
+            <li><a th:href="@{/}">Home</a></li>
+            <li th:if="${session.user != null and session.user.type == 'Admin'}">
+                <a th:href="@{/admin}">Admin</a>
+            </li>
+            <li><a th:href="@{/shop}">Shop</a></li>
+            <li th:if="${session.user != null}">
+                <a th:href="@{/orders}">Orders</a>
+            </li>
+            <li><a href="#">Services</a></li>
+            <li><a href="#">Pricing</a></li>
+            <li><a href="#">About Us</a></li>
+            <li><a href="#">Contact Us</a></li>
+            
+            <!-- Dynamic Login/Logout -->
+            <li th:if="${session.user == null}"><a th:href="@{/login}">Login</a></li>
+            <li th:if="${session.user != null}"><a th:href="@{/logout}">Logout</a></li>
+        </ul>
+    </nav>
+
+    <div class="page-content">
+        <div class="header-section">
+            <h1>Account Management</h1>
+            <a th:href="@{/admin/accounts/new}" class="btn-primary">Add New Account</a>
+        </div>
+
+        <!-- Success/Error Messages -->
+        <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+        <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+
+        <!-- Accounts Table -->
+        <table class="accounts-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="account : ${parentAccounts}">
+                    <td th:text="${account.code}"></td>
+                    <td th:text="${account.name}"></td>
+                    <td>
+                        <span th:class="'account-type type-' + ${#strings.toLowerCase(account.type)}" 
+                              th:text="${account.type}"></span>
+                    </td>
+                    <td th:text="${account.description}"></td>
+                    <td>
+                        <span th:if="${account.active}" style="color: green;">Active</span>
+                        <span th:unless="${account.active}" style="color: red;">Inactive</span>
+                    </td>
+                    <td class="actions">
+                        <a th:href="@{/admin/accounts/edit(id=${account.id})}" class="btn-secondary">Edit</a>
+                        <a th:href="@{/admin/accounts/delete(id=${account.id})}" 
+                           class="btn-danger" 
+                           onclick="return confirm('Are you sure you want to deactivate this account?')">Deactivate</a>
+                    </td>
+                </tr>
+                <!-- Sub-accounts -->
+                <tr th:each="subAccount : ${allAccounts}" th:if="${subAccount.parent != null}">
+                    <td class="sub-account" th:text="${subAccount.getFullCode()}"></td>
+                    <td class="sub-account" th:text="${subAccount.getFullName()}"></td>
+                    <td>
+                        <span th:class="'account-type type-' + ${#strings.toLowerCase(subAccount.type)}" 
+                              th:text="${subAccount.type}"></span>
+                    </td>
+                    <td th:text="${subAccount.description}"></td>
+                    <td>
+                        <span th:if="${subAccount.active}" style="color: green;">Active</span>
+                        <span th:unless="${subAccount.active}" style="color: red;">Inactive</span>
+                    </td>
+                    <td class="actions">
+                        <a th:href="@{/admin/accounts/edit(id=${subAccount.id})}" class="btn-secondary">Edit</a>
+                        <a th:href="@{/admin/accounts/delete(id=${subAccount.id})}" 
+                           class="btn-danger" 
+                           onclick="return confirm('Are you sure you want to deactivate this account?')">Deactivate</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

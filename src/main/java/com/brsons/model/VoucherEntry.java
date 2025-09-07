@@ -41,6 +41,12 @@ public class VoucherEntry {
 	public void setCredit(BigDecimal credit) {
 		this.credit = credit;
 	}
+	public String getDescription() {
+		return description;
+	}
+	public void setDescription(String description) {
+		this.description = description;
+	}
 	@Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -55,4 +61,5 @@ public class VoucherEntry {
 
     private BigDecimal debit = BigDecimal.ZERO;
     private BigDecimal credit = BigDecimal.ZERO;
+    private String description;
 }

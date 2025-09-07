@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Test Accounts Loading</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .account-list { margin: 10px 0; }
+        .account-item { padding: 5px; margin: 2px 0; background: white; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>Test Accounts Loading</h1>
+    
+    <div class="debug">
+        <h3>Debug Information</h3>
+        <p><strong>Total accounts:</strong> <span th:text="${accounts.size()}">0</span></p>
+        <p><strong>Accounts type:</strong> <span th:text="${accounts.getClass().getSimpleName()}">Unknown</span></p>
+    </div>
+    
+    <div class="account-list">
+        <h3>Account List</h3>
+        <div th:each="account : ${accounts}" class="account-item">
+            <strong th:text="${account.name}">Account Name</strong> 
+            (ID: <span th:text="${account.id}">0</span>, 
+            Type: <span th:text="${account.type}">Unknown</span>)
+            <span th:if="${account.parent != null}">
+                - Parent: <span th:text="${account.parent.name}">Parent</span>
+            </span>
+        </div>
+    </div>
+    
+    <div class="debug">
+        <h3>JavaScript Test</h3>
+        <p>Open browser console to see JavaScript output</p>
+        <div id="jsDebug"></div>
+    </div>
+
+    <script>
+        const accounts = /*[[${accounts}]]*/ [];
+        
+        console.log('=== ACCOUNTS DEBUG ===');
+        console.log('Accounts:', accounts);
+        console.log('Type:', typeof accounts);
+        console.log('Is Array:', Array.isArray(accounts));
+        console.log('Length:', accounts ? accounts.length : 'undefined');
+        
+        if (accounts && accounts.length > 0) {
+            console.log('First account:', accounts[0]);
+            accounts.forEach((acc, index) => {
+                console.log(`Account ${index}:`, acc);
+            });
+        }
+        
+        // Update debug div
+        document.getElementById('jsDebug').innerHTML = `
+            <p>JS Accounts: ${accounts ? accounts.length : 'undefined'}</p>
+            <p>First account: ${accounts && accounts[0] ? accounts[0].name : 'none'}</p>
+        `;
+    </script>
+</body>
+</html>
