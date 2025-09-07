@@ -127,7 +127,7 @@ public class Order {
 
     private String status; // like "Active", "Cancelled", etc.
 
-    private String orderStatus = "Not Confirmed"; // Default value
+    private String orderStatus = "Pending"; // Default value
     
     // ===== GST / invoice fields =====
     // Kaccha or Pakka

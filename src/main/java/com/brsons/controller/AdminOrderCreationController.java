@@ -204,7 +204,7 @@ public class AdminOrderCreationController {
             order.setUserPhone(orderForUser.getPhone());
             order.setBillType(billType);
             order.setStatus("Active");
-            order.setOrderStatus("Confirmed");
+            order.setOrderStatus("Pending");
             order.setCreatedAt(LocalDateTime.now());
             // Note: Order entity doesn't have setUpdatedAt method
             

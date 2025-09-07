@@ -189,7 +189,7 @@ public class CheckoutController {
                 }
                 
                 order.setStatus("Active");
-                order.setOrderStatus("Confirmed"); // Admin orders are confirmed
+                order.setOrderStatus("Pending"); // All orders start as pending
             } else {
                 // Regular user checkout
                 order.setName(name);
@@ -200,7 +200,7 @@ public class CheckoutController {
                 order.setState(state);
                 order.setZipCode(zipCode);
                 order.setStatus("Active");
-                order.setOrderStatus("Not Confirmed");
+                order.setOrderStatus("Pending");
             }
 
             // Create Order Items with price information and stock management
@@ -322,7 +322,7 @@ public class CheckoutController {
         order.setState(state);
         order.setZipCode(zipCode);
         order.setStatus("Active");
-        order.setOrderStatus("Not Confirmed");
+        order.setOrderStatus("Pending");
         
         
 

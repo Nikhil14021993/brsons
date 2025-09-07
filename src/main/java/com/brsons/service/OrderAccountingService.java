@@ -91,7 +91,8 @@ public class OrderAccountingService {
         order.setSellerName(sellerName);
         order.setSellerGstin(sellerGstin);
         order.setInvoiceNumber(invoice);
-        order.setOrderStatus("Confirmed");
+        // Keep the order status as set during order creation (Pending)
+        // order.setOrderStatus("Confirmed"); // Removed - status should only be changed by admin
 
         orderRepository.save(order);
 
