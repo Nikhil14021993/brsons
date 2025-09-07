@@ -40,6 +40,10 @@ public class OutstandingService {
     @Autowired
     private OutstandingRepository outstandingRepository;
     
+    public OutstandingRepository getOutstandingRepository() {
+        return outstandingRepository;
+    }
+    
     @Autowired
     private OrderRepository orderRepository;
     
@@ -1004,15 +1008,19 @@ public class OutstandingService {
     @Transactional
     public void createOutstandingForExistingItems() {
         // Create outstanding for retail orders (Pakka bill type) without outstanding items
+        // Only create outstanding for orders that are not Pending or Cancelled
         List<Order> retailOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Pakka");
         for (Order order : retailOrders) {
             if (order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
-                // Check if outstanding already exists
-                List<Outstanding> existing = outstandingRepository.findByReferenceTypeAndReferenceId("ORDER", order.getId());
-                if (existing.isEmpty()) {
-                    // Set due date as 30 days from order creation
-                    LocalDateTime dueDate = order.getCreatedAt().plusDays(30);
-                    createCustomerOutstanding(order, dueDate);
+                // Only create outstanding for confirmed orders (not Pending or Cancelled)
+                if (!"Pending".equals(order.getOrderStatus()) && !"Cancelled".equals(order.getOrderStatus())) {
+                    // Check if outstanding already exists
+                    List<Outstanding> existing = outstandingRepository.findByReferenceTypeAndReferenceId("ORDER", order.getId());
+                    if (existing.isEmpty()) {
+                        // Set due date as 30 days from order creation
+                        LocalDateTime dueDate = order.getCreatedAt().plusDays(30);
+                        createCustomerOutstanding(order, dueDate);
+                    }
                 }
             }
         }
@@ -1044,7 +1052,10 @@ public class OutstandingService {
             
             for (Order order : kacchaOrders) {
                 if (order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
-                    createCustomerOutstanding(order, order.getCreatedAt().plusDays(30));
+                    // Only create outstanding for confirmed orders (not Pending or Cancelled)
+                    if (!"Pending".equals(order.getOrderStatus()) && !"Cancelled".equals(order.getOrderStatus())) {
+                        createCustomerOutstanding(order, order.getCreatedAt().plusDays(30));
+                    }
                 }
             }
             
@@ -1557,29 +1568,32 @@ public class OutstandingService {
             
             for (Order order : b2bOrders) {
                 if (order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
-                    try {
-                        // Find or create customer ledger
-                        CustomerLedger customerLedger = customerLedgerService.findOrCreateCustomerLedger(
-                            order.getName(), 
-                            order.getUserPhone(), 
-                            null // Order doesn't have email field
-                        );
-                        
-                        // Check if invoice entry already exists
-                        List<CustomerLedgerEntry> existingEntries = customerLedgerEntryRepository
-                            .findByReferenceTypeAndReferenceId("ORDER", order.getId());
-                        
-                        if (existingEntries.isEmpty()) {
-                            // Add invoice entry
-                            customerLedgerService.addInvoiceEntry(customerLedger, order, order.getTotal());
-                            System.out.println("Created customer ledger entry for order ID: " + order.getId() + 
-                                            " - Amount: " + order.getTotal() + " - Customer: " + order.getName());
-                        } else {
-                            System.out.println("Customer ledger entry already exists for order ID: " + order.getId());
+                    // Only create customer ledger entries for confirmed orders (not Pending or Cancelled)
+                    if (!"Pending".equals(order.getOrderStatus()) && !"Cancelled".equals(order.getOrderStatus())) {
+                        try {
+                            // Find or create customer ledger
+                            CustomerLedger customerLedger = customerLedgerService.findOrCreateCustomerLedger(
+                                order.getName(), 
+                                order.getUserPhone(), 
+                                null // Order doesn't have email field
+                            );
+                            
+                            // Check if invoice entry already exists
+                            List<CustomerLedgerEntry> existingEntries = customerLedgerEntryRepository
+                                .findByReferenceTypeAndReferenceId("ORDER", order.getId());
+                            
+                            if (existingEntries.isEmpty()) {
+                                // Add invoice entry
+                                customerLedgerService.addInvoiceEntry(customerLedger, order, order.getTotal());
+                                System.out.println("Created customer ledger entry for order ID: " + order.getId() + 
+                                                " - Amount: " + order.getTotal() + " - Customer: " + order.getName());
+                            } else {
+                                System.out.println("Customer ledger entry already exists for order ID: " + order.getId());
+                            }
+                            
+                        } catch (Exception e) {
+                            System.err.println("Error syncing customer ledger for order ID " + order.getId() + ": " + e.getMessage());
                         }
-                        
-                    } catch (Exception e) {
-                        System.err.println("Error syncing customer ledger for order ID " + order.getId() + ": " + e.getMessage());
                     }
                 }
             }

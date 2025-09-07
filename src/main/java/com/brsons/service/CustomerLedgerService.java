@@ -32,6 +32,10 @@ public class CustomerLedgerService {
     @Autowired
     private CustomerLedgerEntryRepository customerLedgerEntryRepository;
     
+    public CustomerLedgerEntryRepository getCustomerLedgerEntryRepository() {
+        return customerLedgerEntryRepository;
+    }
+    
     @Autowired
     private OrderRepository orderRepository;
     
@@ -291,29 +295,32 @@ public class CustomerLedgerService {
             
             for (Order order : b2bOrders) {
                 if (order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
-                    try {
-                        // Find or create customer ledger
-                        CustomerLedger customerLedger = findOrCreateCustomerLedger(
-                            order.getName(), 
-                            order.getUserPhone(), 
-                            null // Order doesn't have email field
-                        );
-                        
-                        // Check if invoice entry already exists
-                        List<CustomerLedgerEntry> existingEntries = customerLedgerEntryRepository
-                            .findByReferenceTypeAndReferenceId("ORDER", order.getId());
-                        
-                        if (existingEntries.isEmpty()) {
-                            // Add invoice entry
-                            addInvoiceEntry(customerLedger, order, order.getTotal());
-                            System.out.println("Created customer ledger entry for order ID: " + order.getId() + 
-                                            " - Amount: " + order.getTotal() + " - Customer: " + order.getName());
-                        } else {
-                            System.out.println("Customer ledger entry already exists for order ID: " + order.getId());
+                    // Only create customer ledger entries for confirmed orders (not Pending or Cancelled)
+                    if (!"Pending".equals(order.getOrderStatus()) && !"Cancelled".equals(order.getOrderStatus())) {
+                        try {
+                            // Find or create customer ledger
+                            CustomerLedger customerLedger = findOrCreateCustomerLedger(
+                                order.getName(), 
+                                order.getUserPhone(), 
+                                null // Order doesn't have email field
+                            );
+                            
+                            // Check if invoice entry already exists
+                            List<CustomerLedgerEntry> existingEntries = customerLedgerEntryRepository
+                                .findByReferenceTypeAndReferenceId("ORDER", order.getId());
+                            
+                            if (existingEntries.isEmpty()) {
+                                // Add invoice entry
+                                addInvoiceEntry(customerLedger, order, order.getTotal());
+                                System.out.println("Created customer ledger entry for order ID: " + order.getId() + 
+                                                " - Amount: " + order.getTotal() + " - Customer: " + order.getName());
+                            } else {
+                                System.out.println("Customer ledger entry already exists for order ID: " + order.getId());
+                            }
+                            
+                        } catch (Exception e) {
+                            System.err.println("Error creating customer ledger for order ID " + order.getId() + ": " + e.getMessage());
                         }
-                        
-                    } catch (Exception e) {
-                        System.err.println("Error creating customer ledger for order ID " + order.getId() + ": " + e.getMessage());
                     }
                 }
             }
@@ -374,42 +381,45 @@ public class CustomerLedgerService {
             
             for (Order order : b2bOrders) {
                 if (order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
-                    try {
-                        // Check if outstanding item already exists
-                        List<com.brsons.model.Outstanding> existingOutstanding = outstandingRepository
-                            .findByReferenceTypeAndReferenceId("ORDER", order.getId());
-                        
-                        if (existingOutstanding.isEmpty()) {
-                            System.out.println("Creating outstanding item for order ID: " + order.getId());
-                            // Create outstanding item directly here to avoid circular dependency
-                            com.brsons.model.Outstanding outstanding = new com.brsons.model.Outstanding(
-                                com.brsons.model.Outstanding.OutstandingType.INVOICE_RECEIVABLE,
-                                order.getId(),
-                                "ORDER",
-                                order.getInvoiceNumber() != null ? order.getInvoiceNumber() : "ORD-" + order.getId(),
-                                order.getTotal(),
-                                order.getCreatedAt().plusDays(30),
-                                order.getName(),
-                                order.getBillType()
-                            );
-                            outstanding.setDescription("Customer invoice for order #" + order.getId());
-                            outstanding.setContactInfo(order.getUserPhone());
-                            com.brsons.model.Outstanding savedOutstanding = outstandingRepository.save(outstanding);
-                            System.out.println("Created outstanding item for order ID: " + order.getId());
+                    // Only create outstanding for confirmed orders (not Pending or Cancelled)
+                    if (!"Pending".equals(order.getOrderStatus()) && !"Cancelled".equals(order.getOrderStatus())) {
+                        try {
+                            // Check if outstanding item already exists
+                            List<com.brsons.model.Outstanding> existingOutstanding = outstandingRepository
+                                .findByReferenceTypeAndReferenceId("ORDER", order.getId());
                             
-                            // Apply advance payments to this new invoice (FIFO)
-                            try {
-                                applyAdvancePaymentsToNewInvoice(order.getUserPhone(), savedOutstanding.getId(), order.getTotal());
-                                System.out.println("Applied advance payments to new invoice #" + savedOutstanding.getId());
-                            } catch (Exception e) {
-                                System.err.println("Error applying advance payments to new invoice #" + savedOutstanding.getId() + ": " + e.getMessage());
+                            if (existingOutstanding.isEmpty()) {
+                                System.out.println("Creating outstanding item for order ID: " + order.getId());
+                                // Create outstanding item directly here to avoid circular dependency
+                                com.brsons.model.Outstanding outstanding = new com.brsons.model.Outstanding(
+                                    com.brsons.model.Outstanding.OutstandingType.INVOICE_RECEIVABLE,
+                                    order.getId(),
+                                    "ORDER",
+                                    order.getInvoiceNumber() != null ? order.getInvoiceNumber() : "ORD-" + order.getId(),
+                                    order.getTotal(),
+                                    order.getCreatedAt().plusDays(30),
+                                    order.getName(),
+                                    order.getBillType()
+                                );
+                                outstanding.setDescription("Customer invoice for order #" + order.getId());
+                                outstanding.setContactInfo(order.getUserPhone());
+                                com.brsons.model.Outstanding savedOutstanding = outstandingRepository.save(outstanding);
+                                System.out.println("Created outstanding item for order ID: " + order.getId());
+                                
+                                // Apply advance payments to this new invoice (FIFO)
+                                try {
+                                    applyAdvancePaymentsToNewInvoice(order.getUserPhone(), savedOutstanding.getId(), order.getTotal());
+                                    System.out.println("Applied advance payments to new invoice #" + savedOutstanding.getId());
+                                } catch (Exception e) {
+                                    System.err.println("Error applying advance payments to new invoice #" + savedOutstanding.getId() + ": " + e.getMessage());
+                                }
+                            } else {
+                                System.out.println("Outstanding item already exists for order ID: " + order.getId());
                             }
-                        } else {
-                            System.out.println("Outstanding item already exists for order ID: " + order.getId());
+                            
+                        } catch (Exception e) {
+                            System.err.println("Error creating outstanding item for order ID " + order.getId() + ": " + e.getMessage());
                         }
-                        
-                    } catch (Exception e) {
-                        System.err.println("Error creating outstanding item for order ID " + order.getId() + ": " + e.getMessage());
                     }
                 }
             }

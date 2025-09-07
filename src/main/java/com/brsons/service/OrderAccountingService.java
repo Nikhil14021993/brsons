@@ -100,7 +100,9 @@ public class OrderAccountingService {
         ledgerRepo.save(new LedgerEntry(order.getId(), billType, total, "Sale - INV " + invoice));
         
         // 8) Create outstanding item for B2B orders (Kaccha) and apply advance payments
-        if ("Kaccha".equalsIgnoreCase(billType) && total.compareTo(BigDecimal.ZERO) > 0) {
+        // Only create outstanding for confirmed orders (not Pending or Cancelled)
+        if ("Kaccha".equalsIgnoreCase(billType) && total.compareTo(BigDecimal.ZERO) > 0 && 
+            !"Pending".equals(order.getOrderStatus()) && !"Cancelled".equals(order.getOrderStatus())) {
             try {
                 // Check if outstanding item already exists
                 List<com.brsons.model.Outstanding> existingOutstanding = outstandingRepository

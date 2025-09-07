@@ -7,6 +7,7 @@ import com.brsons.repository.OrderItemRepository;
 import com.brsons.repository.ProductRepository;
 import com.brsons.model.OrderItem;
 import com.brsons.model.Product;
+import com.brsons.service.CustomerLedgerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,9 @@ public class AdminOrderService {
     
     @Autowired
     private OutstandingService outstandingService;
+    
+    @Autowired
+    private CustomerLedgerService customerLedgerService;
     
     	public List<OrderDisplayDto> getAllOrders() {
 		// Filter to show only orders with bill_type = 'Pakka'
@@ -115,6 +119,58 @@ public class AdminOrderService {
             
             order.setOrderStatus(newStatus);
             orderRepository.save(order);
+            
+            // If order is being confirmed and it's a B2B order (Kaccha), create outstanding item and customer ledger entry
+            if ("Confirmed".equals(newStatus) && "Kaccha".equals(order.getBillType()) && 
+                order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
+                try {
+                    // Check if outstanding item already exists
+                    List<com.brsons.model.Outstanding> existingOutstanding = outstandingService.getOutstandingRepository()
+                        .findByReferenceTypeAndReferenceId("ORDER", order.getId());
+                    
+                    if (existingOutstanding.isEmpty()) {
+                        System.out.println("Creating outstanding item for newly confirmed order ID: " + order.getId());
+                        com.brsons.model.Outstanding outstanding = new com.brsons.model.Outstanding(
+                            com.brsons.model.Outstanding.OutstandingType.INVOICE_RECEIVABLE,
+                            order.getId(),
+                            "ORDER",
+                            order.getInvoiceNumber() != null ? order.getInvoiceNumber() : "ORD-" + order.getId(),
+                            order.getTotal(),
+                            order.getCreatedAt().plusDays(30),
+                            order.getName(),
+                            order.getBillType()
+                        );
+                        outstanding.setDescription("Customer invoice for order #" + order.getId());
+                        outstanding.setContactInfo(order.getUserPhone());
+                        outstandingService.getOutstandingRepository().save(outstanding);
+                        System.out.println("Created outstanding item for newly confirmed order ID: " + order.getId());
+                    }
+                    
+                    // Also create customer ledger entry for B2B orders
+                    try {
+                        com.brsons.model.CustomerLedger customerLedger = customerLedgerService.findOrCreateCustomerLedger(
+                            order.getName(), 
+                            order.getUserPhone(), 
+                            null // Order doesn't have email field
+                        );
+                        
+                        // Check if customer ledger entry already exists
+                        List<com.brsons.model.CustomerLedgerEntry> existingEntries = customerLedgerService.getCustomerLedgerEntryRepository()
+                            .findByReferenceTypeAndReferenceId("ORDER", order.getId());
+                        
+                        if (existingEntries.isEmpty()) {
+                            customerLedgerService.addInvoiceEntry(customerLedger, order, order.getTotal());
+                            System.out.println("Created customer ledger entry for newly confirmed order ID: " + order.getId());
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Error creating customer ledger entry for confirmed order ID " + order.getId() + ": " + e.getMessage());
+                    }
+                    
+                } catch (Exception e) {
+                    System.err.println("Error creating outstanding item for confirmed order ID " + order.getId() + ": " + e.getMessage());
+                }
+            }
+            
             return true;
         }
         return false;
