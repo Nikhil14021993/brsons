@@ -43,6 +43,14 @@ public class Order {
 		this.name = name;
 	}
 
+	public String getAltPhone() {
+		return altPhone;
+	}
+
+	public void setAltPhone(String altPhone) {
+		this.altPhone = altPhone;
+	}
+
 	public String getAddressLine1() {
 		return addressLine1;
 	}
@@ -114,6 +122,8 @@ public class Order {
     private String userPhone;
 
     private String name;
+
+    private String altPhone;
 
     private String addressLine1;
 

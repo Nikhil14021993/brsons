@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,15 +16,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 
-import com.brsons.model.AddToCart;
-import com.brsons.model.CartItemDetails;
-import com.brsons.model.CartProductEntry;
 import com.brsons.model.CartProductEntry1;
 import com.brsons.model.Order;
 import com.brsons.model.OrderItem;
 import com.brsons.model.Product;
 import com.brsons.model.User;
-import com.brsons.repository.AddToCartRepository;
 import com.brsons.repository.CartProductEntryRepo;
 import com.brsons.repository.OrderItemRepository;
 import com.brsons.repository.OrderRepository;
@@ -36,7 +31,6 @@ import com.brsons.service.OrderAccountingService;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import jakarta.transaction.Transactional;
 
 @Controller
 public class CheckoutController {
@@ -81,8 +75,52 @@ public class CheckoutController {
             model.addAttribute("orderForUser", orderForUser);
             model.addAttribute("orderAddress", orderAddress);
             model.addAttribute("userPhone", orderForUser.getPhone()); // Use the order user's phone
+            
+            // Pre-fill form with orderForUser details
+            model.addAttribute("userName", orderForUser.getName());
+            model.addAttribute("userEmail", orderForUser.getEmail());
+            
+            // If orderAddress is available, use it; otherwise try to get from most recent order
+            if (orderAddress != null) {
+                model.addAttribute("userAddressLine1", orderAddress.get("addressLine1"));
+                model.addAttribute("userAddressLine2", orderAddress.get("addressLine2"));
+                model.addAttribute("userCity", orderAddress.get("city"));
+                model.addAttribute("userState", orderAddress.get("state"));
+                model.addAttribute("userZipCode", orderAddress.get("zipCode"));
+                model.addAttribute("userBuyerGstin", orderAddress.get("buyerGstin"));
+                model.addAttribute("userAltPhone", orderAddress.get("altPhone"));
+            } else {
+                // Try to get address from most recent order for this user
+                List<Order> recentOrders = orderRepository.findByUserPhoneOrderByCreatedAtDesc(orderForUser.getPhone());
+                if (!recentOrders.isEmpty()) {
+                    Order lastOrder = recentOrders.get(0);
+                    model.addAttribute("userAddressLine1", lastOrder.getAddressLine1());
+                    model.addAttribute("userAddressLine2", lastOrder.getAddressLine2());
+                    model.addAttribute("userCity", lastOrder.getCity());
+                    model.addAttribute("userState", lastOrder.getState());
+                    model.addAttribute("userZipCode", lastOrder.getZipCode());
+                    model.addAttribute("userBuyerGstin", lastOrder.getBuyerGstin());
+                    model.addAttribute("userAltPhone", lastOrder.getAltPhone());
+                }
+            }
         } else {
+            // Regular user checkout - pre-fill with user details and most recent order
             model.addAttribute("userPhone", user.getPhone());
+            model.addAttribute("userName", user.getName());
+            model.addAttribute("userEmail", user.getEmail());
+            
+            // Try to get address from most recent order for this user
+            List<Order> recentOrders = orderRepository.findByUserPhoneOrderByCreatedAtDesc(user.getPhone());
+            if (!recentOrders.isEmpty()) {
+                Order lastOrder = recentOrders.get(0);
+                model.addAttribute("userAddressLine1", lastOrder.getAddressLine1());
+                model.addAttribute("userAddressLine2", lastOrder.getAddressLine2());
+                model.addAttribute("userCity", lastOrder.getCity());
+                model.addAttribute("userState", lastOrder.getState());
+                model.addAttribute("userZipCode", lastOrder.getZipCode());
+                model.addAttribute("userBuyerGstin", lastOrder.getBuyerGstin());
+                model.addAttribute("userAltPhone", lastOrder.getAltPhone());
+            }
         }
    
         return "checkout";
@@ -150,6 +188,7 @@ public class CheckoutController {
             // If we reach here, all products have sufficient stock
             // Process the actual checkout
             String name = requestData.get("name");
+            String altPhone = requestData.get("altPhone");
             String addressLine1 = requestData.get("addressLine1");
             String addressLine2 = requestData.get("addressLine2");
             String city = requestData.get("city");
@@ -170,6 +209,7 @@ public class CheckoutController {
                 // Admin is creating order for another user
                 order.setName(orderForUser.getName());
                 order.setUserPhone(orderForUser.getPhone());
+                order.setAltPhone(altPhone);
                 
                 // Use address from admin order creation if available, otherwise from form
                 if (orderAddress != null) {
@@ -194,6 +234,7 @@ public class CheckoutController {
                 // Regular user checkout
                 order.setName(name);
                 order.setUserPhone(user.getPhone());
+                order.setAltPhone(altPhone);
                 order.setAddressLine1(addressLine1);
                 order.setAddressLine2(addressLine2);
                 order.setCity(city);
@@ -292,6 +333,7 @@ public class CheckoutController {
     // Keep the original method for backward compatibility
     @PostMapping("/checkout")
     public String processCheckout(@RequestParam String name,
+                                  @RequestParam(required = false) String altPhone,
                                   @RequestParam String addressLine1,
                                   @RequestParam String addressLine2,
                                   @RequestParam String city,
@@ -316,6 +358,7 @@ public class CheckoutController {
         Order order = new Order();
         order.setName(name);
         order.setUserPhone(user.getPhone());
+        order.setAltPhone(altPhone);
         order.setAddressLine1(addressLine1);
         order.setAddressLine2(addressLine2);
         order.setCity(city);

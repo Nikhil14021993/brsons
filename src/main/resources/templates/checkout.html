@@ -358,37 +358,42 @@
     <form id="checkoutForm" onsubmit="submitCheckout(event)">
         <div class="form-group">
             <label>Name:</label>
-            <input type="text" name="name" id="name" required>
+            <input type="text" name="name" id="name" th:value="${userName}" required>
         </div>
 
         <div class="form-group">
             <label>Phone:</label>
-            <input type="text" name="phone" id="phone" th:value="${userPhone}" readonly>
+            <input type="text" name="phone" id="phone" th:value="${userPhone}" readonly required>
+        </div>
+
+        <div class="form-group">
+            <label>Alt Phone No (optional):</label>
+            <input type="text" name="altPhone" id="altPhone" th:value="${userAltPhone}">
         </div>
 
         <div class="form-group">
             <label>Address Line 1:</label>
-            <input type="text" name="addressLine1" id="addressLine1" required>
+            <input type="text" name="addressLine1" id="addressLine1" th:value="${userAddressLine1}" required>
         </div>
 
         <div class="form-group">
             <label>Address Line 2:</label>
-            <input type="text" name="addressLine2" id="addressLine2">
+            <input type="text" name="addressLine2" id="addressLine2" th:value="${userAddressLine2}">
         </div>
 
         <div class="form-group">
             <label>City:</label>
-            <input type="text" name="city" id="city" required>
+            <input type="text" name="city" id="city" th:value="${userCity}" required>
         </div>
 
         <div class="form-group">
             <label>State:</label>
-            <input type="text" name="state" id="state" required>
+            <input type="text" name="state" id="state" th:value="${userState}" required>
         </div>
 
         <div class="form-group">
             <label>Zip Code:</label>
-            <input type="text" name="zipCode" id="zipCode" required>
+            <input type="text" name="zipCode" id="zipCode" th:value="${userZipCode}" required>
         </div>
         
         <!-- Bill Type is automatically assigned based on user type (completely hidden) -->
@@ -400,7 +405,7 @@
 
         <div class="form-group">
             <label>Buyer GSTIN (optional):</label>
-            <input type="text" name="buyerGstin" id="buyerGstin">
+            <input type="text" name="buyerGstin" id="buyerGstin" th:value="${userBuyerGstin}">
         </div>
 
         <div class="form-group">
@@ -465,6 +470,7 @@
         // Get form data
         const formData = {
             name: document.getElementById('name').value,
+            altPhone: document.getElementById('altPhone').value,
             addressLine1: document.getElementById('addressLine1').value,
             addressLine2: document.getElementById('addressLine2').value,
             city: document.getElementById('city').value,
