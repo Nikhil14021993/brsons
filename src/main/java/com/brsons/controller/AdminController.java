@@ -393,6 +393,13 @@ public class AdminController {
             } else {
                 orders = adminOrderService.getAllOrders();
             }
+            
+            // Add modification status for each order
+            for (OrderDisplayDto order : orders) {
+                boolean canModify = outstandingService.canModifyOrder(order.getId());
+                order.setCanModify(canModify);
+            }
+            
             model.addAttribute("orders", orders);
             model.addAttribute("selectedStatus", status);
             return "admin-orders";
