@@ -1,7 +1,9 @@
 package com.brsons.controller;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
@@ -58,6 +60,34 @@ public class AccountingReportController {
     public List<PnLRow> getPnL(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                                 @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return reportService.getProfitAndLoss(startDate, endDate);
+    }
+
+    @GetMapping("/pnl-with-stock")
+    @ResponseBody
+    public List<PnLRow> getPnLWithStock(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return reportService.getProfitAndLossWithStock(startDate, endDate);
+    }
+
+    @GetMapping("/diagnostic")
+    @ResponseBody
+    public Map<String, Object> getDiagnostic(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                                           @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        Map<String, Object> result = new HashMap<>();
+        
+        // Get all account balances
+        List<Object[]> allBalances = reportService.getAllAccountBalances(startDate, endDate);
+        result.put("allAccountBalances", allBalances);
+        
+        // Get revenue/expense accounts
+        List<Object[]> revenueExpenseAccounts = reportService.getRevenueExpenseAccounts();
+        result.put("revenueExpenseAccounts", revenueExpenseAccounts);
+        
+        // Get P&L data
+        List<PnLRow> pnlData = reportService.getProfitAndLoss(startDate, endDate);
+        result.put("pnlData", pnlData);
+        
+        return result;
     }
 }
 

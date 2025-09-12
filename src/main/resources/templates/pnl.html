@@ -86,6 +86,90 @@
         .back-link:hover {
             text-decoration: underline;
         }
+        .report-header {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .report-header h2 {
+            color: #2c3e50;
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+        .report-header p {
+            margin: 0;
+            color: #666;
+            font-size: 16px;
+        }
+        .export-buttons {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .export-btn {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 10px;
+            font-size: 14px;
+        }
+        .export-btn:hover {
+            background: #218838;
+        }
+        .account-name {
+            font-weight: bold;
+        }
+        .sub-account {
+            padding-left: 20px;
+            color: #666;
+        }
+        .header-row {
+            background-color: #e9ecef;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .separator-row {
+            background-color: #f8f9fa;
+            font-family: monospace;
+            color: #666;
+        }
+        .total-row {
+            background-color: #d4edda;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .subtotal-row {
+            background-color: #fff3cd;
+            font-weight: bold;
+        }
+        .spacer-row {
+            height: 10px;
+        }
+        .amount-positive {
+            color: #28a745;
+        }
+        .amount-negative {
+            color: #dc3545;
+        }
+        .stock-row {
+            background-color: #e3f2fd;
+            font-weight: bold;
+        }
+        .cogs-row {
+            background-color: #fff3e0;
+            font-weight: bold;
+        }
+        .form-container label {
+            margin: 0 10px;
+            font-weight: bold;
+        }
+        .form-container input[type="checkbox"] {
+            margin: 0 5px;
+        }
     </style>
 </head>
 <body>
@@ -125,21 +209,43 @@
                 <input type="date" id="startDate" required>
                 <label>End Date:</label>
                 <input type="date" id="endDate" required>
+                <label>
+                    <input type="checkbox" id="includeStock" checked> Include Stock Information
+                </label>
                 <button type="submit">Get P&L</button>
             </form>
+        </div>
+
+        <div class="report-header">
+            <h2>PROFIT & LOSS ACCOUNT</h2>
+            <p id="reportPeriod">Period: <span id="periodText"></span></p>
         </div>
 
         <table id="pnlTable">
             <thead>
                 <tr>
-                    <th>Account Name</th>
-                    <th>Amount</th>
+                    <th style="width: 60%;">Particulars</th>
+                    <th style="width: 20%;">Code</th>
+                    <th style="width: 20%; text-align: right;">Amount (₹)</th>
                 </tr>
             </thead>
             <tbody>
                 <!-- Data will be injected here -->
             </tbody>
         </table>
+
+        <div class="export-buttons">
+            <button onclick="exportToPDF()" class="export-btn">Export to PDF</button>
+            <button onclick="exportToExcel()" class="export-btn">Export to Excel</button>
+            <button onclick="printReport()" class="export-btn">Print Report</button>
+            <button onclick="runDiagnostic()" class="export-btn" style="background: #17a2b8;">Diagnostic</button>
+        </div>
+
+        <!-- Diagnostic Section -->
+        <div id="diagnosticSection" style="display: none; margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h3>Diagnostic Information</h3>
+            <div id="diagnosticContent"></div>
+        </div>
     </div>
   </div>
 
@@ -150,26 +256,214 @@ document.getElementById("pnlForm").addEventListener("submit", function(e) {
     const startDate = document.getElementById("startDate").value;
     const endDate = document.getElementById("endDate").value;
 
-    fetch(`/accounting/pnl?startDate=${startDate}&endDate=${endDate}`)
+    // Update period text
+    document.getElementById("periodText").textContent = `${startDate} to ${endDate}`;
+
+    const includeStock = document.getElementById("includeStock").checked;
+    const endpoint = includeStock ? '/accounting/pnl-with-stock' : '/accounting/pnl';
+    
+    fetch(`${endpoint}?startDate=${startDate}&endDate=${endDate}`)
         .then(res => res.json())
         .then(data => {
             const tbody = document.querySelector("#pnlTable tbody");
             tbody.innerHTML = "";
 
+            // Check if we have any data
+            if (data.length === 0) {
+                const tr = document.createElement("tr");
+                const cell = document.createElement("td");
+                cell.colSpan = 3;
+                cell.textContent = "No data found for the selected period. Please check your account setup and transactions.";
+                cell.style.textAlign = "center";
+                cell.style.padding = "20px";
+                cell.style.color = "#dc3545";
+                tr.appendChild(cell);
+                tbody.appendChild(tr);
+                return;
+            }
+
             data.forEach(row => {
                 const tr = document.createElement("tr");
-                const accountCell = document.createElement("td");
-                accountCell.textContent = row.accountName;
+                
+                // Add appropriate CSS class based on row type
+                if (row.accountType === "HEADER") {
+                    tr.classList.add("header-row");
+                } else if (row.accountType === "SEPARATOR") {
+                    tr.classList.add("separator-row");
+                } else if (row.isTotal) {
+                    tr.classList.add("total-row");
+                } else if (row.isSubtotal) {
+                    tr.classList.add("subtotal-row");
+                } else if (row.accountType === "SPACER") {
+                    tr.classList.add("spacer-row");
+                } else if (row.accountType === "STOCK") {
+                    tr.classList.add("stock-row");
+                } else if (row.accountName && row.accountName.includes("COST OF GOODS SOLD")) {
+                    tr.classList.add("cogs-row");
+                }
 
+                // Account name cell
+                const accountCell = document.createElement("td");
+                if (row.level > 0) {
+                    accountCell.classList.add("sub-account");
+                }
+                accountCell.textContent = row.accountName || "";
+                accountCell.style.paddingLeft = (row.level * 20) + "px";
+
+                // Account code cell
+                const codeCell = document.createElement("td");
+                codeCell.textContent = row.accountCode || "";
+                codeCell.style.textAlign = "center";
+
+                // Amount cell
                 const amountCell = document.createElement("td");
-                amountCell.textContent = row.amount ?? 0;
+                amountCell.style.textAlign = "right";
+                
+                if (row.amount && row.amount !== 0) {
+                    const amount = parseFloat(row.amount);
+                    amountCell.textContent = "₹ " + amount.toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    
+                    // Color coding for amounts
+                    if (amount > 0) {
+                        amountCell.classList.add("amount-positive");
+                    } else if (amount < 0) {
+                        amountCell.classList.add("amount-negative");
+                    }
+                } else if (row.accountType === "SEPARATOR" || row.accountType === "HEADER") {
+                    amountCell.textContent = "";
+                } else {
+                    amountCell.textContent = "₹ 0.00";
+                }
 
                 tr.appendChild(accountCell);
+                tr.appendChild(codeCell);
                 tr.appendChild(amountCell);
                 tbody.appendChild(tr);
             });
         })
         .catch(err => console.error("Error:", err));
+});
+
+// Export functions
+function exportToPDF() {
+    window.print();
+}
+
+function exportToExcel() {
+    const table = document.getElementById("pnlTable");
+    const rows = table.querySelectorAll("tr");
+    let csvContent = "Particulars,Code,Amount\n";
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll("td");
+        if (cells.length === 3) {
+            const particulars = cells[0].textContent.replace(/,/g, ";");
+            const code = cells[1].textContent;
+            const amount = cells[2].textContent.replace(/₹\s?/g, "").replace(/,/g, "");
+            csvContent += `"${particulars}","${code}","${amount}"\n`;
+        }
+    });
+    
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "profit_loss_report.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+function printReport() {
+    window.print();
+}
+
+// Diagnostic function
+function runDiagnostic() {
+    const startDate = document.getElementById("startDate").value;
+    const endDate = document.getElementById("endDate").value;
+    
+    if (!startDate || !endDate) {
+        alert("Please select start and end dates first");
+        return;
+    }
+    
+    const diagnosticSection = document.getElementById("diagnosticSection");
+    const diagnosticContent = document.getElementById("diagnosticContent");
+    
+    diagnosticContent.innerHTML = "<p>Running diagnostic...</p>";
+    diagnosticSection.style.display = "block";
+    
+    fetch(`/accounting/diagnostic?startDate=${startDate}&endDate=${endDate}`)
+        .then(res => res.json())
+        .then(data => {
+            let html = "<h4>Account Analysis</h4>";
+            
+            // Show all account balances
+            if (data.allAccountBalances && data.allAccountBalances.length > 0) {
+                html += "<h5>All Account Balances in Selected Period:</h5>";
+                html += "<table border='1' style='width: 100%; border-collapse: collapse; margin: 10px 0;'>";
+                html += "<tr><th>Account Name</th><th>Code</th><th>Type</th><th>Total Debit</th><th>Total Credit</th><th>Net Balance</th></tr>";
+                
+                data.allAccountBalances.forEach(account => {
+                    html += `<tr>
+                        <td>${account[0]}</td>
+                        <td>${account[1]}</td>
+                        <td>${account[2]}</td>
+                        <td>₹ ${parseFloat(account[3] || 0).toFixed(2)}</td>
+                        <td>₹ ${parseFloat(account[4] || 0).toFixed(2)}</td>
+                        <td>₹ ${parseFloat(account[5] || 0).toFixed(2)}</td>
+                    </tr>`;
+                });
+                html += "</table>";
+            } else {
+                html += "<p style='color: red;'>No transactions found in the selected period.</p>";
+            }
+            
+            // Show revenue/expense accounts
+            if (data.revenueExpenseAccounts && data.revenueExpenseAccounts.length > 0) {
+                html += "<h5>Available Revenue/Expense Accounts:</h5>";
+                html += "<table border='1' style='width: 100%; border-collapse: collapse; margin: 10px 0;'>";
+                html += "<tr><th>Account Name</th><th>Code</th><th>Type</th></tr>";
+                
+                data.revenueExpenseAccounts.forEach(account => {
+                    html += `<tr>
+                        <td>${account[0]}</td>
+                        <td>${account[1]}</td>
+                        <td>${account[2]}</td>
+                    </tr>`;
+                });
+                html += "</table>";
+            } else {
+                html += "<p style='color: red;'>No Revenue/Expense accounts found. You need to create accounts with type 'INCOME' or 'EXPENSE'.</p>";
+            }
+            
+            // Show P&L data count
+            if (data.pnlData) {
+                html += `<h5>P&L Data: ${data.pnlData.length} rows</h5>`;
+                if (data.pnlData.length <= 2) {
+                    html += "<p style='color: orange;'>P&L has very few rows. This suggests no revenue/expense transactions in the selected period.</p>";
+                }
+            }
+            
+            diagnosticContent.innerHTML = html;
+        })
+        .catch(err => {
+            console.error("Error:", err);
+            diagnosticContent.innerHTML = "<p style='color: red;'>Error running diagnostic: " + err.message + "</p>";
+        });
+}
+
+// Set default dates (current month)
+document.addEventListener("DOMContentLoaded", function() {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    document.getElementById("startDate").value = firstDay.toISOString().split('T')[0];
+    document.getElementById("endDate").value = lastDay.toISOString().split('T')[0];
 });
 </script>
 
