@@ -1094,10 +1094,19 @@ public class OutstandingService {
      */
     private void createSettlementVoucher(Outstanding outstanding, String notes, BigDecimal amount) {
         try {
-            System.out.println("Creating settlement voucher for outstanding item #" + outstanding.getId() + " with amount: " + amount);
+            System.out.println("Creating settlement voucher for outstanding item #" + outstanding.getId() + " with amount: " + amount + "outstanding.getPaymentMethod() "+ outstanding.getPaymentMethod());
             
+            Account debitAccount = null;
+            
+	       	if ("Cash".equals(outstanding.getPaymentMethod())) {
+	       		 debitAccount = accountRepository.findById(5L).orElse(null);
+	            
+	       	}else {
+	       		 debitAccount = accountRepository.findById(6L).orElse(null);
+	       	}
+	       	
             // Get account based on payment method for debit entry
-            Account debitAccount = getAccountByPaymentMethod(outstanding.getPaymentMethod());
+           // Account debitAccount = getAccountByPaymentMethod(outstanding.getPaymentMethod());
             if (debitAccount == null) {
                 System.err.println("Cannot find account for payment method: " + outstanding.getPaymentMethod());
                 return;
@@ -1107,7 +1116,7 @@ public class OutstandingService {
             Account creditAccount = null;
             if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {
                 // For receivables, credit Sales Revenue (ID 5)
-                creditAccount = accountRepository.findById(5L).orElse(null);
+                creditAccount = accountRepository.findById(7L).orElse(null);
                 if (creditAccount == null) {
                     System.err.println("Cannot find account with ID 5 (Sales Revenue)");
                     return;
@@ -1162,9 +1171,15 @@ public class OutstandingService {
     private void createPartialPaymentVoucher(Outstanding outstanding, BigDecimal paidAmount, String notes) {
         try {
             System.out.println("Creating partial payment voucher for outstanding item #" + outstanding.getId() + " with paid amount: " + paidAmount);
-            
+            Account debitAccount = null;
+            if ("Cash".equals(outstanding.getPaymentMethod())) {
+	       		 debitAccount = accountRepository.findById(5L).orElse(null);
+	            
+	       	}else {
+	       		 debitAccount = accountRepository.findById(6L).orElse(null);
+	       	}
             // Get account based on payment method for debit entry
-            Account debitAccount = getAccountByPaymentMethod(outstanding.getPaymentMethod());
+           // Account debitAccount = getAccountByPaymentMethod(outstanding.getPaymentMethod());
             if (debitAccount == null) {
                 System.err.println("Cannot find account for payment method: " + outstanding.getPaymentMethod());
                 return;
@@ -1174,7 +1189,7 @@ public class OutstandingService {
             Account creditAccount = null;
             if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {
                 // For receivables, credit Sales Revenue (ID 5)
-                creditAccount = accountRepository.findById(5L).orElse(null);
+                creditAccount = accountRepository.findById(7L).orElse(null);
                 if (creditAccount == null) {
                     System.err.println("Cannot find account with ID 5 (Sales Revenue)");
                     return;
