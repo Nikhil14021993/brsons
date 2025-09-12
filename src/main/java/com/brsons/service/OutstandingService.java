@@ -1094,6 +1094,16 @@ public class OutstandingService {
      */
     private void createSettlementVoucher(Outstanding outstanding, String notes, BigDecimal amount) {
         try {
+        	if ("Pakka".equals(outstanding.getOrderType())) {
+                System.out.println("Skipping voucher creation for Retail order settlement - accounting already done at confirmation");
+                return;
+            }
+            
+            // Only create vouchers for B2B orders (Kaccha)
+            if (!"Kaccha".equals(outstanding.getOrderType())) {
+                System.out.println("Unknown order type: " + outstanding.getOrderType() + " - skipping voucher creation");
+                return;
+            }
             System.out.println("Creating settlement voucher for outstanding item #" + outstanding.getId() + " with amount: " + amount + "outstanding.getPaymentMethod() "+ outstanding.getPaymentMethod());
             
             Account debitAccount = null;
@@ -1171,6 +1181,20 @@ public class OutstandingService {
     private void createPartialPaymentVoucher(Outstanding outstanding, BigDecimal paidAmount, String notes) {
         try {
             System.out.println("Creating partial payment voucher for outstanding item #" + outstanding.getId() + " with paid amount: " + paidAmount);
+            
+            if ("Pakka".equals(outstanding.getOrderType())) {
+                System.out.println("Skipping voucher creation for Retail order settlement - accounting already done at confirmation");
+                return;
+            }
+            
+            // Only create vouchers for B2B orders (Kaccha)
+            if (!"Kaccha".equals(outstanding.getOrderType())) {
+                System.out.println("Unknown order type: " + outstanding.getOrderType() + " - skipping voucher creation");
+                return;
+            }
+            
+            System.out.println("Creating settlement voucher for B2B outstanding item #" + outstanding.getId() + " with amount: " + paidAmount);
+            
             Account debitAccount = null;
             if ("Cash".equals(outstanding.getPaymentMethod())) {
 	       		 debitAccount = accountRepository.findById(5L).orElse(null);
