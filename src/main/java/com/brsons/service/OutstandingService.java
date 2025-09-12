@@ -813,8 +813,24 @@ public class OutstandingService {
     
     /**
      * Check if an order can be modified or cancelled
+     * For B2B orders: Only allow modification when status is "Pending"
+     * For other orders: Use existing logic (not settled)
      */
     public boolean canModifyOrder(Long orderId) {
+        // First check if the order exists and get its status
+        Optional<Order> orderOpt = orderRepository.findById(orderId);
+        if (orderOpt.isEmpty()) {
+            return false; // Order doesn't exist
+        }
+        
+        Order order = orderOpt.get();
+        
+        // For B2B orders (Kaccha), only allow modification when status is "Pending"
+        if ("Kaccha".equals(order.getBillType())) {
+            return "Pending".equals(order.getOrderStatus());
+        }
+        
+        // For other orders (Retail/Pakka), use existing logic
         List<Outstanding> existingOutstanding = outstandingRepository.findByReferenceTypeAndReferenceId("ORDER", orderId);
         
         if (existingOutstanding.isEmpty()) {

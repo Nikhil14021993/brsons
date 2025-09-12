@@ -110,9 +110,15 @@ public class AdminOrderService {
         if (order != null) {
             String oldStatus = order.getOrderStatus();
             
+            // Validate status flow - prevent backward status changes
+            if (!isValidStatusTransition(oldStatus, newStatus)) {
+                throw new RuntimeException("Cannot change order status from '" + oldStatus + "' to '" + newStatus + "'. Status can only move forward in the flow: Pending → Confirmed → Shipped → Delivered");
+            }
+            
             // Check if order can be modified based on outstanding status
-            if (!outstandingService.canModifyOrder(orderId)) {
-                throw new RuntimeException("Cannot modify order that has been fully settled");
+            // Only restrict for cancellation, not for status changes
+            if ("Cancelled".equals(newStatus) && !outstandingService.canModifyOrder(orderId)) {
+                throw new RuntimeException("Cannot cancel order that has been fully settled");
             }
             
             // Handle stock management based on status change
@@ -479,5 +485,46 @@ public class AdminOrderService {
             System.err.println("Error creating account " + code + ": " + e.getMessage());
             return null;
         }
+    }
+    
+    /**
+     * Validate if a status transition is allowed
+     * Status flow: Pending → Confirmed → Shipped → Delivered
+     * Cancelled can be set from any status
+     */
+    private boolean isValidStatusTransition(String oldStatus, String newStatus) {
+        // Same status is always valid
+        if (oldStatus.equals(newStatus)) {
+            return true;
+        }
+        
+        // Cancelled can be set from any status
+        if ("Cancelled".equals(newStatus)) {
+            return true;
+        }
+        
+        // Define valid status flow
+        String[] statusFlow = {"Pending", "Confirmed", "Shipped", "Delivered"};
+        
+        // Find positions in the flow
+        int oldIndex = -1;
+        int newIndex = -1;
+        
+        for (int i = 0; i < statusFlow.length; i++) {
+            if (statusFlow[i].equals(oldStatus)) {
+                oldIndex = i;
+            }
+            if (statusFlow[i].equals(newStatus)) {
+                newIndex = i;
+            }
+        }
+        
+        // If either status is not in the flow, allow it (for backward compatibility)
+        if (oldIndex == -1 || newIndex == -1) {
+            return true;
+        }
+        
+        // Allow forward movement only (newIndex > oldIndex)
+        return newIndex > oldIndex;
     }
 }

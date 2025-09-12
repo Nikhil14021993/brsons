@@ -814,8 +814,8 @@
                         <td>
                             <div class="action-buttons">
                                 <button class="btn-edit" th:onclick="'updateStatus(' + ${order.id} + ')'" 
-                                        th:disabled="${!order.canModify}" 
-                                        th:title="${!order.canModify ? 'Order cannot be modified - fully settled' : 'Update order status'}">
+                                        th:data-status="${order.orderStatus}"
+                                        th:title="'Update order status'">
                                     <i class="fas fa-edit"></i> Status
                                 </button>
                                 <button class="btn-edit" th:onclick="'editOrder(' + ${order.id} + ')'" 
@@ -833,7 +833,7 @@
                             </div>
                             <!-- Show warning for non-modifiable orders -->
                             <div th:if="${!order.canModify}" style="margin-top: 5px; font-size: 0.8rem; color: #e74c3c; font-weight: 500;">
-                                <i class="fas fa-lock"></i> Settled
+                                <i class="fas fa-lock"></i> Edit disabled - Order not in Pending status
                             </div>
                         </td>
                     </tr>
@@ -855,11 +855,7 @@
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 15px; min-width: 400px;">
             <h3 style="margin: 0 0 20px 0; color: #2c3e50;">Update Order Status</h3>
             <select id="newStatus" style="width: 100%; padding: 12px; border: 2px solid #e1e8ed; border-radius: 10px; margin-bottom: 20px;">
-                <option value="Pending">Pending</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Shipped">Shipped</option>
-                <option value="Delivered">Delivered</option>
-                <option value="Cancelled">Cancelled</option>
+                <!-- Options will be populated dynamically based on current status -->
             </select>
             <script>
 document.getElementById("statusFilter").addEventListener("change", function () {
@@ -996,6 +992,42 @@ document.getElementById("statusFilter").addEventListener("change", function () {
 
         function updateStatus(orderId) {
             currentOrderId = orderId;
+            
+            // Get current status from the button's data attribute
+            const button = event.target.closest('button');
+            const currentStatus = button.getAttribute('data-status');
+            
+            // Define status flow
+            const statusFlow = ['Pending', 'Confirmed', 'Shipped', 'Delivered'];
+            const currentIndex = statusFlow.indexOf(currentStatus);
+            
+            // Get the select element
+            const selectElement = document.getElementById('newStatus');
+            selectElement.innerHTML = ''; // Clear existing options
+            
+            // Add valid next statuses
+            for (let i = currentIndex + 1; i < statusFlow.length; i++) {
+                const option = document.createElement('option');
+                option.value = statusFlow[i];
+                option.textContent = statusFlow[i];
+                selectElement.appendChild(option);
+            }
+            
+            // Always add Cancelled option
+            const cancelledOption = document.createElement('option');
+            cancelledOption.value = 'Cancelled';
+            cancelledOption.textContent = 'Cancelled';
+            selectElement.appendChild(cancelledOption);
+            
+            // If no valid options, show current status
+            if (selectElement.children.length === 0) {
+                const currentOption = document.createElement('option');
+                currentOption.value = currentStatus;
+                currentOption.textContent = currentStatus + ' (No further changes allowed)';
+                currentOption.disabled = true;
+                selectElement.appendChild(currentOption);
+            }
+            
             document.getElementById('statusModal').style.display = 'block';
         }
 

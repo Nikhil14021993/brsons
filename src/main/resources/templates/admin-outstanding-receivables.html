@@ -469,6 +469,8 @@
                             </td>
                             <td>
                                 <div class="actions">
+                                    <!-- Settle and Partial Paid buttons disabled for receivables -->
+                                    <!-- 
                                     <button th:if="${item.status != T(com.brsons.model.Outstanding.OutstandingStatus).SETTLED}" 
                                             class="btn btn-success btn-sm" 
                                             th:onclick="'markSettled(' + ${item.id} + ')'">
@@ -480,6 +482,7 @@
                                             th:onclick="'markPartiallyPaid(' + ${item.id} + ')'">
                                         <i class="fas fa-percentage"></i> Partial
                                     </button>
+                                    -->
                                     
                                     <button th:if="${item.status == T(com.brsons.model.Outstanding.OutstandingStatus).PENDING}" 
                                             class="btn btn-danger btn-sm" 
