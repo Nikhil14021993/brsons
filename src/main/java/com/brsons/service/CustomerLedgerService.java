@@ -581,15 +581,26 @@ public class CustomerLedgerService {
     private void createVoucherForPayment(com.brsons.model.Outstanding outstanding, BigDecimal amount, 
                                         String paymentMethod, String paymentReference, String notes) {
         try {
-            // Get account based on payment method for debit entry
-            Account debitAccount = getAccountByPaymentMethod(paymentMethod);
+        			System.out.println("paymentMethod "+ paymentMethod);
+        	Account debitAccount = null;
+        	       	if ("cash".equals(paymentMethod)) {
+        	       		 debitAccount = accountRepository.findById(5L).orElse(null);
+        	            
+        	       	}else {
+        	       		 debitAccount = accountRepository.findById(6L).orElse(null);
+        	       	}
+        	       	System.out.println("paymentMethod "+ paymentMethod);
+            //Account debitAccount = getAccountByPaymentMethod(paymentMethod);
+            
+            
+            
             if (debitAccount == null) {
                 System.err.println("Cannot find account for payment method: " + paymentMethod);
                 return;
             }
             
             // Get credit account (Sales Revenue - ID 5)
-            Account creditAccount = accountRepository.findById(5L).orElse(null);
+            Account creditAccount = accountRepository.findById(7L).orElse(null);
             if (creditAccount == null) {
                 System.err.println("Cannot find account with ID 5 (Sales Revenue)");
                 return;

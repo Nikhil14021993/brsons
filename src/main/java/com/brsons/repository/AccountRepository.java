@@ -43,4 +43,7 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 	
 	// Find all active accounts
 	List<Account> findByIsActiveTrue();
+	
+	// Find account by code
+	Account findByCode(String code);
 }

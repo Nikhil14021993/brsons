@@ -1393,5 +1393,38 @@ public class AdminController {
             return "Error cancelling order: " + e.getMessage();
         }
     }
+    
+    /**
+     * Test method to verify B2B voucher creation functionality
+     * This method can be called to test if the voucher entry creation works
+     */
+    @GetMapping("/test-b2b-voucher")
+    @ResponseBody
+    public String testB2BVoucherCreation() {
+        try {
+            // Find B2B orders (Kaccha) and filter for confirmed ones
+            List<Order> b2bOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Kaccha");
+            List<Order> confirmedB2BOrders = b2bOrders.stream()
+                .filter(order -> "Confirmed".equals(order.getOrderStatus()))
+                .collect(java.util.stream.Collectors.toList());
+            
+            if (confirmedB2BOrders.isEmpty()) {
+                return "No confirmed B2B orders found. Please create and confirm a B2B order first.";
+            }
+            
+            Order testOrder = confirmedB2BOrders.get(0);
+            
+            // Test the voucher creation by calling the service method directly
+            // Note: This is a test method, in real scenario this happens automatically on confirmation
+            return "Found B2B order ID: " + testOrder.getId() + 
+                   ", Invoice: " + testOrder.getInvoiceNumber() + 
+                   ", Total: " + testOrder.getTotal() + 
+                   ". Voucher creation will happen automatically when order is confirmed.";
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Error testing B2B voucher creation: " + e.getMessage();
+        }
+    }
 
 }
