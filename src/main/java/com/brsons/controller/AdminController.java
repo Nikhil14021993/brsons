@@ -1395,35 +1395,55 @@ public class AdminController {
     }
     
     /**
-     * Test method to verify B2B voucher creation functionality
+     * Test method to verify voucher creation functionality for both B2B and Retail orders
      * This method can be called to test if the voucher entry creation works
      */
-    @GetMapping("/test-b2b-voucher")
+    @GetMapping("/test-voucher-creation")
     @ResponseBody
-    public String testB2BVoucherCreation() {
+    public String testVoucherCreation() {
         try {
-            // Find B2B orders (Kaccha) and filter for confirmed ones
+            StringBuilder result = new StringBuilder();
+            
+            // Test B2B orders (Kaccha)
             List<Order> b2bOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Kaccha");
             List<Order> confirmedB2BOrders = b2bOrders.stream()
                 .filter(order -> "Confirmed".equals(order.getOrderStatus()))
                 .collect(java.util.stream.Collectors.toList());
             
+            result.append("=== B2B Orders (Kaccha) ===\n");
             if (confirmedB2BOrders.isEmpty()) {
-                return "No confirmed B2B orders found. Please create and confirm a B2B order first.";
+                result.append("No confirmed B2B orders found.\n");
+            } else {
+                Order testB2BOrder = confirmedB2BOrders.get(0);
+                result.append("Found B2B order ID: ").append(testB2BOrder.getId())
+                      .append(", Invoice: ").append(testB2BOrder.getInvoiceNumber())
+                      .append(", Total: ").append(testB2BOrder.getTotal())
+                      .append("\nVoucher: Debit Accounts Receivable (1001.01), Credit Sales (3001)\n");
             }
             
-            Order testOrder = confirmedB2BOrders.get(0);
+            // Test Retail orders (Pakka)
+            List<Order> retailOrders = orderRepository.findByBillTypeOrderByCreatedAtDesc("Pakka");
+            List<Order> confirmedRetailOrders = retailOrders.stream()
+                .filter(order -> "Confirmed".equals(order.getOrderStatus()))
+                .collect(java.util.stream.Collectors.toList());
             
-            // Test the voucher creation by calling the service method directly
-            // Note: This is a test method, in real scenario this happens automatically on confirmation
-            return "Found B2B order ID: " + testOrder.getId() + 
-                   ", Invoice: " + testOrder.getInvoiceNumber() + 
-                   ", Total: " + testOrder.getTotal() + 
-                   ". Voucher creation will happen automatically when order is confirmed.";
+            result.append("\n=== Retail Orders (Pakka) ===\n");
+            if (confirmedRetailOrders.isEmpty()) {
+                result.append("No confirmed Retail orders found.\n");
+            } else {
+                Order testRetailOrder = confirmedRetailOrders.get(0);
+                result.append("Found Retail order ID: ").append(testRetailOrder.getId())
+                      .append(", Invoice: ").append(testRetailOrder.getInvoiceNumber())
+                      .append(", Total: ").append(testRetailOrder.getTotal())
+                      .append("\nVoucher: Debit Bank Account (1001.02), Credit Sales (3001)\n");
+            }
+            
+            result.append("\nVoucher creation happens automatically when orders are confirmed.");
+            return result.toString();
             
         } catch (Exception e) {
             e.printStackTrace();
-            return "Error testing B2B voucher creation: " + e.getMessage();
+            return "Error testing voucher creation: " + e.getMessage();
         }
     }
 

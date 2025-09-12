@@ -25,6 +25,12 @@ SELECT '1001.01', 'Accounts Receivable', 'ASSET', 'Money owed by customers', TRU
        (SELECT id FROM account WHERE code = '1001')
 WHERE NOT EXISTS (SELECT 1 FROM account WHERE code = '1001.01');
 
+-- Create Bank Account (1001.02)
+INSERT INTO account (code, name, type, description, is_active, parent_id) 
+SELECT '1001.02', 'Bank Account', 'ASSET', 'Bank Account', TRUE,
+       (SELECT id FROM account WHERE code = '1001')
+WHERE NOT EXISTS (SELECT 1 FROM account WHERE code = '1001.02');
+
 -- Create Sales account (3001)
 INSERT INTO account (code, name, type, description, is_active, parent_id) 
 SELECT '3001', 'Sales', 'INCOME', 'Sales Revenue', TRUE,
@@ -32,8 +38,8 @@ SELECT '3001', 'Sales', 'INCOME', 'Sales Revenue', TRUE,
 WHERE NOT EXISTS (SELECT 1 FROM account WHERE code = '3001');
 
 -- Verify the accounts exist
-SELECT 'Required accounts for B2B voucher entries:' as info;
+SELECT 'Required accounts for voucher entries:' as info;
 SELECT id, code, name, type, is_active, parent_id 
 FROM account 
-WHERE code IN ('1001.01', '3001') 
+WHERE code IN ('1001.01', '1001.02', '3001') 
 ORDER BY code;

@@ -194,6 +194,17 @@ public class AdminOrderService {
                 }
             }
             
+            // If order is being confirmed and it's a Retail order (Pakka), create voucher entry
+            if ("Confirmed".equals(newStatus) && "Pakka".equals(order.getBillType()) && 
+                order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
+                try {
+                    createVoucherEntryForRetailOrder(order);
+                    System.out.println("Created voucher entry for confirmed Retail order ID: " + order.getId());
+                } catch (Exception e) {
+                    System.err.println("Error creating voucher entry for confirmed Retail order ID " + order.getId() + ": " + e.getMessage());
+                }
+            }
+            
             return true;
         }
         return false;
@@ -356,6 +367,67 @@ public class AdminOrderService {
             
         } catch (Exception e) {
             System.err.println("Error creating voucher entry for B2B order ID " + order.getId() + ": " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+    
+    /**
+     * Create voucher entry for Retail order confirmation
+     * Debit: Bank Account (1001.02)
+     * Credit: Sales (3001)
+     */
+    private void createVoucherEntryForRetailOrder(Order order) {
+        try {
+            // Find the required accounts
+            Account bankAccount = accountRepository.findById(6L).orElse(null);
+            Account salesAccount = accountRepository.findByCode("3001");
+            
+            if (bankAccount == null) {
+                System.err.println("Bank Account (1001.02) not found. Creating it...");
+                bankAccount = createAccountIfNotExists("1001.02", "Bank Account", "ASSET", "Bank Account");
+            }
+            
+            if (salesAccount == null) {
+                System.err.println("Sales account (3001) not found. Creating it...");
+                salesAccount = createAccountIfNotExists("3001", "Sales", "INCOME", "Sales Revenue");
+            }
+            
+            if (bankAccount == null || salesAccount == null) {
+                throw new RuntimeException("Could not find or create required accounts for retail order voucher entry");
+            }
+            
+            // Create voucher
+            Voucher voucher = new Voucher();
+            voucher.setDate(LocalDate.now());
+            voucher.setNarration("Retail Order Confirmation - Invoice: " + order.getInvoiceNumber());
+            voucher.setType("SALES");
+            Voucher savedVoucher = voucherRepository.save(voucher);
+            
+            // Create debit entry (Bank Account)
+            VoucherEntry debitEntry = new VoucherEntry();
+            debitEntry.setVoucher(savedVoucher);
+            debitEntry.setAccount(bankAccount);
+            debitEntry.setDebit(order.getTotal());
+            debitEntry.setCredit(BigDecimal.ZERO);
+            debitEntry.setDescription("Bank Account - Order #" + order.getId() + " - " + order.getName());
+            voucherEntryRepository.save(debitEntry);
+            
+            // Create credit entry (Sales)
+            VoucherEntry creditEntry = new VoucherEntry();
+            creditEntry.setVoucher(savedVoucher);
+            creditEntry.setAccount(salesAccount);
+            creditEntry.setDebit(BigDecimal.ZERO);
+            creditEntry.setCredit(order.getTotal());
+            creditEntry.setDescription("Sales - Order #" + order.getId() + " - " + order.getName());
+            voucherEntryRepository.save(creditEntry);
+            
+            System.out.println("Successfully created voucher entry for Retail order ID: " + order.getId() + 
+                             " - Debit: " + bankAccount.getName() + " (" + order.getTotal() + 
+                             "), Credit: " + salesAccount.getName() + " (" + order.getTotal() + ")");
+            
+        } catch (Exception e) {
+            System.err.println("Error creating voucher entry for Retail order ID " + order.getId() + ": " + e.getMessage());
             e.printStackTrace();
             throw e;
         }
