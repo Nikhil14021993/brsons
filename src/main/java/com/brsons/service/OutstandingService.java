@@ -902,9 +902,15 @@ public class OutstandingService {
             if (!existingOutstanding.isEmpty()) {
                 Outstanding outstanding = existingOutstanding.get(0);
                 
-                // Check if order can be cancelled (not fully settled)
+                // Check if order can be cancelled based on order status, not outstanding status
+                Order orderForStatus = orderRepository.findById(outstanding.getReferenceId()).orElse(null);
+                if (orderForStatus != null && "Delivered".equals(orderForStatus.getOrderStatus())) {
+                    throw new RuntimeException("Cannot cancel order that has been delivered");
+                }
+
+                // Allow cancellation even if outstanding is settled, but log a warning
                 if (outstanding.getStatus() == Outstanding.OutstandingStatus.SETTLED) {
-                    throw new RuntimeException("Cannot cancel order that is fully settled");
+                    System.out.println("Warning: Cancelling order with settled outstanding item - this will reverse the settlement");
                 }
                 
                 // Check if already cancelled to prevent duplicate processing
@@ -969,6 +975,23 @@ public class OutstandingService {
                 
                 System.out.println("Cancelled outstanding item for order #" + order.getId());
             }
+            
+            // Create reversal voucher for both B2B and Retail orders
+            // Only create reversal if order was previously confirmed (had a voucher created)
+            if (order.getOrderStatus() != null && 
+                ("Confirmed".equals(order.getOrderStatus()) || 
+                 "Shipped".equals(order.getOrderStatus()))) {
+                try {
+                    createReversalVoucherForOrderCancellation(order);
+                    System.out.println("Created reversal voucher for cancelled order #" + order.getId());
+                } catch (Exception e) {
+                    System.err.println("Error creating reversal voucher for cancelled order #" + order.getId() + ": " + e.getMessage());
+                    // Don't fail the cancellation if voucher creation fails
+                }
+            } else {
+                System.out.println("Order #" + order.getId() + " was not confirmed, skipping voucher reversal");
+            }
+            
         } catch (Exception e) {
             System.err.println("Error handling order cancellation for order #" + order.getId() + ": " + e.getMessage());
             throw e;
@@ -977,7 +1000,8 @@ public class OutstandingService {
     
     /**
      * Check if an order can be modified or cancelled
-     * For both B2B and Retail orders: Only allow modification when status is "Pending"
+     * For both B2B and Retail orders: Allow cancellation until order reaches "Delivered" status
+     * Status flow: Pending → Confirmed → Shipped → Delivered
      */
     public boolean canModifyOrder(Long orderId) {
         // First check if the order exists and get its status
@@ -987,9 +1011,13 @@ public class OutstandingService {
         }
         
         Order order = orderOpt.get();
+        String status = order.getOrderStatus();
         
-        // For both B2B (Kaccha) and Retail (Pakka) orders, only allow modification when status is "Pending"
-        return "Pending".equals(order.getOrderStatus());
+        // Allow cancellation for: Pending, Confirmed, Shipped
+        // Disallow cancellation for: Delivered, Cancelled, and any other status
+        return "Pending".equals(status) || 
+               "Confirmed".equals(status) || 
+               "Shipped".equals(status);
     }
     
     /**
@@ -1838,6 +1866,140 @@ public class OutstandingService {
         } catch (Exception e) {
             System.err.println("Error triggering customer ledger sync: " + e.getMessage());
         }
+    }
+    
+    /**
+     * Create reversal voucher for order cancellation
+     * Only creates reversal if order was previously confirmed (had a voucher created)
+     * This reverses the original voucher created when order was confirmed
+     */
+    private void createReversalVoucherForOrderCancellation(Order order) {
+        try {
+            System.out.println("=== Creating reversal voucher for order cancellation ===");
+            System.out.println("Order ID: " + order.getId());
+            System.out.println("Order Type: " + order.getBillType());
+            System.out.println("Amount: " + order.getTotal());
+            
+            if (order.getTotal() == null || order.getTotal().compareTo(BigDecimal.ZERO) <= 0) {
+                System.out.println("Order amount is zero or null, skipping voucher reversal");
+                return;
+            }
+            
+            if ("Kaccha".equals(order.getBillType())) {
+                // B2B Order Reversal
+                // Original: Debit Accounts Receivable (7), Credit Sales (3001)
+                // Reversal: Credit Accounts Receivable (7), Debit Sales (3001)
+                createB2BOrderReversalVoucher(order);
+            } else if ("Pakka".equals(order.getBillType())) {
+                // Retail Order Reversal  
+                // Original: Debit Bank Account (6), Credit Sales (3001)
+                // Reversal: Credit Bank Account (6), Debit Sales (3001)
+                createRetailOrderReversalVoucher(order);
+            }
+            
+            System.out.println("Reversal voucher created successfully for order #" + order.getId());
+            
+        } catch (Exception e) {
+            System.err.println("Error creating reversal voucher for order #" + order.getId() + ": " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+    
+    /**
+     * Create reversal voucher for B2B order cancellation
+     * Credit: Accounts Receivable (7) - to reverse the original debit
+     * Debit: Sales (3001) - to reverse the original credit
+     */
+    private void createB2BOrderReversalVoucher(Order order) {
+        // Find the required accounts
+        Account accountsReceivable = accountRepository.findById(7L).orElse(null);
+        Account salesAccount = accountRepository.findByCode("3001");
+        
+        if (accountsReceivable == null) {
+            System.err.println("Accounts Receivable account (ID: 7) not found for reversal voucher");
+            return;
+        }
+        
+        if (salesAccount == null) {
+            System.err.println("Sales account (3001) not found for reversal voucher");
+            return;
+        }
+        
+        // Create reversal voucher
+        Voucher voucher = new Voucher();
+        voucher.setDate(LocalDate.now());
+        voucher.setNarration("Order Cancellation Reversal - Invoice: " + order.getInvoiceNumber());
+        voucher.setType("REVERSAL");
+        Voucher savedVoucher = voucherRepository.save(voucher);
+        
+        // Create credit entry (Accounts Receivable) - reverses original debit
+        VoucherEntry creditEntry = new VoucherEntry();
+        creditEntry.setVoucher(savedVoucher);
+        creditEntry.setAccount(accountsReceivable);
+        creditEntry.setDebit(BigDecimal.ZERO);
+        creditEntry.setCredit(order.getTotal());
+        creditEntry.setDescription("Reversal - Debtors - Order #" + order.getId() + " - " + order.getName());
+        voucherEntryRepository.save(creditEntry);
+        
+        // Create debit entry (Sales) - reverses original credit
+        VoucherEntry debitEntry = new VoucherEntry();
+        debitEntry.setVoucher(savedVoucher);
+        debitEntry.setAccount(salesAccount);
+        debitEntry.setDebit(order.getTotal());
+        debitEntry.setCredit(BigDecimal.ZERO);
+        debitEntry.setDescription("Reversal - Sales - Order #" + order.getId() + " - " + order.getName());
+        voucherEntryRepository.save(debitEntry);
+        
+        System.out.println("B2B reversal voucher created - Credit Accounts Receivable, Debit Sales");
+    }
+    
+    /**
+     * Create reversal voucher for Retail order cancellation
+     * Credit: Bank Account (6) - to reverse the original debit
+     * Debit: Sales (3001) - to reverse the original credit
+     */
+    private void createRetailOrderReversalVoucher(Order order) {
+        // Find the required accounts
+        Account bankAccount = accountRepository.findById(6L).orElse(null);
+        Account salesAccount = accountRepository.findByCode("3001");
+        
+        if (bankAccount == null) {
+            System.err.println("Bank Account (ID: 6) not found for reversal voucher");
+            return;
+        }
+        
+        if (salesAccount == null) {
+            System.err.println("Sales account (3001) not found for reversal voucher");
+            return;
+        }
+        
+        // Create reversal voucher
+        Voucher voucher = new Voucher();
+        voucher.setDate(LocalDate.now());
+        voucher.setNarration("Order Cancellation Reversal - Invoice: " + order.getInvoiceNumber());
+        voucher.setType("REVERSAL");
+        Voucher savedVoucher = voucherRepository.save(voucher);
+        
+        // Create credit entry (Bank Account) - reverses original debit
+        VoucherEntry creditEntry = new VoucherEntry();
+        creditEntry.setVoucher(savedVoucher);
+        creditEntry.setAccount(bankAccount);
+        creditEntry.setDebit(BigDecimal.ZERO);
+        creditEntry.setCredit(order.getTotal());
+        creditEntry.setDescription("Reversal - Bank Account - Order #" + order.getId() + " - " + order.getName());
+        voucherEntryRepository.save(creditEntry);
+        
+        // Create debit entry (Sales) - reverses original credit
+        VoucherEntry debitEntry = new VoucherEntry();
+        debitEntry.setVoucher(savedVoucher);
+        debitEntry.setAccount(salesAccount);
+        debitEntry.setDebit(order.getTotal());
+        debitEntry.setCredit(BigDecimal.ZERO);
+        debitEntry.setDescription("Reversal - Sales - Order #" + order.getId() + " - " + order.getName());
+        voucherEntryRepository.save(debitEntry);
+        
+        System.out.println("Retail reversal voucher created - Credit Bank Account, Debit Sales");
     }
 }
 
