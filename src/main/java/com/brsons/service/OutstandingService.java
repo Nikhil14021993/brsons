@@ -113,6 +113,9 @@ public class OutstandingService {
             "Kaccha"
         );
         
+        // Set contact info for supplier matching
+        outstanding.setContactInfo(po.getSupplier().getPhone());
+        
         outstanding = outstandingRepository.save(outstanding);
         
         // Create supplier ledger entry for this purchase order
@@ -330,26 +333,66 @@ public class OutstandingService {
         if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
             outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
             try {
-                System.out.println("Syncing partial payment with supplier ledger for payable...");
+                System.out.println("=== SYNC DEBUG: Partial Payment ===");
+                System.out.println("Outstanding Type: " + outstanding.getType());
+                System.out.println("Contact Info: " + outstanding.getContactInfo());
+                System.out.println("Paid Amount: " + paidAmount);
+                
                 Optional<SupplierLedger> supplierLedger = supplierLedgerService.getSupplierLedgerByPhone(outstanding.getContactInfo());
                 if (supplierLedger.isPresent()) {
-                    // Add payment entry to supplier ledger
+                    System.out.println("Found supplier ledger: " + supplierLedger.get().getSupplierName());
+                    // Add payment entry to supplier ledger (disable sync to avoid double sync)
                     supplierLedgerService.addPaymentEntry(
                         supplierLedger.get(),
                         paidAmount,
                         paymentMethod,
                         paymentReference,
-                        notes
+                        notes,
+                        false // Disable sync since this is coming from outstanding payables
                     );
                     System.out.println("Successfully updated supplier ledger for partial payment of " + paidAmount + 
                                      " for supplier: " + supplierLedger.get().getSupplierName());
                 } else {
                     System.err.println("Supplier ledger not found for phone: " + outstanding.getContactInfo());
+                    System.err.println("Creating supplier ledger for: " + outstanding.getContactInfo());
+                    
+                    // Try to create supplier ledger if it doesn't exist
+                    try {
+                        // Ensure we have valid contact info for supplier name and phone
+                        String contactInfo = outstanding.getContactInfo();
+                        if (contactInfo == null || contactInfo.trim().isEmpty()) {
+                            contactInfo = "Unknown Supplier";
+                        }
+                        
+                        SupplierLedger newSupplierLedger = supplierLedgerService.findOrCreateSupplierLedger(
+                            contactInfo, // Use contact info as name
+                            contactInfo, // Use contact info as phone
+                            null, // No email
+                            null  // No code
+                        );
+                        
+                        // Add payment entry to the new supplier ledger
+                        supplierLedgerService.addPaymentEntry(
+                            newSupplierLedger,
+                            paidAmount,
+                            paymentMethod,
+                            paymentReference,
+                            notes,
+                            false // Disable sync since this is coming from outstanding payables
+                        );
+                        
+                        System.out.println("Created new supplier ledger and added payment entry");
+                    } catch (Exception createException) {
+                        System.err.println("Error creating supplier ledger: " + createException.getMessage());
+                        createException.printStackTrace();
+                    }
                 }
             } catch (Exception e) {
                 System.err.println("Error updating supplier ledger for partial payment: " + e.getMessage());
                 e.printStackTrace();
             }
+        } else {
+            System.out.println("Not a payable - skipping supplier ledger sync. Type: " + outstanding.getType());
         }
         
         // If fully paid, mark as settled
@@ -441,26 +484,66 @@ public class OutstandingService {
         if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
             outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
             try {
-                System.out.println("Syncing full settlement with supplier ledger for payable...");
+                System.out.println("=== SYNC DEBUG: Full Settlement ===");
+                System.out.println("Outstanding Type: " + outstanding.getType());
+                System.out.println("Contact Info: " + outstanding.getContactInfo());
+                System.out.println("Remaining Amount: " + remainingAmount);
+                
                 Optional<SupplierLedger> supplierLedger = supplierLedgerService.getSupplierLedgerByPhone(outstanding.getContactInfo());
                 if (supplierLedger.isPresent()) {
-                    // Add payment entry to supplier ledger
+                    System.out.println("Found supplier ledger: " + supplierLedger.get().getSupplierName());
+                    // Add payment entry to supplier ledger (disable sync to avoid double sync)
                     supplierLedgerService.addPaymentEntry(
                         supplierLedger.get(),
                         remainingAmount,
                         paymentMethod,
                         paymentReference,
-                        notes
+                        notes,
+                        false // Disable sync since this is coming from outstanding payables
                     );
                     System.out.println("Successfully updated supplier ledger for full settlement of " + remainingAmount + 
                                      " for supplier: " + supplierLedger.get().getSupplierName());
                 } else {
                     System.err.println("Supplier ledger not found for phone: " + outstanding.getContactInfo());
+                    System.err.println("Creating supplier ledger for: " + outstanding.getContactInfo());
+                    
+                    // Try to create supplier ledger if it doesn't exist
+                    try {
+                        // Ensure we have valid contact info for supplier name and phone
+                        String contactInfo = outstanding.getContactInfo();
+                        if (contactInfo == null || contactInfo.trim().isEmpty()) {
+                            contactInfo = "Unknown Supplier";
+                        }
+                        
+                        SupplierLedger newSupplierLedger = supplierLedgerService.findOrCreateSupplierLedger(
+                            contactInfo, // Use contact info as name
+                            contactInfo, // Use contact info as phone
+                            null, // No email
+                            null  // No code
+                        );
+                        
+                        // Add payment entry to the new supplier ledger
+                        supplierLedgerService.addPaymentEntry(
+                            newSupplierLedger,
+                            remainingAmount,
+                            paymentMethod,
+                            paymentReference,
+                            notes,
+                            false // Disable sync since this is coming from outstanding payables
+                        );
+                        
+                        System.out.println("Created new supplier ledger and added payment entry");
+                    } catch (Exception createException) {
+                        System.err.println("Error creating supplier ledger: " + createException.getMessage());
+                        createException.printStackTrace();
+                    }
                 }
             } catch (Exception e) {
                 System.err.println("Error updating supplier ledger for settlement: " + e.getMessage());
                 e.printStackTrace();
             }
+        } else {
+            System.out.println("Not a payable - skipping supplier ledger sync. Type: " + outstanding.getType());
         }
         
         return outstandingRepository.save(outstanding);

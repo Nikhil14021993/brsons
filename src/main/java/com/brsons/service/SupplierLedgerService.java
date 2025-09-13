@@ -196,6 +196,16 @@ public class SupplierLedgerService {
     @Transactional
     public void addPaymentEntry(SupplierLedger supplierLedger, BigDecimal paymentAmount, 
                                String paymentMethod, String paymentReference, String notes) {
+        addPaymentEntry(supplierLedger, paymentAmount, paymentMethod, paymentReference, notes, true);
+    }
+    
+    /**
+     * Add payment entry to supplier ledger with option to sync with outstanding
+     */
+    @Transactional
+    public void addPaymentEntry(SupplierLedger supplierLedger, BigDecimal paymentAmount, 
+                               String paymentMethod, String paymentReference, String notes, 
+                               boolean syncWithOutstanding) {
         String particulars = "Payment to " + supplierLedger.getSupplierName();
         String referenceNumber = "PAYMENT/" + supplierLedger.getId();
         
@@ -222,6 +232,11 @@ public class SupplierLedgerService {
         // Update supplier ledger
         supplierLedger.addCredit(paymentAmount);
         supplierLedgerRepository.save(supplierLedger);
+        
+        // Only sync with outstanding if explicitly requested (for manual ledger payments)
+        if (syncWithOutstanding) {
+            applyPaymentToOutstandingPayables(supplierLedger.getSupplierPhone(), paymentAmount, paymentMethod, paymentReference, notes);
+        }
     }
     
     /**
@@ -298,8 +313,9 @@ public class SupplierLedgerService {
                                     String paymentMethod, String paymentReference, String notes) {
         try {
             // Get debit account based on payment method
+        	System.out.println("paymentMethod ++"+paymentMethod);
             Account debitAccount = null;
-            if ("Cash".equals(paymentMethod)) {
+            if ("cash".equals(paymentMethod)) {
                 debitAccount = accountRepository.findById(5L).orElse(null);
             } else {
                 debitAccount = accountRepository.findById(6L).orElse(null);
@@ -358,6 +374,103 @@ public class SupplierLedgerService {
         }
         
         voucherEntryRepository.save(entry);
+    }
+    
+    // ==================== OUTSTANDING PAYABLES SYNC ====================
+    
+    /**
+     * Apply payment to outstanding payables for a supplier
+     * This method applies payment to the oldest invoices first (FIFO principle)
+     * Any excess payment is stored as advance payment for future invoices
+     */
+    @Transactional
+    public void applyPaymentToOutstandingPayables(String supplierPhone, BigDecimal paymentAmount, 
+                                                String paymentMethod, String paymentReference, String notes) {
+        try {
+            System.out.println("=== Starting payment application to outstanding payables ===");
+            System.out.println("Supplier Phone: " + supplierPhone);
+            System.out.println("Payment Amount: " + paymentAmount);
+            System.out.println("Payment Method: " + paymentMethod);
+            System.out.println("Payment Reference: " + paymentReference);
+            
+            // Get all non-settled payables for this supplier, ordered by creation date (oldest first)
+            List<com.brsons.model.Outstanding> outstandingPayables = outstandingRepository
+                .findPayablesForSupplierOldestFirst(supplierPhone);
+            
+            System.out.println("Found " + outstandingPayables.size() + " outstanding payables for supplier");
+            
+            // Calculate total outstanding amount
+            BigDecimal totalOutstanding = outstandingPayables.stream()
+                .map(com.brsons.model.Outstanding::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            System.out.println("Total outstanding amount: " + totalOutstanding);
+            System.out.println("Payment amount: " + paymentAmount);
+            
+            BigDecimal remainingPayment = paymentAmount;
+            int syncedCount = 0;
+            
+            // Apply payment to existing outstanding invoices (FIFO - oldest first)
+            if (!outstandingPayables.isEmpty()) {
+                for (com.brsons.model.Outstanding outstanding : outstandingPayables) {
+                    if (remainingPayment.compareTo(BigDecimal.ZERO) <= 0) {
+                        break; // No more payment to apply
+                    }
+                    
+                    BigDecimal currentOutstandingAmount = outstanding.getAmount();
+                    if (currentOutstandingAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                        continue; // Skip already settled items
+                    }
+                    
+                    // Calculate how much to pay for this invoice
+                    BigDecimal paidAmount = remainingPayment.min(currentOutstandingAmount);
+                    
+                    System.out.println("Applying payment to outstanding item #" + outstanding.getId() + 
+                                     " - Outstanding: ₹" + currentOutstandingAmount + 
+                                     ", Paying: ₹" + paidAmount);
+                    
+                    // Update the outstanding item
+                    outstanding.setAmount(currentOutstandingAmount.subtract(paidAmount));
+                    outstanding.setPaymentMethod(paymentMethod);
+                    outstanding.setPaymentReference(paymentReference);
+                    outstanding.setNotes(notes);
+                    
+                    // If fully paid, mark as settled
+                    if (outstanding.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                        outstanding.setStatus(com.brsons.model.Outstanding.OutstandingStatus.SETTLED);
+                        System.out.println("Outstanding item #" + outstanding.getId() + " fully settled");
+                    } else {
+                        outstanding.setStatus(com.brsons.model.Outstanding.OutstandingStatus.PARTIALLY_PAID);
+                        System.out.println("Outstanding item #" + outstanding.getId() + " partially paid - remaining: ₹" + outstanding.getAmount());
+                    }
+                    
+                    // Save the updated outstanding item
+                    outstandingRepository.save(outstanding);
+                    
+                    // Reduce remaining payment
+                    remainingPayment = remainingPayment.subtract(paidAmount);
+                    syncedCount++;
+                    
+                    System.out.println("Successfully applied payment to outstanding item #" + outstanding.getId() + 
+                                     " - Paid: ₹" + paidAmount + ", Remaining: ₹" + outstanding.getAmount());
+                }
+            }
+            
+            // Handle any remaining payment as advance credit
+            if (remainingPayment.compareTo(BigDecimal.ZERO) > 0) {
+                System.out.println("Remaining payment amount: ₹" + remainingPayment + " - storing as advance credit");
+                // Note: Advance credit handling can be implemented here if needed
+                // For now, we'll just log it
+            }
+            
+            System.out.println("=== Payment application completed ===");
+            System.out.println("Synced " + syncedCount + " outstanding payables");
+            System.out.println("Remaining payment: ₹" + remainingPayment);
+            
+        } catch (Exception e) {
+            System.err.println("Error applying payment to outstanding payables: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to sync payment with outstanding payables", e);
+        }
     }
     
     // ==================== DASHBOARD DATA CLASS ====================

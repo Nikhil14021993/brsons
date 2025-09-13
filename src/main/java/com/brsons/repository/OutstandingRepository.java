@@ -100,4 +100,8 @@ public interface OutstandingRepository extends JpaRepository<Outstanding, Long> 
     // Find all non-settled B2B (Kaccha) receivables for a customer, oldest first
     @Query("SELECT o FROM Outstanding o WHERE o.contactInfo = :contactInfo AND o.type = 'INVOICE_RECEIVABLE' AND o.orderType = 'Kaccha' AND o.status IN ('PENDING', 'OVERDUE', 'PARTIALLY_PAID') ORDER BY o.createdAt ASC")
     List<Outstanding> findB2BReceivablesForCustomerOldestFirst(@Param("contactInfo") String contactInfo);
+    
+    // Find all non-settled payables for a supplier, oldest first
+    @Query("SELECT o FROM Outstanding o WHERE o.contactInfo = :contactInfo AND (o.type = 'INVOICE_PAYABLE' OR o.type = 'PURCHASE_ORDER') AND o.status IN ('PENDING', 'OVERDUE', 'PARTIALLY_PAID') ORDER BY o.createdAt ASC")
+    List<Outstanding> findPayablesForSupplierOldestFirst(@Param("contactInfo") String contactInfo);
 }
