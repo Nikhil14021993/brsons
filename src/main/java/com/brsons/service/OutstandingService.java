@@ -813,8 +813,7 @@ public class OutstandingService {
     
     /**
      * Check if an order can be modified or cancelled
-     * For B2B orders: Only allow modification when status is "Pending"
-     * For other orders: Use existing logic (not settled)
+     * For both B2B and Retail orders: Only allow modification when status is "Pending"
      */
     public boolean canModifyOrder(Long orderId) {
         // First check if the order exists and get its status
@@ -825,20 +824,8 @@ public class OutstandingService {
         
         Order order = orderOpt.get();
         
-        // For B2B orders (Kaccha), only allow modification when status is "Pending"
-        if ("Kaccha".equals(order.getBillType())) {
-            return "Pending".equals(order.getOrderStatus());
-        }
-        
-        // For other orders (Retail/Pakka), use existing logic
-        List<Outstanding> existingOutstanding = outstandingRepository.findByReferenceTypeAndReferenceId("ORDER", orderId);
-        
-        if (existingOutstanding.isEmpty()) {
-            return true; // No outstanding item, can modify
-        }
-        
-        Outstanding outstanding = existingOutstanding.get(0);
-        return outstanding.getStatus() != Outstanding.OutstandingStatus.SETTLED;
+        // For both B2B (Kaccha) and Retail (Pakka) orders, only allow modification when status is "Pending"
+        return "Pending".equals(order.getOrderStatus());
     }
     
     /**
@@ -1141,18 +1128,18 @@ public class OutstandingService {
             // Get appropriate credit account based on outstanding type
             Account creditAccount = null;
             if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {
-                // For receivables, credit Sales Revenue (ID 5)
-                creditAccount = accountRepository.findById(7L).orElse(null);
+                // For receivables, credit Accounts Receivable (1001.01)
+                creditAccount = accountRepository.findByCode("1001.01");
                 if (creditAccount == null) {
-                    System.err.println("Cannot find account with ID 5 (Sales Revenue)");
+                    System.err.println("Cannot find account with code 1001.01 (Accounts Receivable)");
                     return;
                 }
             } else if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
                        outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
-                // For payables, credit Purchase Expense (ID 7)
-                creditAccount = accountRepository.findById(7L).orElse(null);
+                // For payables, credit Purchase / Cost of Goods Sold (ID 35)
+                creditAccount = accountRepository.findById(35L).orElse(null);
                 if (creditAccount == null) {
-                    System.err.println("Cannot find account with ID 7 (Purchase Expense)");
+                    System.err.println("Cannot find account with ID 35 (Purchase / Cost of Goods Sold)");
                     return;
                 }
             }
@@ -1174,13 +1161,13 @@ public class OutstandingService {
             // Create voucher entries based on outstanding type
             if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {
                 // Customer payment received
-                createVoucherEntry(voucher, debitAccount, amount, true); // Debit based on payment method
-                createVoucherEntry(voucher, creditAccount, amount, false); // Credit Sales Revenue (ID 5)
+                createVoucherEntry(voucher, debitAccount, amount, true); // Debit Cash/Bank
+                createVoucherEntry(voucher, creditAccount, amount, false); // Credit Accounts Receivable
             } else if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
                        outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
-                // Supplier payment made
-                createVoucherEntry(voucher, debitAccount, amount, true); // Debit based on payment method
-                createVoucherEntry(voucher, creditAccount, amount, false); // Credit Purchase Expense (ID 7)
+                // Supplier payment made - Debit Purchase/Cost of Goods Sold, Credit Cash/Bank
+                createVoucherEntry(voucher, creditAccount, amount, true); // Debit Purchase/Cost of Goods Sold
+                createVoucherEntry(voucher, debitAccount, amount, false); // Credit Cash/Bank
             }
             
             System.out.println("Created settlement voucher for outstanding item #" + outstanding.getId());
@@ -1228,18 +1215,18 @@ public class OutstandingService {
             // Get appropriate credit account based on outstanding type
             Account creditAccount = null;
             if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {
-                // For receivables, credit Sales Revenue (ID 5)
-                creditAccount = accountRepository.findById(7L).orElse(null);
+                // For receivables, credit Accounts Receivable (1001.01)
+                creditAccount = accountRepository.findByCode("1001.01");
                 if (creditAccount == null) {
-                    System.err.println("Cannot find account with ID 5 (Sales Revenue)");
+                    System.err.println("Cannot find account with code 1001.01 (Accounts Receivable)");
                     return;
                 }
             } else if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
                        outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
-                // For payables, credit Purchase Expense (ID 7)
-                creditAccount = accountRepository.findById(7L).orElse(null);
+                // For payables, credit Purchase / Cost of Goods Sold (ID 35)
+                creditAccount = accountRepository.findById(35L).orElse(null);
                 if (creditAccount == null) {
-                    System.err.println("Cannot find account with ID 7 (Purchase Expense)");
+                    System.err.println("Cannot find account with ID 35 (Purchase / Cost of Goods Sold)");
                     return;
                 }
             }
@@ -1261,13 +1248,13 @@ public class OutstandingService {
             // Create voucher entries based on outstanding type
             if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {
                 // Customer partial payment received
-                createVoucherEntry(voucher, debitAccount, paidAmount, true); // Debit based on payment method
-                createVoucherEntry(voucher, creditAccount, paidAmount, false); // Credit Sales Revenue (ID 5)
+                createVoucherEntry(voucher, debitAccount, paidAmount, true); // Debit Cash/Bank
+                createVoucherEntry(voucher, creditAccount, paidAmount, false); // Credit Accounts Receivable
             } else if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
                        outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
-                // Supplier partial payment made
-                createVoucherEntry(voucher, debitAccount, paidAmount, true); // Debit based on payment method
-                createVoucherEntry(voucher, creditAccount, paidAmount, false); // Credit Purchase Expense (ID 7)
+                // Supplier partial payment made - Debit Purchase/Cost of Goods Sold, Credit Cash/Bank
+                createVoucherEntry(voucher, creditAccount, paidAmount, true); // Debit Purchase/Cost of Goods Sold
+                createVoucherEntry(voucher, debitAccount, paidAmount, false); // Credit Cash/Bank
             }
             
             System.out.println("Created partial payment voucher for outstanding item #" + outstanding.getId());
