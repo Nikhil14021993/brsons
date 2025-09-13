@@ -17,6 +17,7 @@ import com.brsons.repository.PurchaseOrderRepository;
 import com.brsons.repository.SupplierRepository;
 import com.brsons.repository.VoucherRepository;
 import com.brsons.repository.VoucherEntryRepository;
+import com.brsons.repository.GRNRepository;
 import com.brsons.repository.AccountRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -64,6 +65,9 @@ public class OutstandingService {
     private AccountRepository accountRepository;
     
     @Autowired
+    private GRNRepository grnRepository;
+    
+    @Autowired
     private CustomerLedgerService customerLedgerService;
     
     @Autowired
@@ -89,6 +93,22 @@ public class OutstandingService {
     }
     
     // ==================== OUTSTANDING MANAGEMENT ====================
+    
+    /**
+     * Check if a purchase order has approved GRNs
+     */
+    private boolean hasApprovedGRN(Long poId) {
+        try {
+            List<com.brsons.model.GoodsReceivedNote> approvedGRNs = grnRepository.findByPurchaseOrderIdAndStatus(
+                poId, 
+                com.brsons.model.GoodsReceivedNote.GRNStatus.APPROVED
+            );
+            return !approvedGRNs.isEmpty();
+        } catch (Exception e) {
+            System.err.println("Error checking for approved GRNs for PO #" + poId + ": " + e.getMessage());
+            return false;
+        }
+    }
     
     /**
      * Create outstanding item for purchase order
@@ -118,26 +138,8 @@ public class OutstandingService {
         
         outstanding = outstandingRepository.save(outstanding);
         
-        // Create supplier ledger entry for this purchase order
-        try {
-            if (po.getSupplier() != null) {
-                SupplierLedger supplierLedger = supplierLedgerService.findOrCreateSupplierLedger(
-                    po.getSupplier().getCompanyName(),
-                    po.getSupplier().getPhone(),
-                    po.getSupplier().getEmail(),
-                    po.getSupplier().getSupplierCode()
-                );
-                
-                // Add purchase order entry to supplier ledger
-                supplierLedgerService.addPurchaseOrderEntry(supplierLedger, po);
-                
-                System.out.println("Created supplier ledger entry for PO #" + po.getId() + 
-                                 " for supplier: " + po.getSupplier().getCompanyName());
-            }
-        } catch (Exception e) {
-            System.err.println("Error creating supplier ledger entry for PO #" + po.getId() + ": " + e.getMessage());
-            e.printStackTrace();
-        }
+        // Note: Accounting entries (supplier ledger and outstanding payable) are now created 
+        // when GRN is approved, not when PO is created. This follows proper accrual accounting principles.
         
         return outstanding;
     }
@@ -1190,14 +1192,20 @@ public class OutstandingService {
             }
         }
         
-        // Create outstanding for POs without outstanding items
+        // Create outstanding for POs that have approved GRNs (following new accounting workflow)
         List<PurchaseOrder> pos = purchaseOrderRepository.findAll();
         for (PurchaseOrder po : pos) {
             if (po.getTotalAmount() != null && po.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
                 // Check if outstanding already exists
                 List<Outstanding> existing = outstandingRepository.findByReferenceTypeAndReferenceId("PURCHASE_ORDER", po.getId());
                 if (existing.isEmpty()) {
-                    createPurchaseOrderOutstanding(po);
+                    // Only create outstanding if PO has approved GRNs
+                    if (hasApprovedGRN(po.getId())) {
+                        createPurchaseOrderOutstanding(po);
+                        System.out.println("Created outstanding for PO #" + po.getId() + " (has approved GRN)");
+                    } else {
+                        System.out.println("Skipped PO #" + po.getId() + " - no approved GRN found");
+                    }
                 }
             }
         }
@@ -1224,13 +1232,19 @@ public class OutstandingService {
                 }
             }
             
-            // Create outstanding for Purchase Orders
+            // Create outstanding for Purchase Orders that have approved GRNs (following new accounting workflow)
             List<PurchaseOrder> purchaseOrders = purchaseOrderRepository.findAll();
             System.out.println("Found " + purchaseOrders.size() + " purchase orders to process");
             
             for (PurchaseOrder po : purchaseOrders) {
                 if (po.getTotalAmount() != null && po.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
-                    createPurchaseOrderOutstanding(po);
+                    // Only create outstanding if PO has approved GRNs
+                    if (hasApprovedGRN(po.getId())) {
+                        createPurchaseOrderOutstanding(po);
+                        System.out.println("Created outstanding for PO #" + po.getId() + " (has approved GRN)");
+                    } else {
+                        System.out.println("Skipped PO #" + po.getId() + " - no approved GRN found");
+                    }
                 }
             }
             
@@ -1298,8 +1312,8 @@ public class OutstandingService {
                 }
             } else if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
                        outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
-                // For payables, credit Purchase / Cost of Goods Sold (ID 35)
-                creditAccount = accountRepository.findById(35L).orElse(null);
+                // For payables, credit Purchase / Cost of Goods Sold (ID 22)
+                creditAccount = accountRepository.findById(22L).orElse(null);
                 if (creditAccount == null) {
                     System.err.println("Cannot find account with ID 35 (Purchase / Cost of Goods Sold)");
                     return;
@@ -1386,7 +1400,7 @@ public class OutstandingService {
             } else if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
                        outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
                 // For payables, credit Purchase / Cost of Goods Sold (ID 35)
-                creditAccount = accountRepository.findById(35L).orElse(null);
+                creditAccount = accountRepository.findById(22L).orElse(null);
                 if (creditAccount == null) {
                     System.err.println("Cannot find account with ID 35 (Purchase / Cost of Goods Sold)");
                     return;

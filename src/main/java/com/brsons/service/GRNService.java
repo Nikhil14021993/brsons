@@ -7,6 +7,9 @@ import com.brsons.repository.GRNRepository;
 import com.brsons.repository.PurchaseOrderRepository;
 import com.brsons.service.InventoryService;
 import com.brsons.service.PurchaseOrderService;
+import com.brsons.service.SupplierLedgerService;
+import com.brsons.service.OutstandingService;
+import com.brsons.service.AccountingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +36,15 @@ public class GRNService {
     
     @Autowired
     private PurchaseOrderService purchaseOrderService;
+    
+    @Autowired
+    private SupplierLedgerService supplierLedgerService;
+    
+    @Autowired
+    private OutstandingService outstandingService;
+    
+    @Autowired
+    private AccountingService accountingService;
     
     // Create new GRN
     public GoodsReceivedNote createGRN(GoodsReceivedNote grn) {
@@ -184,6 +196,12 @@ public class GRNService {
             if (newStatus == GoodsReceivedNote.GRNStatus.INSPECTED && oldStatus == GoodsReceivedNote.GRNStatus.REJECTED) {
                 System.out.println("Re-increasing stock for items - GRN " + grn.getGrnNumber() + " status: " + oldStatus + " -> " + newStatus);
                 updateStockFromInspection(grn);
+            }
+            
+            // Create accounting entries when GRN is approved (goods are officially received and accepted)
+            if (newStatus == GoodsReceivedNote.GRNStatus.APPROVED && oldStatus != GoodsReceivedNote.GRNStatus.APPROVED) {
+                System.out.println("GRN " + grn.getGrnNumber() + " approved - creating accounting entries for PO #" + grn.getPurchaseOrder().getId());
+                createAccountingEntriesForApprovedGRN(grn);
             }
             
             // Log status changes for debugging
@@ -402,6 +420,79 @@ public class GRNService {
                 return false; // Terminal state
             default:
                 return false;
+        }
+    }
+    
+    // Create voucher entry for GRN approval
+    private void createVoucherForGRNApproval(GoodsReceivedNote grn, PurchaseOrder po) {
+        try {
+            System.out.println("=== Creating voucher for GRN approval ===");
+            System.out.println("GRN: " + grn.getGrnNumber());
+            System.out.println("PO: " + po.getId());
+            System.out.println("Amount: " + grn.getTotalAmount());
+            
+            // Create voucher with double-entry bookkeeping:
+            // Debit: EXPENSES - Purchase / Cost of Goods Sold (Account ID: 35)
+            // Credit: Current Liabilities - Accounts Payable / Creditors (Account ID: 22)
+            accountingService.createVoucher(
+                grn.getReceivedDate(), // Use GRN received date
+                "GRN Approval - " + grn.getGrnNumber() + " for PO #" + po.getId() + " - " + po.getSupplier().getCompanyName(),
+                "PURCHASE", // Voucher type
+                35L, // Debit Account ID - EXPENSES - Purchase / Cost of Goods Sold
+                22L, // Credit Account ID - Current Liabilities - Accounts Payable / Creditors
+                grn.getTotalAmount() // Amount
+            );
+            
+            System.out.println("Voucher created successfully for GRN approval");
+            
+        } catch (Exception e) {
+            System.err.println("Error creating voucher for GRN approval: " + e.getMessage());
+            e.printStackTrace();
+            // Don't fail the GRN approval if voucher creation fails
+        }
+    }
+    
+    // Create accounting entries when GRN is approved
+    private void createAccountingEntriesForApprovedGRN(GoodsReceivedNote grn) {
+        try {
+            PurchaseOrder po = grn.getPurchaseOrder();
+            if (po == null || po.getSupplier() == null) {
+                System.err.println("Cannot create accounting entries - GRN has no associated PO or supplier");
+                return;
+            }
+            
+            System.out.println("=== Creating accounting entries for approved GRN ===");
+            System.out.println("GRN: " + grn.getGrnNumber());
+            System.out.println("PO: " + po.getId());
+            System.out.println("Supplier: " + po.getSupplier().getCompanyName());
+            System.out.println("Amount: " + grn.getTotalAmount());
+            
+            // 1. Create or find supplier ledger
+            var supplierLedger = supplierLedgerService.findOrCreateSupplierLedger(
+                po.getSupplier().getCompanyName(),
+                po.getSupplier().getPhone(),
+                po.getSupplier().getEmail(),
+                po.getSupplier().getSupplierCode()
+            );
+            
+            // 2. Add purchase order entry to supplier ledger
+            supplierLedgerService.addPurchaseOrderEntry(supplierLedger, po);
+            System.out.println("Created supplier ledger entry for PO #" + po.getId());
+            
+            // 3. Create outstanding payable
+            outstandingService.createPurchaseOrderOutstanding(po);
+            System.out.println("Created outstanding payable for PO #" + po.getId());
+            
+            // 4. Create voucher entry for double-entry bookkeeping
+            createVoucherForGRNApproval(grn, po);
+            System.out.println("Created voucher entry for GRN approval");
+            
+            System.out.println("=== Accounting entries created successfully ===");
+            
+        } catch (Exception e) {
+            System.err.println("Error creating accounting entries for approved GRN: " + e.getMessage());
+            e.printStackTrace();
+            // Don't fail the GRN approval if accounting fails
         }
     }
     

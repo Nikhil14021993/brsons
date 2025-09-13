@@ -327,7 +327,7 @@ public class SupplierLedgerService {
             }
             
             // Get credit account - Purchase / Cost of Goods Sold (ID 35)
-            Account creditAccount = accountRepository.findById(35L).orElse(null);
+            Account creditAccount = accountRepository.findById(22L).orElse(null);
             if (creditAccount == null) {
                 System.err.println("Cannot find account with ID 35 (Purchase / Cost of Goods Sold)");
                 return;
