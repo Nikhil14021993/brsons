@@ -10,6 +10,7 @@ import com.brsons.model.VoucherEntry;
 import com.brsons.model.Account;
 import com.brsons.model.CustomerLedger;
 import com.brsons.model.CustomerLedgerEntry;
+import com.brsons.model.SupplierLedger;
 import com.brsons.repository.OutstandingRepository;
 import com.brsons.repository.OrderRepository;
 import com.brsons.repository.PurchaseOrderRepository;
@@ -66,6 +67,9 @@ public class OutstandingService {
     private CustomerLedgerService customerLedgerService;
     
     @Autowired
+    private SupplierLedgerService supplierLedgerService;
+    
+    @Autowired
     private com.brsons.repository.CustomerLedgerEntryRepository customerLedgerEntryRepository;
     
     @Autowired
@@ -109,7 +113,30 @@ public class OutstandingService {
             "Kaccha"
         );
         
-        return outstandingRepository.save(outstanding);
+        outstanding = outstandingRepository.save(outstanding);
+        
+        // Create supplier ledger entry for this purchase order
+        try {
+            if (po.getSupplier() != null) {
+                SupplierLedger supplierLedger = supplierLedgerService.findOrCreateSupplierLedger(
+                    po.getSupplier().getCompanyName(),
+                    po.getSupplier().getPhone(),
+                    po.getSupplier().getEmail(),
+                    po.getSupplier().getSupplierCode()
+                );
+                
+                // Add purchase order entry to supplier ledger
+                supplierLedgerService.addPurchaseOrderEntry(supplierLedger, po);
+                
+                System.out.println("Created supplier ledger entry for PO #" + po.getId() + 
+                                 " for supplier: " + po.getSupplier().getCompanyName());
+            }
+        } catch (Exception e) {
+            System.err.println("Error creating supplier ledger entry for PO #" + po.getId() + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return outstanding;
     }
     
     /**
@@ -299,6 +326,32 @@ public class OutstandingService {
                              ", Order Type: " + outstanding.getOrderType());
         }
         
+        // If this is a payable (Purchase Order), also update supplier ledger
+        if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
+            outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
+            try {
+                System.out.println("Syncing partial payment with supplier ledger for payable...");
+                Optional<SupplierLedger> supplierLedger = supplierLedgerService.getSupplierLedgerByPhone(outstanding.getContactInfo());
+                if (supplierLedger.isPresent()) {
+                    // Add payment entry to supplier ledger
+                    supplierLedgerService.addPaymentEntry(
+                        supplierLedger.get(),
+                        paidAmount,
+                        paymentMethod,
+                        paymentReference,
+                        notes
+                    );
+                    System.out.println("Successfully updated supplier ledger for partial payment of " + paidAmount + 
+                                     " for supplier: " + supplierLedger.get().getSupplierName());
+                } else {
+                    System.err.println("Supplier ledger not found for phone: " + outstanding.getContactInfo());
+                }
+            } catch (Exception e) {
+                System.err.println("Error updating supplier ledger for partial payment: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        
         // If fully paid, mark as settled
         if (outstanding.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             System.out.println("Item fully paid through partial payment - marking as settled");
@@ -382,6 +435,32 @@ public class OutstandingService {
         } else {
             System.out.println("Not a B2B receivable - skipping customer ledger sync. Type: " + outstanding.getType() + 
                              ", Order Type: " + outstanding.getOrderType());
+        }
+        
+        // If this is a payable (Purchase Order), also update supplier ledger
+        if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
+            outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
+            try {
+                System.out.println("Syncing full settlement with supplier ledger for payable...");
+                Optional<SupplierLedger> supplierLedger = supplierLedgerService.getSupplierLedgerByPhone(outstanding.getContactInfo());
+                if (supplierLedger.isPresent()) {
+                    // Add payment entry to supplier ledger
+                    supplierLedgerService.addPaymentEntry(
+                        supplierLedger.get(),
+                        remainingAmount,
+                        paymentMethod,
+                        paymentReference,
+                        notes
+                    );
+                    System.out.println("Successfully updated supplier ledger for full settlement of " + remainingAmount + 
+                                     " for supplier: " + supplierLedger.get().getSupplierName());
+                } else {
+                    System.err.println("Supplier ledger not found for phone: " + outstanding.getContactInfo());
+                }
+            } catch (Exception e) {
+                System.err.println("Error updating supplier ledger for settlement: " + e.getMessage());
+                e.printStackTrace();
+            }
         }
         
         return outstandingRepository.save(outstanding);
