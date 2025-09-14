@@ -19,6 +19,7 @@ import com.brsons.service.AdminOrderService;
 import com.brsons.service.OrderService;
 
 import com.brsons.dto.OrderDisplayDto;
+import com.brsons.dto.ProductDropdownDto;
 import com.brsons.repository.InvoiceRepository;
 
 import jakarta.servlet.http.HttpSession;
@@ -1451,6 +1452,277 @@ public class AdminController {
         } catch (Exception e) {
             e.printStackTrace();
             return "Error testing voucher creation: " + e.getMessage();
+        }
+    }
+    
+    /**
+     * Open Sale - Manual sale creation for walk-in customers
+     */
+    @GetMapping("/admin/open-sale")
+    public String openSalePage(HttpSession session, Model model) {
+        if (!isAdmin(session)) {
+            return "redirect:/";
+        }
+        
+        // Get all active products for selection
+        List<Product> products = productRepository.findByStatus("Active");
+        System.out.println("Found " + products.size() + " active products for open sale");
+        
+        // Debug: Print first few products
+        if (!products.isEmpty()) {
+            System.out.println("First product: " + products.get(0).getProductName() + " - " + products.get(0).getRetailPrice());
+        } else {
+            System.out.println("No active products found in database");
+            // Try to get all products regardless of status
+            List<Product> allProducts = productRepository.findAll();
+            System.out.println("Total products in database: " + allProducts.size());
+            if (!allProducts.isEmpty()) {
+                System.out.println("First product status: " + allProducts.get(0).getStatus());
+            }
+        }
+        
+        // Convert to DTOs for better JSON serialization
+        List<ProductDropdownDto> productDtos = products.stream()
+            .map(p -> new ProductDropdownDto(
+                p.getId(),
+                p.getProductName(),
+                p.getRetailPrice(),
+                p.getStockQuantity(),
+                p.getSku()
+            ))
+            .collect(java.util.stream.Collectors.toList());
+        
+        System.out.println("Converted " + productDtos.size() + " products to DTOs");
+        if (!productDtos.isEmpty()) {
+            System.out.println("First DTO: " + productDtos.get(0).getProductName() + " - " + productDtos.get(0).getRetailPrice());
+        }
+        
+        model.addAttribute("products", productDtos);
+        
+        return "admin-open-sale";
+    }
+    
+    /**
+     * Process open sale - create order and invoice immediately
+     */
+    @PostMapping("/admin/open-sale/process")
+    @ResponseBody
+    public String processOpenSale(
+            @RequestParam String customerName,
+            @RequestParam String customerPhone,
+            @RequestParam String customerAddress,
+            @RequestParam String[] productIds,
+            @RequestParam String[] quantities,
+            @RequestParam String[] unitPrices,
+            @RequestParam String paymentMethod,
+            @RequestParam(required = false) String notes,
+            @RequestParam(required = false) String[] customProductNames,
+            @RequestParam(required = false) String[] customProductSkus,
+            @RequestParam(required = false) String[] customProductDescriptions,
+            HttpSession session) {
+        
+        if (!isAdmin(session)) {
+            return "unauthorized";
+        }
+        
+        try {
+            // Create order
+            Order order = new Order();
+            order.setName(customerName);
+            order.setUserPhone(customerPhone);
+            order.setAddressLine1(customerAddress);
+            order.setBillType("Pakka"); // Retail sale
+            order.setOrderStatus("Confirmed"); // Auto-confirm for open sales
+            order.setCreatedAt(LocalDateTime.now());
+            
+            // Calculate total
+            BigDecimal total = BigDecimal.ZERO;
+            List<OrderItem> orderItems = new ArrayList<>();
+            
+            for (int i = 0; i < productIds.length; i++) {
+                if (productIds[i] != null && !productIds[i].isEmpty()) {
+                    int quantity = Integer.parseInt(quantities[i]);
+                    BigDecimal unitPrice = new BigDecimal(unitPrices[i]);
+                    
+                    OrderItem item = new OrderItem();
+                    item.setOrder(order);
+                    item.setQuantity(quantity);
+                    item.setUnitPrice(unitPrice);
+                    item.setTotalPrice(unitPrice.multiply(BigDecimal.valueOf(quantity)));
+                    
+                    if ("OTHER".equals(productIds[i])) {
+                        // Handle custom product
+                        String customName = (customProductNames != null && i < customProductNames.length) 
+                            ? customProductNames[i] : "Custom Product";
+                        String customSku = (customProductSkus != null && i < customProductSkus.length) 
+                            ? customProductSkus[i] : "CUSTOM-" + System.currentTimeMillis();
+                        String customDesc = (customProductDescriptions != null && i < customProductDescriptions.length) 
+                            ? customProductDescriptions[i] : "";
+                        
+                        // Set custom product details
+                        item.setProductId(null); // No product ID for custom products
+                        item.setCustomProductName(customName);
+                        item.setCustomProductSku(customSku);
+                        item.setCustomProductDescription(customDesc);
+                        item.setIsCustomProduct(true);
+                        
+                        System.out.println("Added custom product: " + customName + " - " + unitPrice);
+                    } else {
+                        // Handle regular product from database
+                        Long productId = Long.parseLong(productIds[i]);
+                        Product product = productRepository.findById(productId).orElse(null);
+                        if (product != null) {
+                            item.setProductId(productId);
+                            item.setIsCustomProduct(false);
+                            
+                            // Update stock only for regular products
+                            int currentStock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
+                            product.setStockQuantity(currentStock - quantity);
+                            productRepository.save(product);
+                            
+                            System.out.println("Added regular product: " + product.getProductName() + " - " + unitPrice);
+                        } else {
+                            System.out.println("Product not found for ID: " + productId);
+                            continue; // Skip this item
+                        }
+                    }
+                    
+                    orderItems.add(item);
+                    total = total.add(item.getTotalPrice());
+                }
+            }
+            
+            order.setTotal(total);
+            order.setInvoiceNumber("OS-" + System.currentTimeMillis()); // Open Sale invoice number
+            
+            // Save order
+            Order savedOrder = orderRepository.save(order);
+            
+            // Save order items
+            for (OrderItem item : orderItems) {
+                item.setOrder(savedOrder);
+                orderItemRepository.save(item);
+            }
+            
+            // Create voucher entry for retail sale with payment method
+            try {
+                // Use the existing method from AdminOrderService with payment method
+                adminOrderService.createVoucherEntryForRetailOrder(savedOrder, paymentMethod);
+            } catch (Exception e) {
+                System.err.println("Error creating voucher for open sale: " + e.getMessage());
+            }
+            
+            return "success:" + savedOrder.getId();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Error creating open sale: " + e.getMessage();
+        }
+    }
+    
+    /**
+     * Get product details for open sale
+     */
+    @GetMapping("/admin/open-sale/product/{productId}")
+    @ResponseBody
+    public String getProductDetails(@PathVariable Long productId) {
+        try {
+            Product product = productRepository.findById(productId).orElse(null);
+            if (product != null) {
+                return product.getProductName() + "|" + 
+                       (product.getRetailPrice() != null ? product.getRetailPrice().toString() : "0") + "|" +
+                       (product.getStockQuantity() != null ? product.getStockQuantity().toString() : "0");
+            }
+            return "Product not found";
+        } catch (Exception e) {
+            return "Error: " + e.getMessage();
+        }
+    }
+    
+    /**
+     * Get all active products as JSON for open sale dropdown
+     */
+    @GetMapping("/admin/open-sale/products")
+    @ResponseBody
+    public List<ProductDropdownDto> getProductsForOpenSale() {
+        try {
+            List<Product> products = productRepository.findByStatus("Active");
+            System.out.println("AJAX: Found " + products.size() + " active products");
+            
+            // If no products found, try to insert sample products
+            if (products.isEmpty()) {
+                System.out.println("No active products found, checking if any products exist...");
+                List<Product> allProducts = productRepository.findAll();
+                System.out.println("Total products in database: " + allProducts.size());
+                
+                if (allProducts.isEmpty()) {
+                    System.out.println("No products in database, inserting sample products...");
+                    insertSampleProducts();
+                    products = productRepository.findByStatus("Active");
+                    System.out.println("After inserting samples, found " + products.size() + " active products");
+                }
+            }
+            
+            List<ProductDropdownDto> productDtos = products.stream()
+                .map(p -> new ProductDropdownDto(
+                    p.getId(),
+                    p.getProductName(),
+                    p.getRetailPrice(),
+                    p.getStockQuantity(),
+                    p.getSku()
+                ))
+                .collect(java.util.stream.Collectors.toList());
+            
+            System.out.println("AJAX: Converted to " + productDtos.size() + " DTOs");
+            return productDtos;
+        } catch (Exception e) {
+            System.err.println("Error loading products for open sale: " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * Insert sample products if none exist
+     */
+    private void insertSampleProducts() {
+        try {
+            // Create a sample category first
+            Category category = new Category();
+            category.setCategoryName("Clothing");
+            category.setStatus("Active");
+            category = categoryRepository.save(category);
+            
+            // Create sample products
+            String[][] sampleProducts = {
+                {"Cotton T-Shirt", "Comfortable cotton t-shirt", "299.00", "250.00", "50"},
+                {"Denim Jeans", "Classic blue denim jeans", "1299.00", "1100.00", "25"},
+                {"Polo Shirt", "Premium polo shirt", "599.00", "500.00", "30"},
+                {"Hoodie", "Warm and comfortable hoodie", "899.00", "750.00", "20"},
+                {"Cargo Pants", "Utility cargo pants", "1099.00", "900.00", "15"}
+            };
+            
+            for (String[] productData : sampleProducts) {
+                Product product = new Product();
+                product.setProductName(productData[0]);
+                product.setDescription(productData[1]);
+                product.setRetailPrice(Double.parseDouble(productData[2]));
+                product.setB2bPrice(Double.parseDouble(productData[3]));
+                product.setPurchasePrice(product.getRetailPrice() * 0.6);
+                product.setB2bMinQuantity(5);
+                product.setDiscount(0.0);
+                product.setStockQuantity(Integer.parseInt(productData[4]));
+                product.setReservedQuantity(0);
+                product.setStatus("Active");
+                product.setCategory(category);
+                product.setSku(productData[0].substring(0, 3).toUpperCase() + "-001");
+                productRepository.save(product);
+            }
+            
+            System.out.println("Sample products inserted successfully");
+        } catch (Exception e) {
+            System.err.println("Error inserting sample products: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

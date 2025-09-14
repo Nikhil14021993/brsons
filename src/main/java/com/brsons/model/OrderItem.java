@@ -29,6 +29,19 @@ public class OrderItem {
     // Store the original product price type used
     @Column(length = 20)
     private String priceType; // "retail", "b2b", or "admin"
+    
+    // Custom product fields for products not in database
+    @Column(name = "is_custom_product")
+    private Boolean isCustomProduct = false;
+    
+    @Column(name = "custom_product_name", length = 255)
+    private String customProductName;
+    
+    @Column(name = "custom_product_sku", length = 100)
+    private String customProductSku;
+    
+    @Column(name = "custom_product_description", length = 500)
+    private String customProductDescription;
 
     @ManyToOne
     @JoinColumn(name = "order_id", nullable = false)
@@ -116,5 +129,38 @@ public class OrderItem {
         if (this.unitPrice != null && this.quantity > 0) {
             this.totalPrice = this.unitPrice.multiply(BigDecimal.valueOf(this.quantity));
         }
+    }
+
+    // Custom product getters and setters
+    public Boolean getIsCustomProduct() {
+        return isCustomProduct;
+    }
+
+    public void setIsCustomProduct(Boolean isCustomProduct) {
+        this.isCustomProduct = isCustomProduct;
+    }
+
+    public String getCustomProductName() {
+        return customProductName;
+    }
+
+    public void setCustomProductName(String customProductName) {
+        this.customProductName = customProductName;
+    }
+
+    public String getCustomProductSku() {
+        return customProductSku;
+    }
+
+    public void setCustomProductSku(String customProductSku) {
+        this.customProductSku = customProductSku;
+    }
+
+    public String getCustomProductDescription() {
+        return customProductDescription;
+    }
+
+    public void setCustomProductDescription(String customProductDescription) {
+        this.customProductDescription = customProductDescription;
     }
 }

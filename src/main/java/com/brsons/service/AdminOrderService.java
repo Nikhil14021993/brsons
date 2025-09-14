@@ -204,7 +204,9 @@ public class AdminOrderService {
             if ("Confirmed".equals(newStatus) && "Pakka".equals(order.getBillType()) && 
                 order.getTotal() != null && order.getTotal().compareTo(BigDecimal.ZERO) > 0) {
                 try {
-                    createVoucherEntryForRetailOrder(order);
+                    // For regular retail orders, default to "Cash" payment method
+                    // This can be enhanced later to store payment method in Order model
+                    createVoucherEntryForRetailOrder(order, "Cash");
                     System.out.println("Created voucher entry for confirmed Retail order ID: " + order.getId());
                 } catch (Exception e) {
                     System.err.println("Error creating voucher entry for confirmed Retail order ID " + order.getId() + ": " + e.getMessage());
@@ -380,18 +382,44 @@ public class AdminOrderService {
     
     /**
      * Create voucher entry for Retail order confirmation
-     * Debit: Bank Account (1001.02)
+     * Debit: Cash Account (ID 5) for Cash payments, Bank Account (ID 6) for other payments
      * Credit: Sales (3001)
      */
-    private void createVoucherEntryForRetailOrder(Order order) {
+    public void createVoucherEntryForRetailOrder(Order order) {
+        createVoucherEntryForRetailOrder(order, "Cash"); // Default to Cash for backward compatibility
+    }
+    
+    /**
+     * Create voucher entry for Retail order confirmation with payment method
+     * Debit: Cash Account (ID 5) for Cash payments, Bank Account (ID 6) for other payments
+     * Credit: Sales (3001)
+     */
+    public void createVoucherEntryForRetailOrder(Order order, String paymentMethod) {
         try {
-            // Find the required accounts
-            Account bankAccount = accountRepository.findById(6L).orElse(null);
+            // Determine which account to debit based on payment method
+            Account debitAccount;
+            String accountName;
+            String accountCode;
+            
+            if ("Cash".equalsIgnoreCase(paymentMethod)) {
+                // For cash payments, debit Cash account (ID 5)
+                debitAccount = accountRepository.findById(5L).orElse(null);
+                accountName = "Cash Account";
+                accountCode = "1001.03";
+            } else {
+                // For other payments (Card, UPI, Bank Transfer), debit Bank account (ID 6)
+                debitAccount = accountRepository.findById(6L).orElse(null);
+                accountName = "Bank Account";
+                accountCode = "1001.02";
+            }
+            
+            // Find the sales account
             Account salesAccount = accountRepository.findByCode("3001");
             
-            if (bankAccount == null) {
-                System.err.println("Bank Account (1001.02) not found. Creating it...");
-                bankAccount = createAccountIfNotExists("1001.02", "Bank Account", "ASSET", "Bank Account");
+            // Create accounts if they don't exist
+            if (debitAccount == null) {
+                System.err.println(accountName + " (" + accountCode + ") not found. Creating it...");
+                debitAccount = createAccountIfNotExists(accountCode, accountName, "ASSET", accountName);
             }
             
             if (salesAccount == null) {
@@ -399,24 +427,24 @@ public class AdminOrderService {
                 salesAccount = createAccountIfNotExists("3001", "Sales", "INCOME", "Sales Revenue");
             }
             
-            if (bankAccount == null || salesAccount == null) {
+            if (debitAccount == null || salesAccount == null) {
                 throw new RuntimeException("Could not find or create required accounts for retail order voucher entry");
             }
             
             // Create voucher
             Voucher voucher = new Voucher();
             voucher.setDate(LocalDate.now());
-            voucher.setNarration("Retail Order Confirmation - Invoice: " + order.getInvoiceNumber());
+            voucher.setNarration("Retail Order Confirmation - Invoice: " + order.getInvoiceNumber() + " - Payment: " + paymentMethod);
             voucher.setType("SALES");
             Voucher savedVoucher = voucherRepository.save(voucher);
             
-            // Create debit entry (Bank Account)
+            // Create debit entry (Cash or Bank Account)
             VoucherEntry debitEntry = new VoucherEntry();
             debitEntry.setVoucher(savedVoucher);
-            debitEntry.setAccount(bankAccount);
+            debitEntry.setAccount(debitAccount);
             debitEntry.setDebit(order.getTotal());
             debitEntry.setCredit(BigDecimal.ZERO);
-            debitEntry.setDescription("Bank Account - Order #" + order.getId() + " - " + order.getName());
+            debitEntry.setDescription(accountName + " - Order #" + order.getId() + " - " + order.getName() + " - " + paymentMethod);
             voucherEntryRepository.save(debitEntry);
             
             // Create credit entry (Sales)
@@ -429,7 +457,8 @@ public class AdminOrderService {
             voucherEntryRepository.save(creditEntry);
             
             System.out.println("Successfully created voucher entry for Retail order ID: " + order.getId() + 
-                             " - Debit: " + bankAccount.getName() + " (" + order.getTotal() + 
+                             " - Payment Method: " + paymentMethod +
+                             " - Debit: " + debitAccount.getName() + " (" + order.getTotal() + 
                              "), Credit: " + salesAccount.getName() + " (" + order.getTotal() + ")");
             
         } catch (Exception e) {

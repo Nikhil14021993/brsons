@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Controller
 public class TestDataController {
@@ -101,6 +102,84 @@ public class TestDataController {
             
         } catch (Exception e) {
             return "Error testing checkout invoice generation: " + e.getMessage();
+        }
+    }
+    
+    @GetMapping("/test/debug-products")
+    @ResponseBody
+    public String debugProducts() {
+        try {
+            List<Product> products = productRepository.findByStatus("Active");
+            StringBuilder result = new StringBuilder();
+            result.append("Found ").append(products.size()).append(" active products:\n");
+            
+            for (Product product : products) {
+                result.append("ID: ").append(product.getId())
+                      .append(", Name: ").append(product.getProductName())
+                      .append(", Price: ").append(product.getRetailPrice())
+                      .append(", Stock: ").append(product.getStockQuantity())
+                      .append(", SKU: ").append(product.getSku())
+                      .append("\n");
+            }
+            
+            return result.toString();
+        } catch (Exception e) {
+            return "Error debugging products: " + e.getMessage();
+        }
+    }
+    
+    @GetMapping("/test/add-sample-products")
+    @ResponseBody
+    public String addSampleProducts() {
+        try {
+            // Create a category first if it doesn't exist
+            Category category = categoryRepository.findByCategoryName("Clothing")
+                .orElseGet(() -> {
+                    Category newCategory = new Category();
+                    newCategory.setCategoryName("Clothing");
+                    newCategory.setStatus("Active");
+                    return categoryRepository.save(newCategory);
+                });
+            
+            // Create sample products
+            String[] productNames = {
+                "Cotton T-Shirt", "Denim Jeans", "Polo Shirt", "Hoodie", 
+                "Cargo Pants", "Sweater", "Shorts", "Jacket"
+            };
+            
+            Double[] retailPrices = {299.0, 1299.0, 599.0, 899.0, 1099.0, 799.0, 399.0, 1499.0};
+            Double[] b2bPrices = {250.0, 1100.0, 500.0, 750.0, 900.0, 650.0, 320.0, 1200.0};
+            Integer[] stockQuantities = {50, 25, 30, 20, 15, 18, 35, 10};
+            String[] skus = {"TSH-001", "JNS-001", "POL-001", "HOD-001", "CAR-001", "SWT-001", "SHT-001", "JCK-001"};
+            
+            int productsCreated = 0;
+            for (int i = 0; i < productNames.length; i++) {
+                // Check if product already exists
+                if (productRepository.findByProductNameContainingIgnoreCase(productNames[i]).isEmpty()) {
+                    Product product = new Product();
+                    product.setProductName(productNames[i]);
+                    product.setDescription("Sample " + productNames[i] + " for testing");
+                    product.setRetailPrice(retailPrices[i]);
+                    product.setB2bPrice(b2bPrices[i]);
+                    product.setPurchasePrice(retailPrices[i] * 0.5); // 50% of retail price
+                    product.setB2bMinQuantity(5);
+                    product.setDiscount(0.0);
+                    product.setStockQuantity(stockQuantities[i]);
+                    product.setReservedQuantity(0);
+                    product.setStatus("Active");
+                    product.setCategory(category);
+                    product.setSku(skus[i]);
+                    
+                    productRepository.save(product);
+                    productsCreated++;
+                }
+            }
+            
+            return "Sample products created successfully! Created " + productsCreated + " new products. " + 
+                   (productNames.length - productsCreated) + " products already existed.";
+            
+        } catch (Exception e) {
+            return "Error adding sample products: " + e.getMessage();
         }
     }
     
