@@ -352,6 +352,13 @@
             background: #95a5a6 !important;
             transform: none;
         }
+        
+        /* Specific styling for disabled edit buttons */
+        .action-buttons .btn-edit:disabled {
+            background: #bdc3c7 !important;
+            color: #7f8c8d !important;
+            border: 1px solid #d5dbdb;
+        }
 
         .empty-state {
             text-align: center;
@@ -832,8 +839,8 @@
                                 </button>
                                 <button class="btn-edit" th:onclick="'editOrder(' + ${order.id} + ')'" 
                                         style="background-color: #17a2b8;" 
-                                        th:disabled="${!order.canModify}"
-                                        th:title="${!order.canModify ? 'Order cannot be modified - fully settled' : 'Edit order details'}">
+                                        th:disabled="${order.orderStatus != 'Pending'}"
+                                        th:title="${order.orderStatus != 'Pending' ? 'Edit only available for Pending orders' : 'Edit order details'}">
                                     <i class="fas fa-edit"></i> Edit
                                 </button>
                                 <button class="btn-view" th:onclick="'viewOrder(' + ${order.id} + ')'">
@@ -844,7 +851,7 @@
                                 </button>
                             </div>
                             <!-- Show warning for non-modifiable orders -->
-                            <div th:if="${!order.canModify}" style="margin-top: 5px; font-size: 0.8rem; color: #e74c3c; font-weight: 500;">
+                            <div th:if="${order.orderStatus != 'Pending'}" style="margin-top: 5px; font-size: 0.8rem; color: #e74c3c; font-weight: 500;">
                                 <i class="fas fa-lock"></i> Edit disabled - Order not in Pending status
                             </div>
                             <!-- Show warning for cancelled orders -->
@@ -1092,6 +1099,17 @@ document.getElementById("statusFilter").addEventListener("change", function () {
         }
 
         function editOrder(orderId) {
+            // Get the order row to check status
+            const orderRow = event.target.closest('tr');
+            const statusBadge = orderRow.querySelector('.status-badge');
+            const currentStatus = statusBadge ? statusBadge.textContent.trim() : '';
+            
+            // Check if order is in Pending status
+            if (currentStatus !== 'Pending') {
+                alert('Edit is only available for orders with Pending status');
+                return;
+            }
+            
             // Redirect to order edit page
             window.location.href = `/admin/orders/edit/${orderId}`;
         }
