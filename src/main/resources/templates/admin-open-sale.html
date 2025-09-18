@@ -496,8 +496,8 @@
         function populateProductOptions(productRow) {
             const select = productRow.querySelector('select[name="productIds"]');
             if (select) {
-                // Clear existing options except the first one
-                while (select.children.length > 1) {
+                // Clear existing options except the first two (Select Product and Other)
+                while (select.children.length > 2) {
                     select.removeChild(select.lastChild);
                 }
                 
