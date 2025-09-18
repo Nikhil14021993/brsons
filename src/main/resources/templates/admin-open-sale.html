@@ -645,7 +645,7 @@
             .then(data => {
                 if (data.startsWith('success:')) {
                     const orderId = data.split(':')[1];
-                    showMessage(`Sale processed successfully! Order ID: ${orderId}`, 'success');
+                    showMessage(`Sale processed successfully! Order ID: ${orderId} <a href="/admin/orders/${orderId}/invoice" target="_blank" style="color: #fff; text-decoration: underline; margin-left: 10px;"><i class="fas fa-download"></i> Download Invoice</a>`, 'success');
                     document.getElementById('openSaleForm').reset();
                     document.getElementById('productsContainer').innerHTML = '';
                     addProductRow();

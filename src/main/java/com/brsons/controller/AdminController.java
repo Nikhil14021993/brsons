@@ -1260,8 +1260,18 @@ public class AdminController {
         // Table data
         int serialNumber = 1;
         for (OrderItem item : order.getOrderItems()) {
-            Product product = productRepository.findById(item.getProductId()).orElse(null);
-            String productName = product != null ? product.getProductName() : "Unknown Product";
+            String productName;
+            if (Boolean.TRUE.equals(item.getIsCustomProduct())) {
+                // Handle custom product
+                productName = item.getCustomProductName() != null ? item.getCustomProductName() : "Custom Product";
+                if (item.getCustomProductSku() != null && !item.getCustomProductSku().isEmpty()) {
+                    productName += " (" + item.getCustomProductSku() + ")";
+                }
+            } else {
+                // Handle regular product
+                Product product = productRepository.findById(item.getProductId()).orElse(null);
+                productName = product != null ? product.getProductName() : "Unknown Product";
+            }
             
             addTableCell(table, String.valueOf(serialNumber++));
             addTableCell(table, productName);
@@ -1612,6 +1622,15 @@ public class AdminController {
                 System.err.println("Error creating voucher for open sale: " + e.getMessage());
             }
             
+            // Generate invoice for open sale
+            try {
+                generateInvoiceForOpenSale(savedOrder);
+                System.out.println("Invoice generated for open sale order ID: " + savedOrder.getId());
+            } catch (Exception e) {
+                System.err.println("Error generating invoice for open sale: " + e.getMessage());
+                e.printStackTrace();
+            }
+            
             return "success:" + savedOrder.getId();
             
         } catch (Exception e) {
@@ -1682,6 +1701,90 @@ public class AdminController {
         }
     }
     
+    /**
+     * Generate invoice for open sale order
+     */
+    private void generateInvoiceForOpenSale(Order order) throws IOException {
+        // Generate new PDF invoice
+        byte[] pdfContent = generatePdfInvoiceForOpenSale(order);
+        
+        // Save to disk and update database
+        Invoice invoice = savePdfToDiskAndDb(order, pdfContent);
+        
+        System.out.println("Invoice generated for open sale order " + order.getId() + 
+                          " with file path: " + invoice.getFilePath());
+    }
+    
+    /**
+     * Generate PDF invoice for open sale order with custom product support
+     */
+    private byte[] generatePdfInvoiceForOpenSale(Order order) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4);
+        PdfWriter.getInstance(document, baos);
+        document.open();
+
+        // Header
+        Paragraph header = new Paragraph("INVOICE - OPEN SALE", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18));
+        header.setAlignment(Element.ALIGN_CENTER);
+        document.add(header);
+
+        // Invoice details
+        document.add(new Paragraph("Invoice Number: " + order.getInvoiceNumber()));
+        document.add(new Paragraph("Date: " + order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))));
+        document.add(new Paragraph("Customer: " + order.getName()));
+        document.add(new Paragraph("Phone: " + order.getUserPhone()));
+        document.add(new Paragraph("Address: " + order.getAddressLine1()));
+        document.add(new Paragraph(" "));
+
+        // Items table
+        PdfPTable table = new PdfPTable(5);
+        table.setWidthPercentage(100);
+        table.setWidths(new float[]{1, 3, 1, 1, 1});
+
+        // Table headers
+        addTableHeader(table, "S.No");
+        addTableHeader(table, "Product");
+        addTableHeader(table, "Qty");
+        addTableHeader(table, "Price");
+        addTableHeader(table, "Total");
+
+        // Table data
+        int serialNumber = 1;
+        List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
+        for (OrderItem item : orderItems) {
+            String productName;
+            if (Boolean.TRUE.equals(item.getIsCustomProduct())) {
+                // Handle custom product
+                productName = item.getCustomProductName() != null ? item.getCustomProductName() : "Custom Product";
+                if (item.getCustomProductSku() != null && !item.getCustomProductSku().isEmpty()) {
+                    productName += " (" + item.getCustomProductSku() + ")";
+                }
+            } else {
+                // Handle regular product
+                Product product = productRepository.findById(item.getProductId()).orElse(null);
+                productName = product != null ? product.getProductName() : "Unknown Product";
+            }
+            
+            addTableCell(table, String.valueOf(serialNumber++));
+            addTableCell(table, productName);
+            addTableCell(table, String.valueOf(item.getQuantity()));
+            addTableCell(table, "₹" + item.getUnitPrice());
+            addTableCell(table, "₹" + item.getTotalPrice());
+        }
+
+        document.add(table);
+        document.add(new Paragraph(" "));
+
+        // Totals
+        document.add(new Paragraph("Subtotal: ₹" + order.getSubTotal()));
+        document.add(new Paragraph("GST: ₹" + order.getGstAmount()));
+        document.add(new Paragraph("Total: ₹" + order.getTotal()));
+
+        document.close();
+        return baos.toByteArray();
+    }
+
     /**
      * Insert sample products if none exist
      */
