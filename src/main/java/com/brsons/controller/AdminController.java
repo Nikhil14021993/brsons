@@ -1786,6 +1786,30 @@ public class AdminController {
     }
 
     /**
+     * Debug endpoint to check order status values
+     */
+    @GetMapping("/admin/debug/order-status")
+    @ResponseBody
+    public String debugOrderStatus() {
+        try {
+            List<Order> orders = orderRepository.findAll();
+            StringBuilder result = new StringBuilder();
+            result.append("Total orders: ").append(orders.size()).append("\n\n");
+            
+            for (Order order : orders) {
+                result.append("Order ID: ").append(order.getId())
+                      .append(", Status: '").append(order.getStatus()).append("'")
+                      .append(", OrderStatus: '").append(order.getOrderStatus()).append("'")
+                      .append("\n");
+            }
+            
+            return result.toString();
+        } catch (Exception e) {
+            return "Error: " + e.getMessage();
+        }
+    }
+
+    /**
      * Insert sample products if none exist
      */
     private void insertSampleProducts() {

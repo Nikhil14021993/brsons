@@ -826,7 +826,7 @@
                             <strong style="color: #27ae60;" th:text="'₹' + ${order.total}">₹1,500</strong>
                         </td>
                         <td>
-                            <span class="status-badge" th:classappend="${'status-' + order.orderStatus.toLowerCase()}" 
+                            <span class="status-badge order-status-badge" th:classappend="${'status-' + order.orderStatus.toLowerCase()}" 
                                   th:text="${order.orderStatus}">Pending</span>
                         </td>
                         <td>
@@ -1101,12 +1101,17 @@ document.getElementById("statusFilter").addEventListener("change", function () {
         function editOrder(orderId) {
             // Get the order row to check status
             const orderRow = event.target.closest('tr');
-            const statusBadge = orderRow.querySelector('.status-badge');
+            
+            // Find the order status badge specifically (not the bill type badge)
+            const statusBadge = orderRow.querySelector('.order-status-badge');
             const currentStatus = statusBadge ? statusBadge.textContent.trim() : '';
             
-            // Check if order is in Pending status
-            if (currentStatus !== 'Pending') {
-                alert('Edit is only available for orders with Pending status');
+            console.log('Current status:', currentStatus); // Debug log
+            console.log('Status length:', currentStatus.length); // Debug log
+            
+            // Check if order is in Pending status (case-insensitive)
+            if (!currentStatus || currentStatus.toLowerCase() !== 'pending') {
+                alert('Edit is only available for orders with Pending status. Current status: "' + currentStatus + '"');
                 return;
             }
             
