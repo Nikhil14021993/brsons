@@ -401,7 +401,13 @@
                 row.setAttribute('data-has-children', 'true');
                 row.setAttribute('data-expanded', 'false');
                 row.style.cursor = 'pointer';
-                row.onclick = () => toggleAccount(account.accountId);
+                row.onclick = (event) => {
+                    // If the click originated on a link inside the row, do nothing
+                    if (event.target && (event.target.tagName === 'A' || event.target.closest('a'))) {
+                        return;
+                    }
+                    toggleAccount(account.accountId);
+                };
             }
 
             const expandIcon = account.subAccounts && account.subAccounts.length > 0 
@@ -410,9 +416,22 @@
 
             // Create proper indentation based on level
             const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
+            let displayName = account.accountName;
+            // Make Accounts Receivable / Debtors clickable to B2B receivables page
+            const nameLower = (account.accountName || '').toLowerCase();
+            const normalizedName = (account.accountName || '').trim().toLowerCase();
+            const isReceivables = normalizedName === 'accounts receivable / debtors' || nameLower.includes('accounts receivable') || nameLower.includes('debtors') || nameLower.includes('sundry debtors');
+            const isPayables = normalizedName === 'accounts payable / creditors' || nameLower.includes('accounts payable') || nameLower.includes('creditors') || nameLower.includes('sundry creditors');
+            
+            if (isReceivables) {
+                displayName = `<a href="/admin/outstanding/receivables/b2b" data-link="receivables-b2b" onclick="event.stopPropagation(); event.preventDefault(); window.location.href='/admin/outstanding/receivables/b2b'; return false;" style="color: #007bff; text-decoration: underline; position: relative; z-index: 2; pointer-events: auto;">${account.accountName}</a>`;
+            } else if (isPayables) {
+                displayName = `<a href="/admin/outstanding/payables" data-link="payables" onclick="event.stopPropagation(); event.preventDefault(); window.location.href='/admin/outstanding/payables'; return false;" style="color: #007bff; text-decoration: underline; position: relative; z-index: 2; pointer-events: auto;">${account.accountName}</a>`;
+            }
+
             const accountName = isParent 
-                ? `${expandIcon}${account.accountName}` 
-                : `${indent}${expandIcon}└─ ${account.accountName}`;
+                ? `${expandIcon}${displayName}` 
+                : `${indent}${expandIcon}└─ ${displayName}`;
 
             const debitAmount = parseFloat(account.totalDebit);
             const creditAmount = parseFloat(account.totalCredit);
