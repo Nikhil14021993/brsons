@@ -1315,12 +1315,21 @@ public class OutstandingService {
             
             Account debitAccount = null;
             
-	       	if ("Cash".equals(outstanding.getPaymentMethod())) {
-	       		 debitAccount = accountRepository.findById(5L).orElse(null);
-	            
-	       	}else {
-	       		 debitAccount = accountRepository.findById(6L).orElse(null);
-	       	}
+            if ("Cash".equals(outstanding.getPaymentMethod())) {
+                // For cash payments, find Cash account by name
+                debitAccount = accountRepository.findById(5L).orElse(null);
+                if (debitAccount == null) {
+                    System.err.println("Cash account not found, trying ID 5");
+                    debitAccount = accountRepository.findById(5L).orElse(null);
+                }
+            } else {
+                // For other payments, find Bank account by name
+                debitAccount = accountRepository.findById(6L).orElse(null);
+                if (debitAccount == null) {
+                    System.err.println("Bank account not found, trying ID 6");
+                    debitAccount = accountRepository.findById(6L).orElse(null);
+                }
+            }
 	       	
             // Get account based on payment method for debit entry
            // Account debitAccount = getAccountByPaymentMethod(outstanding.getPaymentMethod());
@@ -1333,7 +1342,7 @@ public class OutstandingService {
             Account creditAccount = null;
             if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {
                 // For receivables, credit Accounts Receivable (1001.01)
-                creditAccount = accountRepository.findByCode("1001.01");
+                creditAccount = accountRepository.findById(7L).orElse(null);
                 if (creditAccount == null) {
                     System.err.println("Cannot find account with code 1001.01 (Accounts Receivable)");
                     return;
@@ -1348,19 +1357,26 @@ public class OutstandingService {
                 }
             }
             
-            System.out.println("Debit Account: " + debitAccount.getName() + " (ID: " + debitAccount.getId() + ")");
-            System.out.println("Credit Account: " + creditAccount.getName() + " (ID: " + creditAccount.getId() + ")");
+            System.out.println("Debit Account: " + (debitAccount != null ? debitAccount.getName() + " (ID: " + debitAccount.getId() + ")" : "NULL"));
+            System.out.println("Credit Account: " + (creditAccount != null ? creditAccount.getName() + " (ID: " + creditAccount.getId() + ")" : "NULL"));
+            
+            if (debitAccount == null || creditAccount == null) {
+                System.err.println("Cannot create voucher - missing accounts. Debit: " + (debitAccount != null ? "OK" : "NULL") + 
+                                 ", Credit: " + (creditAccount != null ? "OK" : "NULL"));
+                return;
+            }
             
             Voucher voucher = new Voucher();
             voucher.setDate(java.time.LocalDate.now());
             voucher.setType("Settlement");
             
-            String narration = "Settlement of " + outstanding.getReferenceType() + " #" + outstanding.getReferenceNumber();
+            String narration = "Settlement of " + amount + " for " + outstanding.getReferenceType() + " #" + outstanding.getReferenceNumber();
             if (notes != null && !notes.trim().isEmpty()) {
                 narration += " - " + notes;
             }
             voucher.setNarration(narration);
-            voucherRepository.save(voucher);
+            Voucher savedVoucher = voucherRepository.save(voucher);
+            System.out.println("Created settlement voucher with ID: " + savedVoucher.getId());
             
             // Create voucher entries based on outstanding type
             if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {
@@ -1404,11 +1420,20 @@ public class OutstandingService {
             
             Account debitAccount = null;
             if ("Cash".equals(outstanding.getPaymentMethod())) {
-	       		 debitAccount = accountRepository.findById(5L).orElse(null);
-	            
-	       	}else {
-	       		 debitAccount = accountRepository.findById(6L).orElse(null);
-	       	}
+                // For cash payments, find Cash account by name
+                debitAccount = accountRepository.findById(5L).orElse(null);
+                if (debitAccount == null) {
+                    System.err.println("Cash account not found, trying ID 5");
+                    debitAccount = accountRepository.findById(5L).orElse(null);
+                }
+            } else {
+                // For other payments, find Bank account by name
+                debitAccount = accountRepository.findById(6L).orElse(null);
+                if (debitAccount == null) {
+                    System.err.println("Bank account not found, trying ID 6");
+                    debitAccount = accountRepository.findById(6L).orElse(null);
+                }
+            }
             // Get account based on payment method for debit entry
            // Account debitAccount = getAccountByPaymentMethod(outstanding.getPaymentMethod());
             if (debitAccount == null) {
@@ -1420,7 +1445,7 @@ public class OutstandingService {
             Account creditAccount = null;
             if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {
                 // For receivables, credit Accounts Receivable (1001.01)
-                creditAccount = accountRepository.findByCode("1001.01");
+                creditAccount = accountRepository.findById(7L).orElse(null);
                 if (creditAccount == null) {
                     System.err.println("Cannot find account with code 1001.01 (Accounts Receivable)");
                     return;
@@ -1435,8 +1460,14 @@ public class OutstandingService {
                 }
             }
             
-            System.out.println("Debit Account: " + debitAccount.getName() + " (ID: " + debitAccount.getId() + ")");
-            System.out.println("Credit Account: " + creditAccount.getName() + " (ID: " + creditAccount.getId() + ")");
+            System.out.println("Debit Account: " + (debitAccount != null ? debitAccount.getName() + " (ID: " + debitAccount.getId() + ")" : "NULL"));
+            System.out.println("Credit Account: " + (creditAccount != null ? creditAccount.getName() + " (ID: " + creditAccount.getId() + ")" : "NULL"));
+            
+            if (debitAccount == null || creditAccount == null) {
+                System.err.println("Cannot create voucher - missing accounts. Debit: " + (debitAccount != null ? "OK" : "NULL") + 
+                                 ", Credit: " + (creditAccount != null ? "OK" : "NULL"));
+                return;
+            }
             
             Voucher voucher = new Voucher();
             voucher.setDate(java.time.LocalDate.now());
@@ -1447,7 +1478,8 @@ public class OutstandingService {
                 narration += " - " + notes;
             }
             voucher.setNarration(narration);
-            voucherRepository.save(voucher);
+            Voucher savedVoucher = voucherRepository.save(voucher);
+            System.out.println("Created voucher with ID: " + savedVoucher.getId());
             
             // Create voucher entries based on outstanding type
             if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_RECEIVABLE) {

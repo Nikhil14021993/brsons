@@ -19,8 +19,8 @@ public class TrialBalanceService {
     public List<TrialBalanceRow> getTrialBalance(LocalDate startDate, LocalDate endDate) {
         List<Object[]> results = entityManager.createNativeQuery(
             "SELECT a.name, " +
-            "       COALESCE(SUM(CASE WHEN v.date IS NULL OR v.date BETWEEN :startDate AND :endDate THEN e.debit ELSE 0 END), 0), " +
-            "       COALESCE(SUM(CASE WHEN v.date IS NULL OR v.date BETWEEN :startDate AND :endDate THEN e.credit ELSE 0 END), 0) " +
+            "       COALESCE(SUM(CASE WHEN v.date IS NULL OR v.date BETWEEN :startDate AND :endDate THEN e.debit ELSE 0 END), 0) - " +
+            "       COALESCE(SUM(CASE WHEN v.date IS NULL OR v.date BETWEEN :startDate AND :endDate THEN e.credit ELSE 0 END), 0) as net_balance " +
             "FROM account a " +
             "LEFT JOIN voucher_entry e ON e.account_id = a.id " +
             "LEFT JOIN voucher v ON e.voucher_id = v.id " +
@@ -31,11 +31,12 @@ public class TrialBalanceService {
             .getResultList();
 
         return results.stream()
-                .map(r -> new TrialBalanceRow(
-                        (String) r[0],
-                        toBigDecimal(r[1]),
-                        toBigDecimal(r[2])
-                ))
+                .map(r -> {
+                    BigDecimal netBalance = toBigDecimal(r[1]);
+                    BigDecimal debit = netBalance.compareTo(BigDecimal.ZERO) > 0 ? netBalance : BigDecimal.ZERO;
+                    BigDecimal credit = netBalance.compareTo(BigDecimal.ZERO) < 0 ? netBalance.abs() : BigDecimal.ZERO;
+                    return new TrialBalanceRow((String) r[0], debit, credit);
+                })
                 .toList();
     }
 
@@ -57,11 +58,11 @@ public class TrialBalanceService {
         System.out.println("Start Date: " + startDate);
         System.out.println("End Date: " + endDate);
         
-        // Get all accounts with their balances using native SQL
+        // Get all accounts with their NET balances using native SQL
         List<Object[]> results = entityManager.createNativeQuery(
             "SELECT a.id, a.name, a.code, a.type, a.parent_id, " +
-            "       COALESCE(SUM(CASE WHEN v.date IS NULL OR v.date BETWEEN :startDate AND :endDate THEN e.debit ELSE 0 END), 0), " +
-            "       COALESCE(SUM(CASE WHEN v.date IS NULL OR v.date BETWEEN :startDate AND :endDate THEN e.credit ELSE 0 END), 0) " +
+            "       COALESCE(SUM(CASE WHEN v.date IS NULL OR v.date BETWEEN :startDate AND :endDate THEN e.debit ELSE 0 END), 0) - " +
+            "       COALESCE(SUM(CASE WHEN v.date IS NULL OR v.date BETWEEN :startDate AND :endDate THEN e.credit ELSE 0 END), 0) as net_balance " +
             "FROM account a " +
             "LEFT JOIN voucher_entry e ON e.account_id = a.id " +
             "LEFT JOIN voucher v ON e.voucher_id = v.id " +
@@ -74,7 +75,7 @@ public class TrialBalanceService {
 
         System.out.println("Query results count: " + results.size());
         for (Object[] row : results) {
-            System.out.println("Account: " + row[1] + " (ID: " + row[0] + "), Debit: " + row[5] + ", Credit: " + row[6]);
+            System.out.println("Account: " + row[1] + " (ID: " + row[0] + "), Net Balance: " + row[5]);
         }
 
         // Create account balance map
@@ -87,8 +88,11 @@ public class TrialBalanceService {
             String accountCode = (String) row[2];
             String accountType = (String) row[3];
             Long parentId = (Long) row[4];
-            BigDecimal debit = toBigDecimal(row[5]);
-            BigDecimal credit = toBigDecimal(row[6]);
+            BigDecimal netBalance = toBigDecimal(row[5]);
+
+            // Convert net balance to debit/credit format
+            BigDecimal debit = netBalance.compareTo(BigDecimal.ZERO) > 0 ? netBalance : BigDecimal.ZERO;
+            BigDecimal credit = netBalance.compareTo(BigDecimal.ZERO) < 0 ? netBalance.abs() : BigDecimal.ZERO;
 
             HierarchicalTrialBalanceRow accountRow = new HierarchicalTrialBalanceRow(
                 accountId, accountName, accountCode, accountType, 
@@ -170,11 +174,16 @@ public class TrialBalanceService {
             }
         }
         
+        // Calculate net balance and convert back to debit/credit format
+        BigDecimal netBalance = totalDebit.subtract(totalCredit);
+        BigDecimal finalDebit = netBalance.compareTo(BigDecimal.ZERO) > 0 ? netBalance : BigDecimal.ZERO;
+        BigDecimal finalCredit = netBalance.compareTo(BigDecimal.ZERO) < 0 ? netBalance.abs() : BigDecimal.ZERO;
+        
         // Update the account with calculated totals
-        account.setTotalDebit(totalDebit);
-        account.setTotalCredit(totalCredit);
+        account.setTotalDebit(finalDebit);
+        account.setTotalCredit(finalCredit);
         
         System.out.println("Updated " + account.getAccountName() + 
-                         " totals: Debit=" + totalDebit + ", Credit=" + totalCredit);
+                         " totals: Net=" + netBalance + ", Debit=" + finalDebit + ", Credit=" + finalCredit);
     }
 }
