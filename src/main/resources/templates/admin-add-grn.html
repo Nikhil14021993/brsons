@@ -451,15 +451,23 @@
             <div class="totals-section">
                 <h4>Totals</h4>
                 <div class="total-row">
-                    <span>Subtotal:</span>
+                    <span>Subtotal (Accepted Qty × Unit Price):</span>
                     <span id="subtotal">₹0.00</span>
+                </div>
+                <div class="total-row">
+                    <span>Discount Amount:</span>
+                    <span id="discountAmount">₹0.00</span>
+                </div>
+                <div class="total-row">
+                    <span>Net Amount (Subtotal - Discount):</span>
+                    <span id="netAmount">₹0.00</span>
                 </div>
                 <div class="total-row">
                     <span>Tax Amount:</span>
                     <span id="taxAmount">₹0.00</span>
                 </div>
                 <div class="total-row">
-                    <span>Total Amount:</span>
+                    <span>Grand Total (Net + Tax):</span>
                     <span id="totalAmount">₹0.00</span>
                 </div>
             </div>
@@ -633,18 +641,21 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                                      <label>Received Quantity</label>
                                      <input type="number" name="grnItems[${itemCounter-1}].receivedQuantity" 
                                             min="0" step="1" placeholder="0" required 
+                                            value="${poItem.orderedQuantity || 0}"
                                             onchange="calculateItemTotal(${itemCounter})">
                                  </div>
                                  <div class="form-group">
                                      <label>Accepted Quantity</label>
                                      <input type="number" name="grnItems[${itemCounter-1}].acceptedQuantity" 
                                             min="0" step="1" placeholder="0" required 
+                                            value="${poItem.orderedQuantity || 0}"
                                             onchange="calculateItemTotal(${itemCounter})">
                                  </div>
                                  <div class="form-group">
                                      <label>Rejected Quantity</label>
                                      <input type="number" name="grnItems[${itemCounter-1}].rejectedQuantity" 
                                             min="0" step="1" placeholder="0" required 
+                                            value="0"
                                             onchange="calculateItemTotal(${itemCounter})">
                                  </div>
                                  <div class="form-group">
@@ -762,6 +773,15 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                          taxInput.value = 0;
                          orderedQtyInput.value = 0;
                          
+                         // Set default values for quantities
+                         const receivedQtyInput = item.querySelector('input[name*="receivedQuantity"]');
+                         const acceptedQtyInput = item.querySelector('input[name*="acceptedQuantity"]');
+                         const rejectedQtyInput = item.querySelector('input[name*="rejectedQuantity"]');
+                         
+                         receivedQtyInput.value = 0;
+                         acceptedQtyInput.value = 0;
+                         rejectedQtyInput.value = 0;
+                         
                          // Make ordered quantity editable for direct GRN
                          orderedQtyInput.readOnly = false;
                          
@@ -817,18 +837,21 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                              <label>Received Quantity</label>
                              <input type="number" name="grnItems[${itemCounter-1}].receivedQuantity" 
                                     min="0" step="1" placeholder="0" required 
+                                    value="0"
                                     onchange="calculateItemTotal(${itemCounter})">
                          </div>
                          <div class="form-group">
                              <label>Accepted Quantity</label>
                              <input type="number" name="grnItems[${itemCounter-1}].acceptedQuantity" 
                                     min="0" step="1" placeholder="0" required 
+                                    value="0"
                                     onchange="calculateItemTotal(${itemCounter})">
                          </div>
                          <div class="form-group">
                              <label>Rejected Quantity</label>
                              <input type="number" name="grnItems[${itemCounter-1}].rejectedQuantity" 
                                     min="0" step="1" placeholder="0" required 
+                                    value="0"
                                     onchange="calculateItemTotal(${itemCounter})">
                          </div>
                          <div class="form-group">
@@ -871,55 +894,75 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
         
         function calculateItemTotal(itemId) {
             const item = document.getElementById(`item-${itemId}`);
-            const receivedQty = parseFloat(item.querySelector('input[name*="receivedQuantity"]').value) || 0;
+            const acceptedQty = parseFloat(item.querySelector('input[name*="acceptedQuantity"]').value) || 0;
             const unitPrice = parseFloat(item.querySelector('input[name*="unitPrice"]').value) || 0;
             const discountPercent = parseFloat(item.querySelector('input[name*="discountPercentage"]').value) || 0;
             const taxPercent = parseFloat(item.querySelector('input[name*="taxPercentage"]').value) || 0;
             
-            // Calculate subtotal
-            let subtotal = receivedQty * unitPrice;
+            // Calculate subtotal (Accepted Quantity * Unit Price)
+            let subtotal = acceptedQty * unitPrice;
             
-            // Apply discount
+            // Calculate discount amount
             const discountAmount = subtotal * (discountPercent / 100);
-            subtotal -= discountAmount;
             
-            // Apply tax
-            const taxAmount = subtotal * (taxPercent / 100);
-            const total = subtotal + taxAmount;
+            // Calculate net amount (subtotal - discount)
+            const netAmount = subtotal - discountAmount;
+            
+            // Calculate tax amount (tax on net amount)
+            const taxAmount = netAmount * (taxPercent / 100);
+            
+            // Calculate grand total (net + tax)
+            const grandTotal = netAmount + taxAmount;
             
             // Update total amount field
-            item.querySelector('input[name*="totalAmount"]').value = total.toFixed(2);
+            item.querySelector('input[name*="totalAmount"]').value = grandTotal.toFixed(2);
             
             calculateTotals();
         }
         
         function calculateTotals() {
-            let subtotal = 0;
+            let totalSubtotal = 0;
+            let totalDiscount = 0;
+            let totalNet = 0;
             let totalTax = 0;
+            let grandTotal = 0;
             
-            // Calculate subtotal from all items
+            // Calculate totals from all items
             const totalAmountInputs = document.querySelectorAll('input[name*="totalAmount"]');
             totalAmountInputs.forEach(input => {
                 const item = input.closest('.item-row');
-                const receivedQty = parseFloat(item.querySelector('input[name*="receivedQuantity"]').value) || 0;
+                const acceptedQty = parseFloat(item.querySelector('input[name*="acceptedQuantity"]').value) || 0;
                 const unitPrice = parseFloat(item.querySelector('input[name*="unitPrice"]').value) || 0;
                 const discountPercent = parseFloat(item.querySelector('input[name*="discountPercentage"]').value) || 0;
                 const taxPercent = parseFloat(item.querySelector('input[name*="taxPercentage"]').value) || 0;
                 
-                let itemSubtotal = receivedQty * unitPrice;
-                const discountAmount = itemSubtotal * (discountPercent / 100);
-                itemSubtotal -= discountAmount;
+                // Calculate item subtotal (Accepted Quantity * Unit Price)
+                const itemSubtotal = acceptedQty * unitPrice;
                 
-                subtotal += itemSubtotal;
-                totalTax += itemSubtotal * (taxPercent / 100);
+                // Calculate item discount amount
+                const itemDiscountAmount = itemSubtotal * (discountPercent / 100);
+                
+                // Calculate item net amount (subtotal - discount)
+                const itemNetAmount = itemSubtotal - itemDiscountAmount;
+                
+                // Calculate item tax amount (tax on net amount)
+                const itemTaxAmount = itemNetAmount * (taxPercent / 100);
+                
+                // Add to totals
+                totalSubtotal += itemSubtotal;
+                totalDiscount += itemDiscountAmount;
+                totalNet += itemNetAmount;
+                totalTax += itemTaxAmount;
             });
             
-            const totalAmount = subtotal + totalTax;
+            grandTotal = totalNet + totalTax;
             
             // Update display
-            document.getElementById('subtotal').textContent = '₹' + subtotal.toFixed(2);
+            document.getElementById('subtotal').textContent = '₹' + totalSubtotal.toFixed(2);
+            document.getElementById('discountAmount').textContent = '₹' + totalDiscount.toFixed(2);
+            document.getElementById('netAmount').textContent = '₹' + totalNet.toFixed(2);
             document.getElementById('taxAmount').textContent = '₹' + totalTax.toFixed(2);
-            document.getElementById('totalAmount').textContent = '₹' + totalAmount.toFixed(2);
+            document.getElementById('totalAmount').textContent = '₹' + grandTotal.toFixed(2);
         }
         
                  // Initialize page functionality
