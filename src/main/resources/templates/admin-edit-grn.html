@@ -667,21 +667,21 @@
                                     <input type="number" th:name="'grnItems[' + ${itemStat.index} + '].receivedQuantity'" 
                                            min="0" step="1" placeholder="0" required 
                                            th:value="${grnItem.receivedQuantity}"
-                                           onchange="calculateItemTotal(${itemStat.count})">
+                                           onchange="onReceivedQuantityChange(${itemStat.count})">
                                 </div>
                                 <div class="form-group">
                                     <label>Accepted Quantity</label>
                                     <input type="number" th:name="'grnItems[' + ${itemStat.index} + '].acceptedQuantity'" 
                                            min="0" step="1" placeholder="0" required 
                                            th:value="${grnItem.acceptedQuantity}"
-                                           onchange="calculateItemTotal(${itemStat.count})">
+                                           onchange="onAcceptedQuantityChange(${itemStat.count})">
                                 </div>
                                 <div class="form-group">
                                     <label>Rejected Quantity</label>
                                     <input type="number" th:name="'grnItems[' + ${itemStat.index} + '].rejectedQuantity'" 
                                            min="0" step="1" placeholder="0" required 
                                            th:value="${grnItem.rejectedQuantity}"
-                                           onchange="calculateItemTotal(${itemStat.count})">
+                                           onchange="onRejectedQuantityChange(${itemStat.count})">
                                 </div>
                                 <div class="form-group">
                                     <label>Unit Price</label>
@@ -719,9 +719,26 @@
             <!-- Totals -->
             <div class="totals-section">
                 <h4>Totals</h4>
-                <div class="total-row"><span>Subtotal:</span><span id="subtotal" th:text="'₹' + ${grn.subtotal != null ? #numbers.formatDecimal(grn.subtotal,1,2) : '0.00'}">₹0.00</span></div>
-                <div class="total-row"><span>Tax Amount:</span><span id="taxAmount" th:text="'₹' + ${grn.taxAmount != null ? #numbers.formatDecimal(grn.taxAmount,1,2) : '0.00'}">₹0.00</span></div>
-                <div class="total-row"><span>Total Amount:</span><span id="totalAmount" th:text="'₹' + ${grn.totalAmount != null ? #numbers.formatDecimal(grn.totalAmount,1,2) : '0.00'}">₹0.00</span></div>
+                <div class="total-row">
+                    <span>Subtotal (Accepted Qty × Unit Price):</span>
+                    <span id="subtotal">₹0.00</span>
+                </div>
+                <div class="total-row">
+                    <span>Discount Amount:</span>
+                    <span id="discountAmount">₹0.00</span>
+                </div>
+                <div class="total-row">
+                    <span>Net Amount (Subtotal - Discount):</span>
+                    <span id="netAmount">₹0.00</span>
+                </div>
+                <div class="total-row">
+                    <span>Tax Amount:</span>
+                    <span id="taxAmount">₹0.00</span>
+                </div>
+                <div class="total-row">
+                    <span>Grand Total (Net + Tax):</span>
+                    <span id="totalAmount">₹0.00</span>
+                </div>
             </div>
 
             <!-- Notes -->
@@ -1024,46 +1041,64 @@
         
         function calculateItemTotal(itemId) {
             const item = document.getElementById(`item-${itemId}`);
-            const receivedQty = parseFloat(item.querySelector('input[name*="receivedQuantity"]').value) || 0;
+            const acceptedQty = parseFloat(item.querySelector('input[name*="acceptedQuantity"]').value) || 0;
             const unitPrice = parseFloat(item.querySelector('input[name*="unitPrice"]').value) || 0;
             const discountPercent = parseFloat(item.querySelector('input[name*="discountPercentage"]').value) || 0;
             const taxPercent = parseFloat(item.querySelector('input[name*="taxPercentage"]').value) || 0;
             
-            let subtotal = receivedQty * unitPrice;
+            let subtotal = acceptedQty * unitPrice;
             const discountAmount = subtotal * (discountPercent / 100);
-            subtotal -= discountAmount;
-            const taxAmount = subtotal * (taxPercent / 100);
-            const total = subtotal + taxAmount;
+            const netAmount = subtotal - discountAmount;
+            const taxAmount = netAmount * (taxPercent / 100);
+            const grandTotal = netAmount + taxAmount;
             
-            item.querySelector('input[name*="totalAmount"]').value = total.toFixed(2);
+            item.querySelector('input[name*="totalAmount"]').value = grandTotal.toFixed(2);
             calculateTotals();
         }
         
         function calculateTotals() {
-            let subtotal = 0;
+            let totalSubtotal = 0;
+            let totalDiscount = 0;
+            let totalNet = 0;
             let totalTax = 0;
+            let grandTotal = 0;
             
+            // Calculate totals from all items
             const totalAmountInputs = document.querySelectorAll('input[name*="totalAmount"]');
             totalAmountInputs.forEach(input => {
                 const item = input.closest('.item-row');
-                const receivedQty = parseFloat(item.querySelector('input[name*="receivedQuantity"]').value) || 0;
+                const acceptedQty = parseFloat(item.querySelector('input[name*="acceptedQuantity"]').value) || 0;
                 const unitPrice = parseFloat(item.querySelector('input[name*="unitPrice"]').value) || 0;
                 const discountPercent = parseFloat(item.querySelector('input[name*="discountPercentage"]').value) || 0;
                 const taxPercent = parseFloat(item.querySelector('input[name*="taxPercentage"]').value) || 0;
                 
-                let itemSubtotal = receivedQty * unitPrice;
-                const discountAmount = itemSubtotal * (discountPercent / 100);
-                itemSubtotal -= discountAmount;
+                // Calculate item subtotal (Accepted Quantity * Unit Price)
+                const itemSubtotal = acceptedQty * unitPrice;
                 
-                subtotal += itemSubtotal;
-                totalTax += itemSubtotal * (taxPercent / 100);
+                // Calculate item discount amount
+                const itemDiscountAmount = itemSubtotal * (discountPercent / 100);
+                
+                // Calculate item net amount (subtotal - discount)
+                const itemNetAmount = itemSubtotal - itemDiscountAmount;
+                
+                // Calculate item tax amount (tax on net amount)
+                const itemTaxAmount = itemNetAmount * (taxPercent / 100);
+                
+                // Add to totals
+                totalSubtotal += itemSubtotal;
+                totalDiscount += itemDiscountAmount;
+                totalNet += itemNetAmount;
+                totalTax += itemTaxAmount;
             });
             
-            const totalAmount = subtotal + totalTax;
+            grandTotal = totalNet + totalTax;
             
-            document.getElementById('subtotal').textContent = '₹' + subtotal.toFixed(2);
+            // Update display
+            document.getElementById('subtotal').textContent = '₹' + totalSubtotal.toFixed(2);
+            document.getElementById('discountAmount').textContent = '₹' + totalDiscount.toFixed(2);
+            document.getElementById('netAmount').textContent = '₹' + totalNet.toFixed(2);
             document.getElementById('taxAmount').textContent = '₹' + totalTax.toFixed(2);
-            document.getElementById('totalAmount').textContent = '₹' + totalAmount.toFixed(2);
+            document.getElementById('totalAmount').textContent = '₹' + grandTotal.toFixed(2);
         }
         
         function reindexItems() {
@@ -1125,6 +1160,100 @@
                     }
                 }
             });
+        }
+        
+        // Handle Received Quantity change - validate against Ordered Quantity
+        function onReceivedQuantityChange(itemId) {
+            const item = document.getElementById(`item-${itemId}`);
+            const orderedQtyInput = item.querySelector('input[name*="orderedQuantity"]');
+            const receivedQtyInput = item.querySelector('input[name*="receivedQuantity"]');
+            const acceptedQtyInput = item.querySelector('input[name*="acceptedQuantity"]');
+            const rejectedQtyInput = item.querySelector('input[name*="rejectedQuantity"]');
+            
+            const orderedQty = parseFloat(orderedQtyInput.value) || 0;
+            const receivedQty = parseFloat(receivedQtyInput.value) || 0;
+            
+            // Validate: Received Quantity cannot exceed Ordered Quantity
+            if (receivedQty > orderedQty) {
+                alert(`Received Quantity (${receivedQty}) cannot exceed Ordered Quantity (${orderedQty})`);
+                receivedQtyInput.value = orderedQty;
+                receivedQty = orderedQty;
+            }
+            
+            // Auto-adjust Accepted and Rejected quantities
+            const currentAccepted = parseFloat(acceptedQtyInput.value) || 0;
+            const currentRejected = parseFloat(rejectedQtyInput.value) || 0;
+            const currentTotal = currentAccepted + currentRejected;
+            
+            if (currentTotal > receivedQty) {
+                // If current total exceeds received, adjust proportionally
+                if (receivedQty > 0) {
+                    const ratio = receivedQty / currentTotal;
+                    acceptedQtyInput.value = Math.round(currentAccepted * ratio);
+                    rejectedQtyInput.value = Math.round(currentRejected * ratio);
+                } else {
+                    acceptedQtyInput.value = 0;
+                    rejectedQtyInput.value = 0;
+                }
+            } else if (currentTotal < receivedQty) {
+                // If current total is less than received, set accepted to received and rejected to 0
+                acceptedQtyInput.value = receivedQty;
+                rejectedQtyInput.value = 0;
+            }
+            
+            // Update max attributes
+            acceptedQtyInput.setAttribute('max', receivedQty);
+            rejectedQtyInput.setAttribute('max', receivedQty);
+            
+            calculateItemTotal(itemId);
+        }
+        
+        // Handle Accepted Quantity change - validate against Received Quantity
+        function onAcceptedQuantityChange(itemId) {
+            const item = document.getElementById(`item-${itemId}`);
+            const receivedQtyInput = item.querySelector('input[name*="receivedQuantity"]');
+            const acceptedQtyInput = item.querySelector('input[name*="acceptedQuantity"]');
+            const rejectedQtyInput = item.querySelector('input[name*="rejectedQuantity"]');
+            
+            const receivedQty = parseFloat(receivedQtyInput.value) || 0;
+            const acceptedQty = parseFloat(acceptedQtyInput.value) || 0;
+            
+            // Validate: Accepted Quantity cannot exceed Received Quantity
+            if (acceptedQty > receivedQty) {
+                alert(`Accepted Quantity (${acceptedQty}) cannot exceed Received Quantity (${receivedQty})`);
+                acceptedQtyInput.value = receivedQty;
+                acceptedQty = receivedQty;
+            }
+            
+            // Auto-adjust Rejected Quantity to maintain: Accepted + Rejected = Received
+            const rejectedQty = receivedQty - acceptedQty;
+            rejectedQtyInput.value = rejectedQty;
+            
+            calculateItemTotal(itemId);
+        }
+        
+        // Handle Rejected Quantity change - validate against Received Quantity
+        function onRejectedQuantityChange(itemId) {
+            const item = document.getElementById(`item-${itemId}`);
+            const receivedQtyInput = item.querySelector('input[name*="receivedQuantity"]');
+            const acceptedQtyInput = item.querySelector('input[name*="acceptedQuantity"]');
+            const rejectedQtyInput = item.querySelector('input[name*="rejectedQuantity"]');
+            
+            const receivedQty = parseFloat(receivedQtyInput.value) || 0;
+            const rejectedQty = parseFloat(rejectedQtyInput.value) || 0;
+            
+            // Validate: Rejected Quantity cannot exceed Received Quantity
+            if (rejectedQty > receivedQty) {
+                alert(`Rejected Quantity (${rejectedQty}) cannot exceed Received Quantity (${receivedQty})`);
+                rejectedQtyInput.value = receivedQty;
+                rejectedQty = receivedQty;
+            }
+            
+            // Auto-adjust Accepted Quantity to maintain: Accepted + Rejected = Received
+            const acceptedQty = receivedQty - rejectedQty;
+            acceptedQtyInput.value = acceptedQty;
+            
+            calculateItemTotal(itemId);
         }
     </script>
 </body>

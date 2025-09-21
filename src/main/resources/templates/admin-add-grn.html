@@ -642,21 +642,21 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                                      <input type="number" name="grnItems[${itemCounter-1}].receivedQuantity" 
                                             min="0" step="1" placeholder="0" required 
                                             value="${poItem.orderedQuantity || 0}"
-                                            onchange="calculateItemTotal(${itemCounter})">
+                                            onchange="onReceivedQuantityChange(${itemCounter})">
                                  </div>
                                  <div class="form-group">
                                      <label>Accepted Quantity</label>
                                      <input type="number" name="grnItems[${itemCounter-1}].acceptedQuantity" 
                                             min="0" step="1" placeholder="0" required 
                                             value="${poItem.orderedQuantity || 0}"
-                                            onchange="calculateItemTotal(${itemCounter})">
+                                            onchange="onAcceptedQuantityChange(${itemCounter})">
                                  </div>
                                  <div class="form-group">
                                      <label>Rejected Quantity</label>
                                      <input type="number" name="grnItems[${itemCounter-1}].rejectedQuantity" 
                                             min="0" step="1" placeholder="0" required 
                                             value="0"
-                                            onchange="calculateItemTotal(${itemCounter})">
+                                            onchange="onRejectedQuantityChange(${itemCounter})">
                                  </div>
                                  <div class="form-group">
                                      <label>Unit Price</label>
@@ -831,28 +831,29 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                          <div class="form-group">
                              <label>Ordered Quantity</label>
                              <input type="number" name="grnItems[${itemCounter-1}].orderedQuantity" 
-                                    min="0" step="1" placeholder="0" required>
+                                    min="0" step="1" placeholder="0" required
+                                    onchange="onOrderedQuantityChange(${itemCounter})">
                          </div>
                          <div class="form-group">
                              <label>Received Quantity</label>
                              <input type="number" name="grnItems[${itemCounter-1}].receivedQuantity" 
                                     min="0" step="1" placeholder="0" required 
                                     value="0"
-                                    onchange="calculateItemTotal(${itemCounter})">
+                                    onchange="onReceivedQuantityChange(${itemCounter})">
                          </div>
                          <div class="form-group">
                              <label>Accepted Quantity</label>
                              <input type="number" name="grnItems[${itemCounter-1}].acceptedQuantity" 
                                     min="0" step="1" placeholder="0" required 
                                     value="0"
-                                    onchange="calculateItemTotal(${itemCounter})">
+                                    onchange="onAcceptedQuantityChange(${itemCounter})">
                          </div>
                          <div class="form-group">
                              <label>Rejected Quantity</label>
                              <input type="number" name="grnItems[${itemCounter-1}].rejectedQuantity" 
                                     min="0" step="1" placeholder="0" required 
                                     value="0"
-                                    onchange="calculateItemTotal(${itemCounter})">
+                                    onchange="onRejectedQuantityChange(${itemCounter})">
                          </div>
                          <div class="form-group">
                              <label>Unit Price</label>
@@ -963,6 +964,122 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
             document.getElementById('netAmount').textContent = '₹' + totalNet.toFixed(2);
             document.getElementById('taxAmount').textContent = '₹' + totalTax.toFixed(2);
             document.getElementById('totalAmount').textContent = '₹' + grandTotal.toFixed(2);
+        }
+        
+        // Handle Ordered Quantity change - auto-set Received and Accepted quantities
+        function onOrderedQuantityChange(itemId) {
+            const item = document.getElementById(`item-${itemId}`);
+            const orderedQtyInput = item.querySelector('input[name*="orderedQuantity"]');
+            const receivedQtyInput = item.querySelector('input[name*="receivedQuantity"]');
+            const acceptedQtyInput = item.querySelector('input[name*="acceptedQuantity"]');
+            const rejectedQtyInput = item.querySelector('input[name*="rejectedQuantity"]');
+            
+            const orderedQty = parseFloat(orderedQtyInput.value) || 0;
+            
+            // Auto-set Received and Accepted quantities to Ordered Quantity
+            receivedQtyInput.value = orderedQty;
+            acceptedQtyInput.value = orderedQty;
+            rejectedQtyInput.value = 0;
+            
+            // Update max attributes for validation
+            receivedQtyInput.setAttribute('max', orderedQty);
+            acceptedQtyInput.setAttribute('max', orderedQty);
+            
+            calculateItemTotal(itemId);
+        }
+        
+        // Handle Received Quantity change - validate against Ordered Quantity
+        function onReceivedQuantityChange(itemId) {
+            const item = document.getElementById(`item-${itemId}`);
+            const orderedQtyInput = item.querySelector('input[name*="orderedQuantity"]');
+            const receivedQtyInput = item.querySelector('input[name*="receivedQuantity"]');
+            const acceptedQtyInput = item.querySelector('input[name*="acceptedQuantity"]');
+            const rejectedQtyInput = item.querySelector('input[name*="rejectedQuantity"]');
+            
+            const orderedQty = parseFloat(orderedQtyInput.value) || 0;
+            const receivedQty = parseFloat(receivedQtyInput.value) || 0;
+            
+            // Validate: Received Quantity cannot exceed Ordered Quantity
+            if (receivedQty > orderedQty) {
+                alert(`Received Quantity (${receivedQty}) cannot exceed Ordered Quantity (${orderedQty})`);
+                receivedQtyInput.value = orderedQty;
+                receivedQty = orderedQty;
+            }
+            
+            // Auto-adjust Accepted and Rejected quantities
+            const currentAccepted = parseFloat(acceptedQtyInput.value) || 0;
+            const currentRejected = parseFloat(rejectedQtyInput.value) || 0;
+            const currentTotal = currentAccepted + currentRejected;
+            
+            if (currentTotal > receivedQty) {
+                // If current total exceeds received, adjust proportionally
+                if (receivedQty > 0) {
+                    const ratio = receivedQty / currentTotal;
+                    acceptedQtyInput.value = Math.round(currentAccepted * ratio);
+                    rejectedQtyInput.value = Math.round(currentRejected * ratio);
+                } else {
+                    acceptedQtyInput.value = 0;
+                    rejectedQtyInput.value = 0;
+                }
+            } else if (currentTotal < receivedQty) {
+                // If current total is less than received, set accepted to received and rejected to 0
+                acceptedQtyInput.value = receivedQty;
+                rejectedQtyInput.value = 0;
+            }
+            
+            // Update max attributes
+            acceptedQtyInput.setAttribute('max', receivedQty);
+            rejectedQtyInput.setAttribute('max', receivedQty);
+            
+            calculateItemTotal(itemId);
+        }
+        
+        // Handle Accepted Quantity change - validate against Received Quantity
+        function onAcceptedQuantityChange(itemId) {
+            const item = document.getElementById(`item-${itemId}`);
+            const receivedQtyInput = item.querySelector('input[name*="receivedQuantity"]');
+            const acceptedQtyInput = item.querySelector('input[name*="acceptedQuantity"]');
+            const rejectedQtyInput = item.querySelector('input[name*="rejectedQuantity"]');
+            
+            const receivedQty = parseFloat(receivedQtyInput.value) || 0;
+            const acceptedQty = parseFloat(acceptedQtyInput.value) || 0;
+            
+            // Validate: Accepted Quantity cannot exceed Received Quantity
+            if (acceptedQty > receivedQty) {
+                alert(`Accepted Quantity (${acceptedQty}) cannot exceed Received Quantity (${receivedQty})`);
+                acceptedQtyInput.value = receivedQty;
+                acceptedQty = receivedQty;
+            }
+            
+            // Auto-adjust Rejected Quantity to maintain: Accepted + Rejected = Received
+            const rejectedQty = receivedQty - acceptedQty;
+            rejectedQtyInput.value = rejectedQty;
+            
+            calculateItemTotal(itemId);
+        }
+        
+        // Handle Rejected Quantity change - validate against Received Quantity
+        function onRejectedQuantityChange(itemId) {
+            const item = document.getElementById(`item-${itemId}`);
+            const receivedQtyInput = item.querySelector('input[name*="receivedQuantity"]');
+            const acceptedQtyInput = item.querySelector('input[name*="acceptedQuantity"]');
+            const rejectedQtyInput = item.querySelector('input[name*="rejectedQuantity"]');
+            
+            const receivedQty = parseFloat(receivedQtyInput.value) || 0;
+            const rejectedQty = parseFloat(rejectedQtyInput.value) || 0;
+            
+            // Validate: Rejected Quantity cannot exceed Received Quantity
+            if (rejectedQty > receivedQty) {
+                alert(`Rejected Quantity (${rejectedQty}) cannot exceed Received Quantity (${receivedQty})`);
+                rejectedQtyInput.value = receivedQty;
+                rejectedQty = receivedQty;
+            }
+            
+            // Auto-adjust Accepted Quantity to maintain: Accepted + Rejected = Received
+            const acceptedQty = receivedQty - rejectedQty;
+            acceptedQtyInput.value = acceptedQty;
+            
+            calculateItemTotal(itemId);
         }
         
                  // Initialize page functionality
