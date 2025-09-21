@@ -275,6 +275,11 @@ public class PurchaseOrderService {
     public void updatePOStatusBasedOnGRN(Long poId) {
         System.out.println("=== Starting PO status update for PO ID: " + poId + " ===");
         
+        if (poId == null) {
+            System.out.println("PO ID is null, skipping PO status update");
+            return;
+        }
+        
         Optional<PurchaseOrder> poOpt = purchaseOrderRepository.findById(poId);
         if (poOpt.isPresent()) {
             PurchaseOrder po = poOpt.get();

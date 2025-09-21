@@ -583,7 +583,7 @@
                     <div class="form-group">
                         <label for="supplier">Supplier</label>
                         <input type="text" id="supplier" 
-                               th:value="${grn.purchaseOrder != null and grn.purchaseOrder.supplier != null ? grn.purchaseOrder.supplier.companyName : 'N/A'}" 
+                               th:value="${grn.purchaseOrder != null and grn.purchaseOrder.supplier != null ? grn.purchaseOrder.supplier.companyName : (grn.supplier != null ? grn.supplier.companyName : 'N/A')}" 
                                readonly>
                     </div>
                 </div>

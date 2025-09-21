@@ -355,9 +355,9 @@
                 
                                  <div class="form-row">
                      <div class="form-group">
-                         <label for="purchaseOrder">Purchase Order</label>
-                         <select id="purchaseOrder" name="purchaseOrder.id" required onchange="onPurchaseOrderChange()">
-                             <option value="">Select Purchase Order</option>
+                         <label for="purchaseOrder">Purchase Order <span style="color: #666; font-weight: normal;">(Optional - for direct GRN creation)</span></label>
+                         <select id="purchaseOrder" name="purchaseOrder.id" onchange="onPurchaseOrderChange()">
+                             <option value="">Create Direct GRN (No Purchase Order)</option>
                              <option th:each="po : ${purchaseOrders}" 
                                      th:if="${po.status != T(com.brsons.model.PurchaseOrder.POStatus).DRAFT and po.status != T(com.brsons.model.PurchaseOrder.POStatus).PENDING_APPROVAL and po.status != T(com.brsons.model.PurchaseOrder.POStatus).APPROVED}"
                                      th:value="${po.id}" 
@@ -366,10 +366,10 @@
                              </option>
                          </select>
                          <small style="color: #666; font-size: 0.85rem; margin-top: 5px; display: block;">
-                             <i class="fas fa-info-circle"></i> Only Purchase Orders with status ORDERED, PARTIALLY_RECEIVED, or FULLY_RECEIVED are shown. 
-                             DRAFT, PENDING_APPROVAL, and APPROVED POs cannot have GRNs created yet.
+                             <i class="fas fa-info-circle"></i> You can create a GRN directly without a Purchase Order, or select an existing PO. 
+                             Only Purchase Orders with status ORDERED, PARTIALLY_RECEIVED, or FULLY_RECEIVED are shown.
                              <span th:if="${#lists.isEmpty(purchaseOrders)}" style="color: #e74c3c; font-weight: bold;">
-                                 <br>⚠️ No Purchase Orders available for GRN creation. Please ensure you have POs with appropriate statuses.
+                                 <br>⚠️ No Purchase Orders available. You can still create a direct GRN by selecting a supplier below.
                              </span>
                          </small>
                      </div>
@@ -576,11 +576,13 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                        console.log('Add Item button shown');
                    }
                } else {
+                   // Direct GRN creation (no PO selected)
                    selectedPO = null;
-                   supplierSelect.value = '';
+                   // Don't clear supplier selection - let user choose manually
                    clearItems();
-                   addItemBtn.style.display = 'none';
-                   console.log('PO cleared, Add Item button hidden');
+                   // Show Add Item button for direct GRN creation
+                   addItemBtn.style.display = 'inline-block';
+                   console.log('Direct GRN mode - Add Item button shown, supplier selection available');
                }
            }
          
@@ -686,6 +688,8 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
              }
          }
          
+         let allProducts = []; // Cache for all products
+         
          function generateProductOptions() {
              console.log('generateProductOptions called, selectedPO:', selectedPO); // Debug log
              let options = '';
@@ -698,13 +702,31 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                      options += `<option value="${poItem.productId}">${poItem.productName}</option>`;
                  });
              } else {
-                 // If no PO is selected, show a message
-                 console.log('No PO selected or PO has no items');
-                 options = '<option value="">No products available - please select a Purchase Order first</option>';
+                 // For direct GRN creation, show all products
+                 console.log('Direct GRN mode - using all products');
+                 options = '<option value="">Select Product</option>';
+                 allProducts.forEach(product => {
+                     options += `<option value="${product.id}">${product.name} (${product.code})</option>`;
+                 });
              }
              
              console.log('Generated options:', options); // Debug log
              return options;
+         }
+         
+         // Fetch all products for direct GRN creation
+         function fetchAllProducts() {
+             if (allProducts.length === 0) {
+                 fetch('/admin/business/grn/products')
+                     .then(response => response.json())
+                     .then(products => {
+                         allProducts = products;
+                         console.log('Fetched all products:', allProducts);
+                     })
+                     .catch(error => {
+                         console.error('Error fetching products:', error);
+                     });
+             }
          }
         
                  function onProductChange(itemId) {
@@ -715,20 +737,36 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
              const taxInput = item.querySelector('input[name*="taxPercentage"]');
              const orderedQtyInput = item.querySelector('input[name*="orderedQuantity"]');
              
-             if (productSelect.value && selectedPO && selectedPO.items) {
-                 // Find the PO item for this product
-                 const poItem = selectedPO.items.find(poItem => poItem.productId == productSelect.value);
-                 if (poItem) {
-                     // Auto-fill all the PO details
-                     unitPriceInput.value = poItem.unitPrice || 0;
-                     discountInput.value = poItem.discountPercentage || 0;
-                     taxInput.value = poItem.taxPercentage || 0;
-                     orderedQtyInput.value = poItem.orderedQuantity || 0;
-                     
-                     // Make ordered quantity readonly since it comes from PO
-                     orderedQtyInput.readOnly = true;
-                     
-                     calculateItemTotal(itemId);
+             if (productSelect.value) {
+                 if (selectedPO && selectedPO.items) {
+                     // Find the PO item for this product
+                     const poItem = selectedPO.items.find(poItem => poItem.productId == productSelect.value);
+                     if (poItem) {
+                         // Auto-fill all the PO details
+                         unitPriceInput.value = poItem.unitPrice || 0;
+                         discountInput.value = poItem.discountPercentage || 0;
+                         taxInput.value = poItem.taxPercentage || 0;
+                         orderedQtyInput.value = poItem.orderedQuantity || 0;
+                         
+                         // Make ordered quantity readonly since it comes from PO
+                         orderedQtyInput.readOnly = true;
+                         
+                         calculateItemTotal(itemId);
+                     }
+                 } else {
+                     // Direct GRN mode - find product in allProducts and set default price
+                     const product = allProducts.find(p => p.id == productSelect.value);
+                     if (product) {
+                         unitPriceInput.value = product.price || 0;
+                         discountInput.value = 0;
+                         taxInput.value = 0;
+                         orderedQtyInput.value = 0;
+                         
+                         // Make ordered quantity editable for direct GRN
+                         orderedQtyInput.readOnly = false;
+                         
+                         calculateItemTotal(itemId);
+                     }
                  }
              }
          }
@@ -737,9 +775,15 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
              console.log('addItem called, itemCounter:', itemCounter); // Debug log
              console.log('addItem called, selectedPO:', selectedPO); // Debug log
              
-             // Only allow adding items if a PO is selected
-             if (!selectedPO || !selectedPO.items || selectedPO.items.length === 0) {
-                 console.log('No PO selected or PO has no items, cannot add item');
+             // Allow adding items if a PO is selected OR if we're in direct GRN mode
+             if (selectedPO && selectedPO.items && selectedPO.items.length > 0) {
+                 // PO mode - items will be populated from PO
+                 console.log('PO mode - adding items from PO');
+             } else if (!selectedPO) {
+                 // Direct GRN mode - allow adding any product
+                 console.log('Direct GRN mode - adding items manually');
+             } else {
+                 console.log('No PO selected and not in direct GRN mode, cannot add item');
                  return;
              }
              
@@ -878,15 +922,24 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
             document.getElementById('totalAmount').textContent = '₹' + totalAmount.toFixed(2);
         }
         
-                 // Don't add items automatically - wait for PO selection
+                 // Initialize page functionality
                    document.addEventListener('DOMContentLoaded', function() {
-              console.log('DOM loaded, waiting for PO selection'); // Debug log
+              console.log('DOM loaded, initializing GRN creation page'); // Debug log
               
               // Test if the page is working
               console.log('Testing page functionality...');
-console.log('Items container found:', document.getElementById('items-container'));
+              console.log('Items container found:', document.getElementById('items-container'));
               
-             
+              // Fetch all products for direct GRN creation
+              fetchAllProducts();
+              
+              // Show Add Item button by default for direct GRN creation
+              const addItemBtn = document.getElementById('addItemBtn');
+              if (addItemBtn) {
+                  addItemBtn.style.display = 'inline-block';
+              }
+              
+              console.log('Page initialization complete');
           });
     </script>
 </body>

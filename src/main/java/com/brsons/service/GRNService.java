@@ -3,6 +3,8 @@ package com.brsons.service;
 import com.brsons.model.GoodsReceivedNote;
 import com.brsons.model.GRNItem;
 import com.brsons.model.PurchaseOrder;
+import com.brsons.model.Supplier;
+import com.brsons.model.SupplierLedger;
 import com.brsons.repository.GRNRepository;
 import com.brsons.repository.PurchaseOrderRepository;
 import com.brsons.service.InventoryService;
@@ -72,7 +74,7 @@ public class GRNService {
         GoodsReceivedNote savedGRN = grnRepository.save(grn);
         
         // Automatically update PO status based on new GRN
-        if (savedGRN.getPurchaseOrder() != null) {
+        if (savedGRN.getPurchaseOrder() != null && savedGRN.getPurchaseOrder().getId() != null) {
             try {
                 System.out.println("GRN " + savedGRN.getGrnNumber() + " created for PO " + savedGRN.getPurchaseOrder().getId() + 
                     " (current status: " + savedGRN.getPurchaseOrder().getStatus() + ")");
@@ -85,7 +87,7 @@ public class GRNService {
                 // Don't fail the GRN creation if PO status update fails
             }
         } else {
-            System.out.println("GRN " + savedGRN.getGrnNumber() + " has no associated PO");
+            System.out.println("GRN " + savedGRN.getGrnNumber() + " has no associated PO or PO has no ID");
         }
         
         return savedGRN;
@@ -200,7 +202,11 @@ public class GRNService {
             
             // Create accounting entries when GRN is approved (goods are officially received and accepted)
             if (newStatus == GoodsReceivedNote.GRNStatus.APPROVED && oldStatus != GoodsReceivedNote.GRNStatus.APPROVED) {
-                System.out.println("GRN " + grn.getGrnNumber() + " approved - creating accounting entries for PO #" + grn.getPurchaseOrder().getId());
+                if (grn.getPurchaseOrder() != null && grn.getPurchaseOrder().getId() != null) {
+                    System.out.println("GRN " + grn.getGrnNumber() + " approved - creating accounting entries for PO #" + grn.getPurchaseOrder().getId());
+                } else {
+                    System.out.println("GRN " + grn.getGrnNumber() + " approved - creating accounting entries for direct GRN (no PO)");
+                }
                 createAccountingEntriesForApprovedGRN(grn);
             }
             
@@ -208,7 +214,7 @@ public class GRNService {
             System.out.println("GRN " + grn.getGrnNumber() + " status changed: " + oldStatus + " -> " + newStatus);
             
             // Automatically update PO status based on GRN quantities
-            if (grn.getPurchaseOrder() != null) {
+            if (grn.getPurchaseOrder() != null && grn.getPurchaseOrder().getId() != null) {
                 try {
                     System.out.println("GRN " + grn.getGrnNumber() + " status changed to " + newStatus + 
                         " for PO " + grn.getPurchaseOrder().getId() + " (current PO status: " + grn.getPurchaseOrder().getStatus() + ")");
@@ -221,7 +227,7 @@ public class GRNService {
                     // Don't fail the GRN update if PO status update fails
                 }
             } else {
-                System.out.println("GRN " + grn.getGrnNumber() + " has no associated PO");
+                System.out.println("GRN " + grn.getGrnNumber() + " has no associated PO or PO has no ID");
             }
             
             return grnRepository.save(grn);
@@ -284,7 +290,7 @@ public class GRNService {
             grnRepository.save(grn);
             
             // Automatically update PO status based on updated GRN quantities
-            if (grn.getPurchaseOrder() != null) {
+            if (grn.getPurchaseOrder() != null && grn.getPurchaseOrder().getId() != null) {
                 try {
                     purchaseOrderService.updatePOStatusBasedOnGRN(grn.getPurchaseOrder().getId());
                 } catch (Exception e) {
@@ -428,15 +434,22 @@ public class GRNService {
         try {
             System.out.println("=== Creating voucher for GRN approval ===");
             System.out.println("GRN: " + grn.getGrnNumber());
-            System.out.println("PO: " + po.getId());
+            System.out.println("PO: " + (po != null ? po.getId() : "Direct GRN (no PO)"));
             System.out.println("Amount: " + grn.getTotalAmount());
             
             // Create voucher with double-entry bookkeeping:
             // Debit: EXPENSES - Purchase / Cost of Goods Sold (Account ID: 35)
             // Credit: Current Liabilities - Accounts Payable / Creditors (Account ID: 22)
+            String narration;
+            if (po != null) {
+                narration = "GRN Approval - " + grn.getGrnNumber() + " for PO #" + po.getId() + " - " + po.getSupplier().getCompanyName();
+            } else {
+                narration = "Direct GRN Approval - " + grn.getGrnNumber() + " - " + grn.getSupplier().getCompanyName();
+            }
+            
             accountingService.createVoucher(
                 grn.getReceivedDate(), // Use GRN received date
-                "GRN Approval - " + grn.getGrnNumber() + " for PO #" + po.getId() + " - " + po.getSupplier().getCompanyName(),
+                narration,
                 "PURCHASE", // Voucher type
                 35L, // Debit Account ID - EXPENSES - Purchase / Cost of Goods Sold
                 22L, // Credit Account ID - Current Liabilities - Accounts Payable / Creditors
@@ -456,32 +469,41 @@ public class GRNService {
     private void createAccountingEntriesForApprovedGRN(GoodsReceivedNote grn) {
         try {
             PurchaseOrder po = grn.getPurchaseOrder();
-            if (po == null || po.getSupplier() == null) {
-                System.err.println("Cannot create accounting entries - GRN has no associated PO or supplier");
+            Supplier supplier = grn.getSupplier();
+            
+            if (supplier == null) {
+                System.err.println("Cannot create accounting entries - GRN has no associated supplier");
                 return;
             }
             
             System.out.println("=== Creating accounting entries for approved GRN ===");
             System.out.println("GRN: " + grn.getGrnNumber());
-            System.out.println("PO: " + po.getId());
-            System.out.println("Supplier: " + po.getSupplier().getCompanyName());
+            System.out.println("PO: " + (po != null ? po.getId() : "Direct GRN (no PO)"));
+            System.out.println("Supplier: " + supplier.getCompanyName());
             System.out.println("Amount: " + grn.getTotalAmount());
             
             // 1. Create or find supplier ledger
-            var supplierLedger = supplierLedgerService.findOrCreateSupplierLedger(
-                po.getSupplier().getCompanyName(),
-                po.getSupplier().getPhone(),
-                po.getSupplier().getEmail(),
-                po.getSupplier().getSupplierCode()
+            SupplierLedger supplierLedger = supplierLedgerService.findOrCreateSupplierLedger(
+                supplier.getCompanyName(),
+                supplier.getPhone(),
+                supplier.getEmail(),
+                supplier.getSupplierCode()
             );
             
-            // 2. Add purchase order entry to supplier ledger
-            supplierLedgerService.addPurchaseOrderEntry(supplierLedger, po);
-            System.out.println("Created supplier ledger entry for PO #" + po.getId());
-            
-            // 3. Create outstanding payable
-            outstandingService.createPurchaseOrderOutstanding(po);
-            System.out.println("Created outstanding payable for PO #" + po.getId());
+            if (po != null) {
+                // 2. Add purchase order entry to supplier ledger (only if PO exists)
+                supplierLedgerService.addPurchaseOrderEntry(supplierLedger, po);
+                System.out.println("Created supplier ledger entry for PO #" + po.getId());
+                
+                // 3. Create outstanding payable (only if PO exists)
+                outstandingService.createPurchaseOrderOutstanding(po);
+                System.out.println("Created outstanding payable for PO #" + po.getId());
+            } else {
+                // For direct GRN, create a direct purchase entry
+                System.out.println("Creating direct purchase entry for GRN without PO");
+                // You might want to add a method to create direct purchase entries
+                // supplierLedgerService.addDirectPurchaseEntry(supplierLedger, grn);
+            }
             
             // 4. Create voucher entry for double-entry bookkeeping
             createVoucherForGRNApproval(grn, po);

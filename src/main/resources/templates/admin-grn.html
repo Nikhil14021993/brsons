@@ -451,7 +451,7 @@
                             <td>
                                 <strong th:text="${grn.grnNumber}">GRN001</strong>
                             </td>
-                            <td th:text="${grn.purchaseOrder.poNumber}">PO001</td>
+                            <td th:text="${grn.purchaseOrder != null ? grn.purchaseOrder.poNumber : 'Direct GRN'}">PO001</td>
                             <td th:text="${grn.supplier.companyName}">Supplier Name</td>
                             <td th:text="${#temporals.format(grn.receivedDate, 'dd/MM/yyyy')}">01/01/2024</td>
                             <td>

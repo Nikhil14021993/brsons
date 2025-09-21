@@ -767,6 +767,23 @@ public class BusinessManagementController {
         model.addAttribute("grnStatuses", GoodsReceivedNote.GRNStatus.values());
         return "admin-add-grn";
     }
+    
+    // Endpoint to fetch all products for direct GRN creation
+    @GetMapping("/grn/products")
+    @ResponseBody
+    public List<Map<String, Object>> getAllProductsForGRN() {
+        List<Product> products = productRepository.findAll();
+        return products.stream()
+                .map(product -> {
+                    Map<String, Object> productMap = new HashMap<>();
+                    productMap.put("id", product.getId());
+                    productMap.put("name", product.getProductName());
+                    productMap.put("code", product.getSku());
+                    productMap.put("price", product.getPrice());
+                    return productMap;
+                })
+                .collect(Collectors.toList());
+    }
 
     
     @PostMapping("/grn/new")
@@ -779,18 +796,26 @@ public class BusinessManagementController {
             // 1) If the form sent receivedDate as date, set it (to LocalDateTime)
         	  grn.setReceivedDate(receivedDate);
         	  
-            // 2) Resolve purchaseOrder (the form has purchaseOrder.id)
+            // 2) Resolve purchaseOrder (optional - the form has purchaseOrder.id)
             Long poId = (grn.getPurchaseOrder() != null) ? grn.getPurchaseOrder().getId() : null;
-            if (poId == null) {
-                redirectAttributes.addFlashAttribute("errorMessage", "Purchase Order is required");
-                return "redirect:/admin/business/grn/new";
+            if (poId != null && poId > 0) {
+                PurchaseOrder po = purchaseOrderService.getByIdWithItems(poId)
+                        .orElseThrow(() -> new RuntimeException("Purchase Order not found"));
+                grn.setPurchaseOrder(po);
+                // Set supplier from PO if PO is provided
+                grn.setSupplier(po.getSupplier());
+            } else {
+                // For direct GRN creation, clear any PO reference and ensure supplier is provided
+                grn.setPurchaseOrder(null); // Explicitly set to null
+                if (grn.getSupplier() == null || grn.getSupplier().getId() == null) {
+                    redirectAttributes.addFlashAttribute("errorMessage", "Supplier is required for direct GRN creation");
+                    return "redirect:/admin/business/grn/new";
+                }
+                // Fetch the supplier to ensure it exists
+                Supplier supplier = supplierRepository.findById(grn.getSupplier().getId())
+                        .orElseThrow(() -> new RuntimeException("Supplier not found"));
+                grn.setSupplier(supplier);
             }
-            PurchaseOrder po = purchaseOrderService.getByIdWithItems(poId)
-                    .orElseThrow(() -> new RuntimeException("Purchase Order not found"));
-            grn.setPurchaseOrder(po);
-
-            // 3) Set supplier from PO (safer than trusting what the form sent)
-            grn.setSupplier(po.getSupplier());
 
             // 4) Resolve each GRN item: the binder created product objects with only ID set;
             //    we must fetch the real Product entity and set grn reference and calculate totals.
@@ -883,7 +908,7 @@ public class BusinessManagementController {
 
         model.addAttribute("grn", grn);
         model.addAttribute("purchaseOrder", po);   // fixed PO
-        model.addAttribute("poItems", po.getOrderItems());
+        model.addAttribute("poItems", po != null ? po.getOrderItems() : null);
         model.addAttribute("user", user);
         model.addAttribute("suppliers", supplierService.getAllSuppliers());
         model.addAttribute("purchaseOrders", purchaseOrders);
