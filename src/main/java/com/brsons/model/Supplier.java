@@ -3,7 +3,6 @@ package com.brsons.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
-import com.brsons.model.CreditNote;
 
 @Entity
 @Table(name = "suppliers")
@@ -52,6 +51,10 @@ public class Supplier {
     @Column(name = "pan")
     private String pan;
     
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_type")
+    private TaxType taxType;
+    
     @Column(name = "payment_terms")
     private String paymentTerms;
     
@@ -90,6 +93,22 @@ public class Supplier {
     // Enums
     public enum SupplierStatus {
         ACTIVE, INACTIVE, SUSPENDED, BLACKLISTED
+    }
+    
+    public enum TaxType {
+        CGST_SGST("CGST + SGST", "Intra-state transactions"),
+        IGST("IGST", "Inter-state transactions");
+        
+        private final String displayName;
+        private final String description;
+        
+        TaxType(String displayName, String description) {
+            this.displayName = displayName;
+            this.description = description;
+        }
+        
+        public String getDisplayName() { return displayName; }
+        public String getDescription() { return description; }
     }
     
     // Constructors
@@ -169,6 +188,9 @@ public class Supplier {
     
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    
+    public TaxType getTaxType() { return taxType; }
+    public void setTaxType(TaxType taxType) { this.taxType = taxType; }
     
     public List<PurchaseOrder> getPurchaseOrders() { return purchaseOrders; }
     public void setPurchaseOrders(List<PurchaseOrder> purchaseOrders) { this.purchaseOrders = purchaseOrders; }

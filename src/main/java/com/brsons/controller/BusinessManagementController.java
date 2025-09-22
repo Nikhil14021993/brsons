@@ -125,6 +125,7 @@ public class BusinessManagementController {
         model.addAttribute("supplier", new Supplier());
         model.addAttribute("user", user);
         model.addAttribute("supplierStatuses", Supplier.SupplierStatus.values());
+        model.addAttribute("taxTypes", Supplier.TaxType.values());
         
         return "admin-add-supplier";
     }
@@ -167,6 +168,7 @@ public class BusinessManagementController {
             model.addAttribute("supplier", supplier.get());
             model.addAttribute("user", user);
             model.addAttribute("supplierStatuses", Supplier.SupplierStatus.values());
+            model.addAttribute("taxTypes", Supplier.TaxType.values());
             return "admin-edit-supplier";
         }
         
@@ -326,6 +328,28 @@ public class BusinessManagementController {
         return "admin-suppliers";
     }
     
+    @GetMapping("/suppliers/{id}/tax-type")
+    @ResponseBody
+    public Map<String, Object> getSupplierTaxType(@PathVariable Long id) {
+        try {
+            Optional<Supplier> supplier = supplierService.getSupplierById(id);
+            if (supplier.isPresent()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("taxType", supplier.get().getTaxType());
+                response.put("supplierName", supplier.get().getCompanyName());
+                return response;
+            } else {
+                Map<String, Object> response = new HashMap<>();
+                response.put("error", "Supplier not found");
+                return response;
+            }
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("error", "Error fetching supplier tax type: " + e.getMessage());
+            return response;
+        }
+    }
+    
     // ==================== PURCHASE ORDER MANAGEMENT ====================
     
     @GetMapping("/purchase-orders")
@@ -468,8 +492,8 @@ public class BusinessManagementController {
                     item.setTaxPercentage(taxPercentages[i] != null ? taxPercentages[i] : BigDecimal.ZERO);
                     item.setNotes(itemNotes[i] != null ? itemNotes[i] : "");
                     
-                    // Calculate totals for this item
-                    item.calculateTotals();
+                    // Don't calculate totals here - let the service do it after linking to PO
+                    // item.calculateTotals(); // This was causing NPE because purchaseOrder is null
                     orderItems.add(item);
                 }
             }
@@ -572,7 +596,8 @@ public class BusinessManagementController {
                         item.setDiscountPercentage(discountPercentages != null && i < discountPercentages.length ? discountPercentages[i] : BigDecimal.ZERO);
                         item.setTaxPercentage(taxPercentages != null && i < taxPercentages.length ? taxPercentages[i] : BigDecimal.ZERO);
                         item.setNotes(itemNotes != null && i < itemNotes.length ? itemNotes[i] : "");
-                        item.calculateTotals();
+                        // Don't calculate totals here - let the service do it after linking to PO
+                        // item.calculateTotals(); // This could cause NPE because purchaseOrder is null
 
                         orderItems.add(item);
                     }

@@ -31,6 +31,24 @@ public class GRNItem {
     @Column(name = "tax_percentage", precision = 5, scale = 2)
     private BigDecimal taxPercentage;
     
+    @Column(name = "cgst_percentage", precision = 5, scale = 2)
+    private BigDecimal cgstPercentage;
+    
+    @Column(name = "sgst_percentage", precision = 5, scale = 2)
+    private BigDecimal sgstPercentage;
+    
+    @Column(name = "igst_percentage", precision = 5, scale = 2)
+    private BigDecimal igstPercentage;
+    
+    @Column(name = "cgst_amount", precision = 10, scale = 2)
+    private BigDecimal cgstAmount;
+    
+    @Column(name = "sgst_amount", precision = 10, scale = 2)
+    private BigDecimal sgstAmount;
+    
+    @Column(name = "igst_amount", precision = 10, scale = 2)
+    private BigDecimal igstAmount;
+    
     public BigDecimal getTaxPercentage() {
 		return taxPercentage;
 	}
@@ -46,6 +64,24 @@ public class GRNItem {
 	public void setDiscountPercentage(BigDecimal discountPercentage) {
 		this.discountPercentage = discountPercentage;
 	}
+	
+	public BigDecimal getCgstPercentage() { return cgstPercentage; }
+    public void setCgstPercentage(BigDecimal cgstPercentage) { this.cgstPercentage = cgstPercentage; }
+    
+    public BigDecimal getSgstPercentage() { return sgstPercentage; }
+    public void setSgstPercentage(BigDecimal sgstPercentage) { this.sgstPercentage = sgstPercentage; }
+    
+    public BigDecimal getIgstPercentage() { return igstPercentage; }
+    public void setIgstPercentage(BigDecimal igstPercentage) { this.igstPercentage = igstPercentage; }
+    
+    public BigDecimal getCgstAmount() { return cgstAmount; }
+    public void setCgstAmount(BigDecimal cgstAmount) { this.cgstAmount = cgstAmount; }
+    
+    public BigDecimal getSgstAmount() { return sgstAmount; }
+    public void setSgstAmount(BigDecimal sgstAmount) { this.sgstAmount = sgstAmount; }
+    
+    public BigDecimal getIgstAmount() { return igstAmount; }
+    public void setIgstAmount(BigDecimal igstAmount) { this.igstAmount = igstAmount; }
 
 	@Column(name = "accepted_quantity", nullable = false)
     private Integer acceptedQuantity;
@@ -75,6 +111,14 @@ public class GRNItem {
         this.acceptedQuantity = 0;
         this.rejectedQuantity = 0;
         this.unitPrice = BigDecimal.ZERO;
+        this.discountPercentage = BigDecimal.ZERO;
+        this.taxPercentage = BigDecimal.ZERO;
+        this.cgstPercentage = BigDecimal.ZERO;
+        this.sgstPercentage = BigDecimal.ZERO;
+        this.igstPercentage = BigDecimal.ZERO;
+        this.cgstAmount = BigDecimal.ZERO;
+        this.sgstAmount = BigDecimal.ZERO;
+        this.igstAmount = BigDecimal.ZERO;
         this.totalAmount = BigDecimal.ZERO;
     }
     
@@ -118,7 +162,53 @@ public class GRNItem {
     
     // Business Methods
     public void calculateTotals() {
-        this.totalAmount = this.unitPrice.multiply(BigDecimal.valueOf(this.acceptedQuantity));
+        // Calculate base amount
+        BigDecimal baseAmount = this.unitPrice.multiply(BigDecimal.valueOf(this.acceptedQuantity));
+        
+        // Calculate discount
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        if (this.discountPercentage != null && this.discountPercentage.compareTo(BigDecimal.ZERO) > 0) {
+            discountAmount = baseAmount.multiply(this.discountPercentage)
+                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+        }
+        
+        // Calculate amount after discount
+        BigDecimal amountAfterDiscount = baseAmount.subtract(discountAmount);
+        
+        // Reset all tax amounts
+        this.cgstAmount = BigDecimal.ZERO;
+        this.sgstAmount = BigDecimal.ZERO;
+        this.igstAmount = BigDecimal.ZERO;
+        
+        // Calculate tax based on supplier's tax type
+        Supplier supplier = null;
+        if (this.grn != null) {
+            supplier = this.grn.getSupplier();
+        }
+        if (supplier != null && supplier.getTaxType() != null) {
+            switch (supplier.getTaxType()) {
+                case CGST_SGST:
+                    if (this.cgstPercentage != null && this.cgstPercentage.compareTo(BigDecimal.ZERO) > 0) {
+                        this.cgstAmount = amountAfterDiscount.multiply(this.cgstPercentage)
+                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    }
+                    if (this.sgstPercentage != null && this.sgstPercentage.compareTo(BigDecimal.ZERO) > 0) {
+                        this.sgstAmount = amountAfterDiscount.multiply(this.sgstPercentage)
+                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    }
+                    break;
+                case IGST:
+                    if (this.igstPercentage != null && this.igstPercentage.compareTo(BigDecimal.ZERO) > 0) {
+                        this.igstAmount = amountAfterDiscount.multiply(this.igstPercentage)
+                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    }
+                    break;
+            }
+        }
+        
+        // Calculate total
+        BigDecimal totalTax = this.cgstAmount.add(this.sgstAmount).add(this.igstAmount);
+        this.totalAmount = amountAfterDiscount.add(totalTax);
     }
     
     public boolean isFullyAccepted() {

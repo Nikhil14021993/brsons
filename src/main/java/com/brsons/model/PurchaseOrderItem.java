@@ -40,6 +40,24 @@ public class PurchaseOrderItem {
     @Column(name = "tax_amount", precision = 10, scale = 2)
     private BigDecimal taxAmount;
     
+    @Column(name = "cgst_percentage", precision = 5, scale = 2)
+    private BigDecimal cgstPercentage;
+    
+    @Column(name = "sgst_percentage", precision = 5, scale = 2)
+    private BigDecimal sgstPercentage;
+    
+    @Column(name = "igst_percentage", precision = 5, scale = 2)
+    private BigDecimal igstPercentage;
+    
+    @Column(name = "cgst_amount", precision = 10, scale = 2)
+    private BigDecimal cgstAmount;
+    
+    @Column(name = "sgst_amount", precision = 10, scale = 2)
+    private BigDecimal sgstAmount;
+    
+    @Column(name = "igst_amount", precision = 10, scale = 2)
+    private BigDecimal igstAmount;
+    
     @Column(name = "total_amount", precision = 10, scale = 2, nullable = false)
     private BigDecimal totalAmount;
     
@@ -55,6 +73,12 @@ public class PurchaseOrderItem {
         this.discountAmount = BigDecimal.ZERO;
         this.taxPercentage = BigDecimal.ZERO;
         this.taxAmount = BigDecimal.ZERO;
+        this.cgstPercentage = BigDecimal.ZERO;
+        this.sgstPercentage = BigDecimal.ZERO;
+        this.igstPercentage = BigDecimal.ZERO;
+        this.cgstAmount = BigDecimal.ZERO;
+        this.sgstAmount = BigDecimal.ZERO;
+        this.igstAmount = BigDecimal.ZERO;
         this.totalAmount = BigDecimal.ZERO;
     }
     
@@ -89,6 +113,24 @@ public class PurchaseOrderItem {
     public BigDecimal getTaxAmount() { return taxAmount; }
     public void setTaxAmount(BigDecimal taxAmount) { this.taxAmount = taxAmount; }
     
+    public BigDecimal getCgstPercentage() { return cgstPercentage; }
+    public void setCgstPercentage(BigDecimal cgstPercentage) { this.cgstPercentage = cgstPercentage; }
+    
+    public BigDecimal getSgstPercentage() { return sgstPercentage; }
+    public void setSgstPercentage(BigDecimal sgstPercentage) { this.sgstPercentage = sgstPercentage; }
+    
+    public BigDecimal getIgstPercentage() { return igstPercentage; }
+    public void setIgstPercentage(BigDecimal igstPercentage) { this.igstPercentage = igstPercentage; }
+    
+    public BigDecimal getCgstAmount() { return cgstAmount; }
+    public void setCgstAmount(BigDecimal cgstAmount) { this.cgstAmount = cgstAmount; }
+    
+    public BigDecimal getSgstAmount() { return sgstAmount; }
+    public void setSgstAmount(BigDecimal sgstAmount) { this.sgstAmount = sgstAmount; }
+    
+    public BigDecimal getIgstAmount() { return igstAmount; }
+    public void setIgstAmount(BigDecimal igstAmount) { this.igstAmount = igstAmount; }
+    
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
     
@@ -103,7 +145,7 @@ public class PurchaseOrderItem {
         // Calculate discount
         if (this.discountPercentage != null && this.discountPercentage.compareTo(BigDecimal.ZERO) > 0) {
             this.discountAmount = baseAmount.multiply(this.discountPercentage)
-                .divide(BigDecimal.valueOf(100), 2, BigDecimal.ROUND_HALF_UP);
+                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
         } else {
             this.discountAmount = BigDecimal.ZERO;
         }
@@ -111,12 +153,44 @@ public class PurchaseOrderItem {
         // Calculate amount after discount
         BigDecimal amountAfterDiscount = baseAmount.subtract(this.discountAmount);
         
-        // Calculate tax
-        if (this.taxPercentage != null && this.taxPercentage.compareTo(BigDecimal.ZERO) > 0) {
-            this.taxAmount = amountAfterDiscount.multiply(this.taxPercentage)
-                .divide(BigDecimal.valueOf(100), 2, BigDecimal.ROUND_HALF_UP);
+        // Reset all tax amounts
+        this.cgstAmount = BigDecimal.ZERO;
+        this.sgstAmount = BigDecimal.ZERO;
+        this.igstAmount = BigDecimal.ZERO;
+        this.taxAmount = BigDecimal.ZERO;
+        
+        // Calculate tax based on supplier's tax type
+        Supplier supplier = null;
+        if (this.purchaseOrder != null) {
+            supplier = this.purchaseOrder.getSupplier();
+        }
+        if (supplier != null && supplier.getTaxType() != null) {
+            switch (supplier.getTaxType()) {
+                case CGST_SGST:
+                    if (this.cgstPercentage != null && this.cgstPercentage.compareTo(BigDecimal.ZERO) > 0) {
+                        this.cgstAmount = amountAfterDiscount.multiply(this.cgstPercentage)
+                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    }
+                    if (this.sgstPercentage != null && this.sgstPercentage.compareTo(BigDecimal.ZERO) > 0) {
+                        this.sgstAmount = amountAfterDiscount.multiply(this.sgstPercentage)
+                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    }
+                    this.taxAmount = this.cgstAmount.add(this.sgstAmount);
+                    break;
+                case IGST:
+                    if (this.igstPercentage != null && this.igstPercentage.compareTo(BigDecimal.ZERO) > 0) {
+                        this.igstAmount = amountAfterDiscount.multiply(this.igstPercentage)
+                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    }
+                    this.taxAmount = this.igstAmount;
+                    break;
+            }
         } else {
-            this.taxAmount = BigDecimal.ZERO;
+            // Fallback to old tax calculation
+            if (this.taxPercentage != null && this.taxPercentage.compareTo(BigDecimal.ZERO) > 0) {
+                this.taxAmount = amountAfterDiscount.multiply(this.taxPercentage)
+                    .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+            }
         }
         
         // Calculate total
@@ -142,6 +216,6 @@ public class PurchaseOrderItem {
     public BigDecimal getReceivedAmount() {
         if (this.orderedQuantity == 0) return BigDecimal.ZERO;
         return this.totalAmount.multiply(BigDecimal.valueOf(this.receivedQuantity))
-            .divide(BigDecimal.valueOf(this.orderedQuantity), 2, BigDecimal.ROUND_HALF_UP);
+            .divide(BigDecimal.valueOf(this.orderedQuantity), 2, java.math.RoundingMode.HALF_UP);
     }
 }

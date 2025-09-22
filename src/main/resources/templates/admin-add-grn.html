@@ -462,7 +462,22 @@
                     <span>Net Amount (Subtotal - Discount):</span>
                     <span id="netAmount">₹0.00</span>
                 </div>
-                <div class="total-row">
+                <!-- CGST/SGST Breakdown (for CGST_SGST tax type) -->
+                <div class="total-row cgst-sgst-breakdown" style="display: none;">
+                    <span>CGST Amount:</span>
+                    <span id="cgstAmount">₹0.00</span>
+                </div>
+                <div class="total-row cgst-sgst-breakdown" style="display: none;">
+                    <span>SGST Amount:</span>
+                    <span id="sgstAmount">₹0.00</span>
+                </div>
+                <!-- IGST Breakdown (for IGST tax type) -->
+                <div class="total-row igst-breakdown" style="display: none;">
+                    <span>IGST Amount:</span>
+                    <span id="igstAmount">₹0.00</span>
+                </div>
+                <!-- Fallback Tax Amount (for old tax structure) -->
+                <div class="total-row fallback-tax-breakdown">
                     <span>Tax Amount:</span>
                     <span id="taxAmount">₹0.00</span>
                 </div>
@@ -582,6 +597,9 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                        // Always show the Add Item button when a PO is selected
                        addItemBtn.style.display = 'inline-block';
                        console.log('Add Item button shown');
+                       
+                       // Update tax fields based on supplier tax type
+                       updateTaxFieldsBasedOnSupplier();
                    }
                } else {
                    // Direct GRN creation (no PO selected)
@@ -591,6 +609,9 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                    // Show Add Item button for direct GRN creation
                    addItemBtn.style.display = 'inline-block';
                    console.log('Direct GRN mode - Add Item button shown, supplier selection available');
+                   
+                   // Update tax fields based on current supplier selection (if any)
+                   updateTaxFieldsBasedOnSupplier();
                }
            }
          
@@ -672,7 +693,31 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                                             value="${poItem.discountPercentage || 0}"
                                             onchange="calculateItemTotal(${itemCounter})">
                                  </div>
-                                 <div class="form-group">
+                                 <!-- CGST/SGST Fields (for CGST_SGST tax type) -->
+                                 <div class="form-group cgst-field" style="display: none;">
+                                     <label>CGST %</label>
+                                     <input type="number" name="grnItems[${itemCounter-1}].cgstPercentage" 
+                                            min="0" max="100" step="0.01" placeholder="0.00" 
+                                            value="0"
+                                            onchange="calculateItemTotal(${itemCounter})">
+                                 </div>
+                                 <div class="form-group sgst-field" style="display: none;">
+                                     <label>SGST %</label>
+                                     <input type="number" name="grnItems[${itemCounter-1}].sgstPercentage" 
+                                            min="0" max="100" step="0.01" placeholder="0.00" 
+                                            value="0"
+                                            onchange="calculateItemTotal(${itemCounter})">
+                                 </div>
+                                 <!-- IGST Field (for IGST tax type) -->
+                                 <div class="form-group igst-field" style="display: none;">
+                                     <label>IGST %</label>
+                                     <input type="number" name="grnItems[${itemCounter-1}].igstPercentage" 
+                                            min="0" max="100" step="0.01" placeholder="0.00" 
+                                            value="0"
+                                            onchange="calculateItemTotal(${itemCounter})">
+                                 </div>
+                                 <!-- Fallback Tax Field (for backward compatibility) -->
+                                 <div class="form-group fallback-tax-field">
                                      <label>Tax %</label>
                                      <input type="number" name="grnItems[${itemCounter-1}].taxPercentage" 
                                             min="0" max="100" step="0.01" placeholder="0.00" 
@@ -696,6 +741,9 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                  // Calculate totals after adding items
                  calculateTotals();
                  console.log('Items added successfully, totals calculated');
+                 
+                 // Update tax fields for all items based on supplier tax type
+                 updateTaxFieldsBasedOnSupplier();
              }
          }
          
@@ -867,7 +915,28 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                                     min="0" max="100" step="0.01" placeholder="0.00" 
                                     onchange="calculateItemTotal(${itemCounter})">
                          </div>
-                         <div class="form-group">
+                         <!-- CGST/SGST Fields (for CGST_SGST tax type) -->
+                         <div class="form-group cgst-field" style="display: none;">
+                             <label>CGST %</label>
+                             <input type="number" name="grnItems[${itemCounter-1}].cgstPercentage" 
+                                    min="0" max="100" step="0.01" placeholder="0.00" 
+                                    onchange="calculateItemTotal(${itemCounter})">
+                         </div>
+                         <div class="form-group sgst-field" style="display: none;">
+                             <label>SGST %</label>
+                             <input type="number" name="grnItems[${itemCounter-1}].sgstPercentage" 
+                                    min="0" max="100" step="0.01" placeholder="0.00" 
+                                    onchange="calculateItemTotal(${itemCounter})">
+                         </div>
+                         <!-- IGST Field (for IGST tax type) -->
+                         <div class="form-group igst-field" style="display: none;">
+                             <label>IGST %</label>
+                             <input type="number" name="grnItems[${itemCounter-1}].igstPercentage" 
+                                    min="0" max="100" step="0.01" placeholder="0.00" 
+                                    onchange="calculateItemTotal(${itemCounter})">
+                         </div>
+                         <!-- Fallback Tax Field (for backward compatibility) -->
+                         <div class="form-group fallback-tax-field">
                              <label>Tax %</label>
                              <input type="number" name="grnItems[${itemCounter-1}].taxPercentage" 
                                     min="0" max="100" step="0.01" placeholder="0.00" 
@@ -885,6 +954,9 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
              console.log('About to insert HTML:', itemHtml); // Debug log
              container.insertAdjacentHTML('beforeend', itemHtml);
              console.log('HTML inserted successfully'); // Debug log
+             
+             // Update tax fields for the newly added item based on current supplier selection
+             updateTaxFieldsBasedOnSupplier();
          }
         
         function removeItem(itemId) {
@@ -898,7 +970,6 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
             const acceptedQty = parseFloat(item.querySelector('input[name*="acceptedQuantity"]').value) || 0;
             const unitPrice = parseFloat(item.querySelector('input[name*="unitPrice"]').value) || 0;
             const discountPercent = parseFloat(item.querySelector('input[name*="discountPercentage"]').value) || 0;
-            const taxPercent = parseFloat(item.querySelector('input[name*="taxPercentage"]').value) || 0;
             
             // Calculate subtotal (Accepted Quantity * Unit Price)
             let subtotal = acceptedQty * unitPrice;
@@ -909,11 +980,36 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
             // Calculate net amount (subtotal - discount)
             const netAmount = subtotal - discountAmount;
             
-            // Calculate tax amount (tax on net amount)
-            const taxAmount = netAmount * (taxPercent / 100);
+            // Calculate tax based on which tax fields are visible
+            let totalTax = 0;
+            
+            // Check if CGST/SGST fields are visible
+            const cgstField = item.querySelector('.cgst-field');
+            const sgstField = item.querySelector('.sgst-field');
+            const igstField = item.querySelector('.igst-field');
+            const fallbackField = item.querySelector('.fallback-tax-field');
+            
+            if (cgstField && cgstField.style.display !== 'none') {
+                // CGST + SGST calculation
+                const cgstPercent = parseFloat(item.querySelector('input[name*="cgstPercentage"]').value) || 0;
+                const sgstPercent = parseFloat(item.querySelector('input[name*="sgstPercentage"]').value) || 0;
+                
+                const cgstAmount = netAmount * (cgstPercent / 100);
+                const sgstAmount = netAmount * (sgstPercent / 100);
+                
+                totalTax = cgstAmount + sgstAmount;
+            } else if (igstField && igstField.style.display !== 'none') {
+                // IGST calculation
+                const igstPercent = parseFloat(item.querySelector('input[name*="igstPercentage"]').value) || 0;
+                totalTax = netAmount * (igstPercent / 100);
+            } else if (fallbackField && fallbackField.style.display !== 'none') {
+                // Fallback tax calculation
+                const taxPercent = parseFloat(item.querySelector('input[name*="taxPercentage"]').value) || 0;
+                totalTax = netAmount * (taxPercent / 100);
+            }
             
             // Calculate grand total (net + tax)
-            const grandTotal = netAmount + taxAmount;
+            const grandTotal = netAmount + totalTax;
             
             // Update total amount field
             item.querySelector('input[name*="totalAmount"]').value = grandTotal.toFixed(2);
@@ -925,6 +1021,9 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
             let totalSubtotal = 0;
             let totalDiscount = 0;
             let totalNet = 0;
+            let totalCGST = 0;
+            let totalSGST = 0;
+            let totalIGST = 0;
             let totalTax = 0;
             let grandTotal = 0;
             
@@ -935,7 +1034,6 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                 const acceptedQty = parseFloat(item.querySelector('input[name*="acceptedQuantity"]').value) || 0;
                 const unitPrice = parseFloat(item.querySelector('input[name*="unitPrice"]').value) || 0;
                 const discountPercent = parseFloat(item.querySelector('input[name*="discountPercentage"]').value) || 0;
-                const taxPercent = parseFloat(item.querySelector('input[name*="taxPercentage"]').value) || 0;
                 
                 // Calculate item subtotal (Accepted Quantity * Unit Price)
                 const itemSubtotal = acceptedQty * unitPrice;
@@ -946,13 +1044,43 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
                 // Calculate item net amount (subtotal - discount)
                 const itemNetAmount = itemSubtotal - itemDiscountAmount;
                 
-                // Calculate item tax amount (tax on net amount)
-                const itemTaxAmount = itemNetAmount * (taxPercent / 100);
+                // Calculate item tax amounts based on visible tax fields
+                let itemCGST = 0;
+                let itemSGST = 0;
+                let itemIGST = 0;
+                let itemTaxAmount = 0;
+                
+                const cgstField = item.querySelector('.cgst-field');
+                const sgstField = item.querySelector('.sgst-field');
+                const igstField = item.querySelector('.igst-field');
+                const fallbackField = item.querySelector('.fallback-tax-field');
+                
+                if (cgstField && cgstField.style.display !== 'none' && sgstField && sgstField.style.display !== 'none') {
+                    // CGST + SGST calculation
+                    const cgstPercent = parseFloat(item.querySelector('input[name*="cgstPercentage"]').value) || 0;
+                    const sgstPercent = parseFloat(item.querySelector('input[name*="sgstPercentage"]').value) || 0;
+                    
+                    itemCGST = itemNetAmount * (cgstPercent / 100);
+                    itemSGST = itemNetAmount * (sgstPercent / 100);
+                    itemTaxAmount = itemCGST + itemSGST;
+                } else if (igstField && igstField.style.display !== 'none') {
+                    // IGST calculation
+                    const igstPercent = parseFloat(item.querySelector('input[name*="igstPercentage"]').value) || 0;
+                    itemIGST = itemNetAmount * (igstPercent / 100);
+                    itemTaxAmount = itemIGST;
+                } else if (fallbackField && fallbackField.style.display !== 'none') {
+                    // Fallback tax calculation
+                    const taxPercent = parseFloat(item.querySelector('input[name*="taxPercentage"]').value) || 0;
+                    itemTaxAmount = itemNetAmount * (taxPercent / 100);
+                }
                 
                 // Add to totals
                 totalSubtotal += itemSubtotal;
                 totalDiscount += itemDiscountAmount;
                 totalNet += itemNetAmount;
+                totalCGST += itemCGST;
+                totalSGST += itemSGST;
+                totalIGST += itemIGST;
                 totalTax += itemTaxAmount;
             });
             
@@ -962,8 +1090,13 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
             document.getElementById('subtotal').textContent = '₹' + totalSubtotal.toFixed(2);
             document.getElementById('discountAmount').textContent = '₹' + totalDiscount.toFixed(2);
             document.getElementById('netAmount').textContent = '₹' + totalNet.toFixed(2);
-            document.getElementById('taxAmount').textContent = '₹' + totalTax.toFixed(2);
             document.getElementById('totalAmount').textContent = '₹' + grandTotal.toFixed(2);
+            
+            // Update specific tax breakdowns
+            document.getElementById('cgstAmount').textContent = '₹' + totalCGST.toFixed(2);
+            document.getElementById('sgstAmount').textContent = '₹' + totalSGST.toFixed(2);
+            document.getElementById('igstAmount').textContent = '₹' + totalIGST.toFixed(2);
+            document.getElementById('taxAmount').textContent = '₹' + totalTax.toFixed(2);
         }
         
         // Handle Ordered Quantity change - auto-set Received and Accepted quantities
@@ -1082,6 +1215,78 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
             calculateItemTotal(itemId);
         }
         
+        // Update tax fields based on supplier tax type
+        function updateTaxFieldsBasedOnSupplier() {
+            const supplierSelect = document.getElementById('supplier');
+            const selectedSupplierId = supplierSelect.value;
+            
+            if (selectedSupplierId) {
+                // Fetch supplier tax type
+                fetch(`/admin/business/suppliers/${selectedSupplierId}/tax-type`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.taxType) {
+                            updateTaxFieldsDisplay(data.taxType);
+                        } else {
+                            console.error('Error fetching supplier tax type:', data.error);
+                            // Show fallback tax field
+                            updateTaxFieldsDisplay('FALLBACK');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching supplier tax type:', error);
+                        // Show fallback tax field
+                        updateTaxFieldsDisplay('FALLBACK');
+                    });
+            } else {
+                // No supplier selected, show fallback tax field
+                updateTaxFieldsDisplay('FALLBACK');
+            }
+        }
+        
+        function updateTaxFieldsDisplay(taxType) {
+            const cgstFields = document.querySelectorAll('.cgst-field');
+            const sgstFields = document.querySelectorAll('.sgst-field');
+            const igstFields = document.querySelectorAll('.igst-field');
+            const fallbackFields = document.querySelectorAll('.fallback-tax-field');
+            
+            // Hide all tax fields first
+            cgstFields.forEach(field => field.style.display = 'none');
+            sgstFields.forEach(field => field.style.display = 'none');
+            igstFields.forEach(field => field.style.display = 'none');
+            fallbackFields.forEach(field => field.style.display = 'none');
+            
+            // Update totals display based on tax type
+            const cgstSgstBreakdown = document.querySelectorAll('.cgst-sgst-breakdown');
+            const igstBreakdown = document.querySelectorAll('.igst-breakdown');
+            const fallbackTaxBreakdown = document.querySelectorAll('.fallback-tax-breakdown');
+            
+            // Hide all totals breakdowns first
+            cgstSgstBreakdown.forEach(field => field.style.display = 'none');
+            igstBreakdown.forEach(field => field.style.display = 'none');
+            fallbackTaxBreakdown.forEach(field => field.style.display = 'none');
+            
+            // Show relevant fields and totals based on tax type
+            if (taxType === 'CGST_SGST') {
+                cgstFields.forEach(field => field.style.display = 'block');
+                sgstFields.forEach(field => field.style.display = 'block');
+                cgstSgstBreakdown.forEach(field => field.style.display = 'flex');
+                console.log('Showing CGST + SGST fields and totals');
+            } else if (taxType === 'IGST') {
+                igstFields.forEach(field => field.style.display = 'block');
+                igstBreakdown.forEach(field => field.style.display = 'flex');
+                console.log('Showing IGST fields and totals');
+            } else {
+                // Fallback to old tax field
+                fallbackFields.forEach(field => field.style.display = 'block');
+                fallbackTaxBreakdown.forEach(field => field.style.display = 'flex');
+                console.log('Showing fallback tax field and totals');
+            }
+            
+            // Recalculate totals to update the display
+            calculateTotals();
+        }
+        
                  // Initialize page functionality
                    document.addEventListener('DOMContentLoaded', function() {
               console.log('DOM loaded, initializing GRN creation page'); // Debug log
@@ -1098,6 +1303,15 @@ document.getElementById('grnForm').addEventListener('submit', function (e) {
               if (addItemBtn) {
                   addItemBtn.style.display = 'inline-block';
               }
+              
+              // Add event listener for supplier dropdown
+              const supplierSelect = document.getElementById('supplier');
+              if (supplierSelect) {
+                  supplierSelect.addEventListener('change', updateTaxFieldsBasedOnSupplier);
+              }
+              
+              // Initialize tax fields display
+              updateTaxFieldsBasedOnSupplier();
               
               console.log('Page initialization complete');
           });

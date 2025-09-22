@@ -131,11 +131,12 @@ public class PurchaseOrderService {
 
         // Items (only if provided)
         if (details.getOrderItems() != null) {
-            for (PurchaseOrderItem i : details.getOrderItems()) {
-                i.calculateTotals();
-            }
             // ✅ This clears and re-links children; orphanRemoval will delete old rows
             po.setOrderItems(details.getOrderItems());
+            // Now calculate totals after items are linked to PO
+            for (PurchaseOrderItem i : po.getOrderItems()) {
+                i.calculateTotals();
+            }
         }
 
         po.calculateTotals();
