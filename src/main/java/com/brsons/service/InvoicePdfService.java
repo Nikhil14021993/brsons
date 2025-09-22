@@ -128,11 +128,36 @@ public class InvoicePdfService {
             table.addCell(head("Subtotal"));
             table.addCell(body(subTotal.toString()));
 
-            // Only show GST for non-B2B orders
+            // Only show tax for non-B2B orders
             if (!isB2BOrder) {
-                table.addCell(emptyCell);
-                table.addCell(head("GST (5%)"));
-                table.addCell(body(gstAmount.toString()));
+                // Show proper tax breakdown based on tax type
+                String taxType = order.getTaxType();
+                
+                if ("CGST_SGST".equals(taxType)) {
+                    // Show CGST and SGST separately
+                    if (order.getCgstAmount() != null && order.getCgstAmount().compareTo(BigDecimal.ZERO) > 0) {
+                        table.addCell(emptyCell);
+                        table.addCell(head("CGST (" + (order.getCgstRate() != null ? order.getCgstRate().toString() : "0") + "%)"));
+                        table.addCell(body(order.getCgstAmount().toString()));
+                    }
+                    if (order.getSgstAmount() != null && order.getSgstAmount().compareTo(BigDecimal.ZERO) > 0) {
+                        table.addCell(emptyCell);
+                        table.addCell(head("SGST (" + (order.getSgstRate() != null ? order.getSgstRate().toString() : "0") + "%)"));
+                        table.addCell(body(order.getSgstAmount().toString()));
+                    }
+                } else if ("IGST".equals(taxType)) {
+                    // Show IGST
+                    if (order.getIgstAmount() != null && order.getIgstAmount().compareTo(BigDecimal.ZERO) > 0) {
+                        table.addCell(emptyCell);
+                        table.addCell(head("IGST (" + (order.getIgstRate() != null ? order.getIgstRate().toString() : "0") + "%)"));
+                        table.addCell(body(order.getIgstAmount().toString()));
+                    }
+                } else {
+                    // Fallback to generic GST
+                    table.addCell(emptyCell);
+                    table.addCell(head("GST (5%)"));
+                    table.addCell(body(gstAmount.toString()));
+                }
             }
 
             table.addCell(emptyCell);

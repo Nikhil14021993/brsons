@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.brsons.model.*;
 import com.brsons.repository.*;
 import java.time.LocalDateTime;
+import java.math.RoundingMode;
 
 @Service
 public class OrderAccountingService {
@@ -20,6 +21,7 @@ public class OrderAccountingService {
     private final OrderRepository orderRepository;
     private final com.brsons.repository.OutstandingRepository outstandingRepository;
     private final CustomerLedgerService customerLedgerService;
+    private final TaxCalculationService taxCalculationService;
 
     public OrderAccountingService(
         ProductRepository productRepository,
@@ -28,7 +30,8 @@ public class OrderAccountingService {
         InvoiceNumberService invoiceNumberService,
         OrderRepository orderRepository,
         com.brsons.repository.OutstandingRepository outstandingRepository,
-        CustomerLedgerService customerLedgerService
+        CustomerLedgerService customerLedgerService,
+        TaxCalculationService taxCalculationService
     ) {
         this.productRepository = productRepository;
         this.sellerRepo = sellerRepo;
@@ -37,10 +40,11 @@ public class OrderAccountingService {
         this.orderRepository = orderRepository;
         this.outstandingRepository = outstandingRepository;
         this.customerLedgerService = customerLedgerService;
+        this.taxCalculationService = taxCalculationService;
     }
 
     @Transactional
-    public void finalizeTotalsAndInvoice(Order order, BigDecimal gstRatePct, String billType, String userType) {
+    public void finalizeTotalsAndInvoice(Order order, BigDecimal gstRatePct, String billType, String userType, String userState) {
         // 1) compute subTotal from items using stored prices in OrderItems
         BigDecimal sub = BigDecimal.ZERO;
         List<OrderItem> items = order.getOrderItems();
@@ -61,13 +65,57 @@ public class OrderAccountingService {
             }
         }
 
-        // 2) GST - only calculate for non-B2B users
+        // 2) Tax calculation - only calculate for non-B2B users
         BigDecimal rate = BigDecimal.ZERO;
         BigDecimal gstAmt = BigDecimal.ZERO;
         
+        // Tax breakdown fields
+        String taxType = "UNKNOWN";
+        BigDecimal cgstRate = BigDecimal.ZERO;
+        BigDecimal cgstAmount = BigDecimal.ZERO;
+        BigDecimal sgstRate = BigDecimal.ZERO;
+        BigDecimal sgstAmount = BigDecimal.ZERO;
+        BigDecimal igstRate = BigDecimal.ZERO;
+        BigDecimal igstAmount = BigDecimal.ZERO;
+        
         if (!"B2B".equalsIgnoreCase(userType)) {
-            rate = gstRatePct == null ? BigDecimal.ZERO : gstRatePct;
-            gstAmt = sub.multiply(rate).divide(BigDecimal.valueOf(100));
+            // Determine tax type based on user state
+            taxType = taxCalculationService.determineTaxType(userState);
+            
+            if ("CGST_SGST".equals(taxType)) {
+                // Intra-state: CGST + SGST
+                // Get tax rates from first product (assuming all products have same tax rates)
+                if (items != null && !items.isEmpty()) {
+                    Product firstProduct = productRepository.findById(items.get(0).getProductId()).orElse(null);
+                    if (firstProduct != null) {
+                        cgstRate = firstProduct.getCgstPercentage() != null ? firstProduct.getCgstPercentage() : BigDecimal.ZERO;
+                        sgstRate = firstProduct.getSgstPercentage() != null ? firstProduct.getSgstPercentage() : BigDecimal.ZERO;
+                        
+                        cgstAmount = sub.multiply(cgstRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                        sgstAmount = sub.multiply(sgstRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                        
+                        gstAmt = cgstAmount.add(sgstAmount);
+                        rate = cgstRate.add(sgstRate); // Total rate for backward compatibility
+                    }
+                }
+            } else if ("IGST".equals(taxType)) {
+                // Inter-state: IGST
+                // Get tax rate from first product
+                if (items != null && !items.isEmpty()) {
+                    Product firstProduct = productRepository.findById(items.get(0).getProductId()).orElse(null);
+                    if (firstProduct != null) {
+                        igstRate = firstProduct.getIgstPercentage() != null ? firstProduct.getIgstPercentage() : BigDecimal.ZERO;
+                        igstAmount = sub.multiply(igstRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                        
+                        gstAmt = igstAmount;
+                        rate = igstRate; // For backward compatibility
+                    }
+                }
+            } else {
+                // Fallback to generic GST if tax type is unknown
+                rate = gstRatePct == null ? BigDecimal.ZERO : gstRatePct;
+                gstAmt = sub.multiply(rate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            }
         }
 
         // 3) Total
@@ -91,6 +139,15 @@ public class OrderAccountingService {
         order.setSellerName(sellerName);
         order.setSellerGstin(sellerGstin);
         order.setInvoiceNumber(invoice);
+        
+        // Set tax breakdown fields
+        order.setTaxType(taxType);
+        order.setCgstRate(cgstRate);
+        order.setCgstAmount(cgstAmount);
+        order.setSgstRate(sgstRate);
+        order.setSgstAmount(sgstAmount);
+        order.setIgstRate(igstRate);
+        order.setIgstAmount(igstAmount);
         // Keep the order status as set during order creation (Pending)
         // order.setOrderStatus("Confirmed"); // Removed - status should only be changed by admin
 

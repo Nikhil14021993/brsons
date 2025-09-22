@@ -167,6 +167,28 @@ public class Order {
 
     @Column(precision = 12, scale = 2)
     private BigDecimal total;      // subTotal + gstAmount
+    
+    // Tax breakdown fields for proper CGST/SGST/IGST display
+    @Column(name = "tax_type")
+    private String taxType;        // "CGST_SGST" or "IGST"
+    
+    @Column(name = "cgst_rate", precision = 5, scale = 2)
+    private BigDecimal cgstRate;   // CGST percentage
+    
+    @Column(name = "cgst_amount", precision = 10, scale = 2)
+    private BigDecimal cgstAmount; // CGST amount
+    
+    @Column(name = "sgst_rate", precision = 5, scale = 2)
+    private BigDecimal sgstRate;   // SGST percentage
+    
+    @Column(name = "sgst_amount", precision = 10, scale = 2)
+    private BigDecimal sgstAmount; // SGST amount
+    
+    @Column(name = "igst_rate", precision = 5, scale = 2)
+    private BigDecimal igstRate;   // IGST percentage
+    
+    @Column(name = "igst_amount", precision = 10, scale = 2)
+    private BigDecimal igstAmount; // IGST amount
 
     private LocalDateTime createdAt;
 
@@ -249,6 +271,63 @@ public class Order {
 
 	public void setTotal(BigDecimal total) {
 		this.total = total;
+	}
+
+	// Tax breakdown getters and setters
+	public String getTaxType() {
+		return taxType;
+	}
+
+	public void setTaxType(String taxType) {
+		this.taxType = taxType;
+	}
+
+	public BigDecimal getCgstRate() {
+		return cgstRate;
+	}
+
+	public void setCgstRate(BigDecimal cgstRate) {
+		this.cgstRate = cgstRate;
+	}
+
+	public BigDecimal getCgstAmount() {
+		return cgstAmount;
+	}
+
+	public void setCgstAmount(BigDecimal cgstAmount) {
+		this.cgstAmount = cgstAmount;
+	}
+
+	public BigDecimal getSgstRate() {
+		return sgstRate;
+	}
+
+	public void setSgstRate(BigDecimal sgstRate) {
+		this.sgstRate = sgstRate;
+	}
+
+	public BigDecimal getSgstAmount() {
+		return sgstAmount;
+	}
+
+	public void setSgstAmount(BigDecimal sgstAmount) {
+		this.sgstAmount = sgstAmount;
+	}
+
+	public BigDecimal getIgstRate() {
+		return igstRate;
+	}
+
+	public void setIgstRate(BigDecimal igstRate) {
+		this.igstRate = igstRate;
+	}
+
+	public BigDecimal getIgstAmount() {
+		return igstAmount;
+	}
+
+	public void setIgstAmount(BigDecimal igstAmount) {
+		this.igstAmount = igstAmount;
 	}
 
 	public List<OrderItem> getOrderItems() {

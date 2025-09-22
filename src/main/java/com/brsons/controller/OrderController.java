@@ -372,17 +372,41 @@ private String invoiceStorageDir;
 	    // Check if this is a B2B order by looking at order items
 	    boolean isB2BOrder = isB2BOrder(order);
 
-	    // Only show GST for non-B2B orders
+	    // Only show tax for non-B2B orders
 	    if (!isB2BOrder) {
-	        // GST Rate
-	        productTable.addCell(emptyCell);
-	        productTable.addCell(new PdfPCell(new Phrase("GST Rate:", headerFont)));
-	        productTable.addCell(new PdfPCell(new Phrase((order.getGstRate() != null ? order.getGstRate().toString() : "0") + "%", normalFont)));
+	        // Show proper tax breakdown based on tax type
+	        String taxType = order.getTaxType();
+	        
+	        if ("CGST_SGST".equals(taxType)) {
+	            // Show CGST and SGST separately
+	            if (order.getCgstAmount() != null && order.getCgstAmount().compareTo(BigDecimal.ZERO) > 0) {
+	                productTable.addCell(emptyCell);
+	                productTable.addCell(new PdfPCell(new Phrase("CGST (" + (order.getCgstRate() != null ? order.getCgstRate().toString() : "0") + "%):", headerFont)));
+	                productTable.addCell(new PdfPCell(new Phrase("₹" + order.getCgstAmount().toString(), normalFont)));
+	            }
+	            
+	            if (order.getSgstAmount() != null && order.getSgstAmount().compareTo(BigDecimal.ZERO) > 0) {
+	                productTable.addCell(emptyCell);
+	                productTable.addCell(new PdfPCell(new Phrase("SGST (" + (order.getSgstRate() != null ? order.getSgstRate().toString() : "0") + "%):", headerFont)));
+	                productTable.addCell(new PdfPCell(new Phrase("₹" + order.getSgstAmount().toString(), normalFont)));
+	            }
+	        } else if ("IGST".equals(taxType)) {
+	            // Show IGST
+	            if (order.getIgstAmount() != null && order.getIgstAmount().compareTo(BigDecimal.ZERO) > 0) {
+	                productTable.addCell(emptyCell);
+	                productTable.addCell(new PdfPCell(new Phrase("IGST (" + (order.getIgstRate() != null ? order.getIgstRate().toString() : "0") + "%):", headerFont)));
+	                productTable.addCell(new PdfPCell(new Phrase("₹" + order.getIgstAmount().toString(), normalFont)));
+	            }
+	        } else {
+	            // Fallback to generic GST display
+	            productTable.addCell(emptyCell);
+	            productTable.addCell(new PdfPCell(new Phrase("GST Rate:", headerFont)));
+	            productTable.addCell(new PdfPCell(new Phrase((order.getGstRate() != null ? order.getGstRate().toString() : "0") + "%", normalFont)));
 
-	        // GST Amount
-	        productTable.addCell(emptyCell);
-	        productTable.addCell(new PdfPCell(new Phrase("GST Amount:", headerFont)));
-	        productTable.addCell(new PdfPCell(new Phrase("₹" + (order.getGstAmount() != null ? order.getGstAmount().toString() : "0.00"), normalFont)));
+	            productTable.addCell(emptyCell);
+	            productTable.addCell(new PdfPCell(new Phrase("GST Amount:", headerFont)));
+	            productTable.addCell(new PdfPCell(new Phrase("₹" + (order.getGstAmount() != null ? order.getGstAmount().toString() : "0.00"), normalFont)));
+	        }
 	    }
 
 	    // Total Amount (bold & highlighted)

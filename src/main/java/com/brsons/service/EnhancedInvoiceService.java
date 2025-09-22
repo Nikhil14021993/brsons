@@ -303,8 +303,29 @@ public class EnhancedInvoiceService {
         // Subtotal row
         addSummaryRow(summaryTable, "Subtotal:", "₹" + subTotal.toString(), summaryLabelFont, summaryValueFont);
         
-        // GST row
-        addSummaryRow(summaryTable, "GST (" + gstRate + "%):", "₹" + gstAmount.toString(), summaryLabelFont, summaryValueFont);
+        // Tax breakdown based on tax type
+        String taxType = order.getTaxType();
+        
+        if ("CGST_SGST".equals(taxType)) {
+            // Show CGST and SGST separately
+            if (order.getCgstAmount() != null && order.getCgstAmount().compareTo(BigDecimal.ZERO) > 0) {
+                addSummaryRow(summaryTable, "CGST (" + (order.getCgstRate() != null ? order.getCgstRate().toString() : "0") + "%):", 
+                             "₹" + order.getCgstAmount().toString(), summaryLabelFont, summaryValueFont);
+            }
+            if (order.getSgstAmount() != null && order.getSgstAmount().compareTo(BigDecimal.ZERO) > 0) {
+                addSummaryRow(summaryTable, "SGST (" + (order.getSgstRate() != null ? order.getSgstRate().toString() : "0") + "%):", 
+                             "₹" + order.getSgstAmount().toString(), summaryLabelFont, summaryValueFont);
+            }
+        } else if ("IGST".equals(taxType)) {
+            // Show IGST
+            if (order.getIgstAmount() != null && order.getIgstAmount().compareTo(BigDecimal.ZERO) > 0) {
+                addSummaryRow(summaryTable, "IGST (" + (order.getIgstRate() != null ? order.getIgstRate().toString() : "0") + "%):", 
+                             "₹" + order.getIgstAmount().toString(), summaryLabelFont, summaryValueFont);
+            }
+        } else {
+            // Fallback to generic GST
+            addSummaryRow(summaryTable, "GST (" + gstRate + "%):", "₹" + gstAmount.toString(), summaryLabelFont, summaryValueFont);
+        }
         
         // Separator line
         addSummaryRow(summaryTable, "", "", summaryLabelFont, summaryValueFont);
