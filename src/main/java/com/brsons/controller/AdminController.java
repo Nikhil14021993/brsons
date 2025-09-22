@@ -437,6 +437,10 @@ public class AdminController {
             @RequestParam String mainPhoto,
             @RequestParam String selectedCategory,
             @RequestParam(required = false) String newCategoryName,
+            // Tax Configuration Fields
+            @RequestParam(required = false) java.math.BigDecimal cgstPercentage,
+            @RequestParam(required = false) java.math.BigDecimal sgstPercentage,
+            @RequestParam(required = false) java.math.BigDecimal igstPercentage,
             @RequestParam("imageFile1") MultipartFile imageFile1,
             @RequestParam(value = "imageFile2", required = false) MultipartFile imageFile2,
             @RequestParam(value = "imageFile3", required = false) MultipartFile imageFile3,
@@ -477,6 +481,11 @@ public class AdminController {
         product.setDiscount(discount != null ? discount : 0.0);
         product.setStockQuantity(stockQuantity != null ? stockQuantity : 0);
         product.setStatus(status != null ? status : "Active");
+        
+        // Set tax configuration fields
+        product.setCgstPercentage(cgstPercentage != null ? cgstPercentage : java.math.BigDecimal.ZERO);
+        product.setSgstPercentage(sgstPercentage != null ? sgstPercentage : java.math.BigDecimal.ZERO);
+        product.setIgstPercentage(igstPercentage != null ? igstPercentage : java.math.BigDecimal.ZERO);
 
         if (!imageFile1.isEmpty()) {
             String fileName = UUID.randomUUID() + "_" + imageFile1.getOriginalFilename();

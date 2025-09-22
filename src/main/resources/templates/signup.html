@@ -3,6 +3,7 @@
 <head>
     <title>Sign Up</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -14,7 +15,7 @@
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            width: 350px;
+            width: 500px;
             text-align: center;
             margin: 50px auto;
         }
@@ -22,12 +23,32 @@
             margin-bottom: 20px;
             color: #ad1457;
         }
-        input {
+        input, select {
             width: 90%;
             padding: 10px;
             margin: 8px 0;
             border: 1px solid #ccc;
             border-radius: 8px;
+        }
+        .form-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .form-section h3 {
+            margin: 0 0 15px 0;
+            color: #ad1457;
+            font-size: 16px;
+            text-align: left;
+        }
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+        .form-row input {
+            flex: 1;
         }
         button {
             background-color: #ad1457;
@@ -74,16 +95,123 @@
         <h2>Create Account</h2>
 
         <form th:action="@{/signup}" th:object="${user}" method="post">
-            <input type="text" th:field="*{name}" placeholder="Full Name" required><br>
-            <input type="email" th:field="*{email}" placeholder="Email" required><br>
-            <input type="text" th:field="*{phone}" placeholder="Phone (10 digits)" required><br>
-            <input type="password" th:field="*{password}" placeholder="Password" required><br>
-            <input type="password" name="confirmPassword" placeholder="Confirm Password" required><br>
-            <span th:if="${passwordError}" class="error" th:text="${passwordError}"></span><br>
+            <!-- Basic Information Section -->
+            <div class="form-section">
+                <h3><i class="fas fa-user"></i> Basic Information</h3>
+                <input type="text" th:field="*{name}" placeholder="Full Name" required><br>
+                <input type="email" th:field="*{email}" placeholder="Email" required><br>
+                <input type="text" th:field="*{phone}" placeholder="Phone (10 digits)" required><br>
+                <input type="password" th:field="*{password}" placeholder="Password" required><br>
+                <input type="password" name="confirmPassword" placeholder="Confirm Password" required><br>
+                <span th:if="${passwordError}" class="error" th:text="${passwordError}"></span><br>
+                <span th:if="${gstinError}" class="error" th:text="${gstinError}"></span><br>
+            </div>
 
-            <button type="submit">Submit</button>
+            <!-- Address Information Section -->
+            <div class="form-section">
+                <h3><i class="fas fa-map-marker-alt"></i> Address Information (Optional)</h3>
+                <p style="font-size: 12px; color: #666; margin-bottom: 15px; text-align: left;">
+                    <i class="fas fa-info-circle"></i> 
+                    Providing your address helps us calculate accurate taxes for your orders.
+                </p>
+                
+                <input type="text" th:field="*{addressLine1}" placeholder="Address Line 1"><br>
+                <input type="text" th:field="*{addressLine2}" placeholder="Address Line 2"><br>
+                
+                <div class="form-row">
+                    <input type="text" th:field="*{city}" placeholder="City">
+                    <input type="text" th:field="*{zipCode}" placeholder="Zip Code">
+                </div>
+                
+                <select th:field="*{state}" style="text-align: left;">
+                    <option value="">Select State</option>
+                    <option value="Maharashtra">Maharashtra</option>
+                    <option value="Gujarat">Gujarat</option>
+                    <option value="Karnataka">Karnataka</option>
+                    <option value="Tamil Nadu">Tamil Nadu</option>
+                    <option value="Delhi">Delhi</option>
+                    <option value="West Bengal">West Bengal</option>
+                    <option value="Rajasthan">Rajasthan</option>
+                    <option value="Uttar Pradesh">Uttar Pradesh</option>
+                    <option value="Madhya Pradesh">Madhya Pradesh</option>
+                    <option value="Andhra Pradesh">Andhra Pradesh</option>
+                    <option value="Telangana">Telangana</option>
+                    <option value="Kerala">Kerala</option>
+                    <option value="Punjab">Punjab</option>
+                    <option value="Haryana">Haryana</option>
+                </select><br>
+                
+                <input type="text" th:field="*{gstin}" placeholder="GSTIN (Optional)" maxlength="15"
+                       pattern="[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}"
+                       title="GSTIN must be 15 characters: 2 digits + 5 letters + 4 digits + 1 letter + 1 letter/digit + Z + 1 letter/digit">
+                <small style="display: block; font-size: 11px; color: #666; text-align: left; margin-top: -5px;">
+                    Format: 2 digits + 5 letters + 4 digits + 1 letter + 1 letter/digit + Z + 1 letter/digit
+                </small>
+            </div>
+
+            <button type="submit">Create Account</button>
             <a th:href="@{/login}"><button type="button">Cancel</button></a>
         </form>
+        
+        <!-- Tax Preview Section -->
+        <div id="taxPreview" style="display: none; margin-top: 20px; padding: 15px; background-color: #e8f5e8; border-radius: 8px; border-left: 4px solid #28a745;">
+            <h4 style="margin: 0 0 10px 0; color: #28a745;">
+                <i class="fas fa-calculator"></i> Tax Information
+            </h4>
+            <p id="taxPreviewText" style="margin: 0; font-size: 14px; color: #333;"></p>
+        </div>
     </div>
+
+    <script>
+        // Tax preview functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const stateSelect = document.querySelector('select[name="state"]');
+            const taxPreview = document.getElementById('taxPreview');
+            const taxPreviewText = document.getElementById('taxPreviewText');
+            
+            if (stateSelect) {
+                stateSelect.addEventListener('change', function() {
+                    const selectedState = this.value;
+                    updateTaxPreview(selectedState);
+                });
+            }
+        });
+        
+        function updateTaxPreview(selectedState) {
+            const taxPreview = document.getElementById('taxPreview');
+            const taxPreviewText = document.getElementById('taxPreviewText');
+            
+            if (selectedState && selectedState.trim() !== '') {
+                if (selectedState === 'Rajasthan') {
+                    taxPreviewText.innerHTML = '<strong>Intra-state Transaction:</strong> CGST + SGST will be applied to your orders.';
+                    taxPreview.style.display = 'block';
+                } else {
+                    taxPreviewText.innerHTML = '<strong>Inter-state Transaction:</strong> IGST will be applied to your orders.';
+                    taxPreview.style.display = 'block';
+                }
+            } else {
+                taxPreview.style.display = 'none';
+            }
+        }
+        
+        // GSTIN validation
+        document.querySelector('input[name="gstin"]').addEventListener('input', function() {
+            const gstin = this.value.toUpperCase();
+            this.value = gstin;
+            
+            if (gstin.length > 0 && gstin.length < 15) {
+                this.style.borderColor = '#ffc107';
+            } else if (gstin.length === 15) {
+                const gstinPattern = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$/;
+                if (gstinPattern.test(gstin)) {
+                    this.style.borderColor = '#28a745';
+                } else {
+                    this.style.borderColor = '#dc3545';
+                }
+            } else {
+                this.style.borderColor = '#ccc';
+            }
+        });
+    </script>
 </body>
 </html>

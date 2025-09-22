@@ -73,6 +73,24 @@ public class LoginController {
             model.addAttribute("passwordError", "Passwords do not match");
             return "signup";
         }
+        
+        // Validate GSTIN format if provided
+        if (user.getGstin() != null && !user.getGstin().trim().isEmpty()) {
+            String gstinPattern = "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$";
+            if (!user.getGstin().matches(gstinPattern)) {
+                model.addAttribute("gstinError", "Invalid GSTIN format. Please enter a valid 15-character GSTIN.");
+                return "signup";
+            }
+        }
+        
+        // Set default values
+        if (user.getType() == null) {
+            user.setType("Retail");
+        }
+        if (user.getStatus() == null) {
+            user.setStatus("ACTIVE");
+        }
+        
         userRepository.save(user);
         return "redirect:/login?success=Account+successfully+created";
     }

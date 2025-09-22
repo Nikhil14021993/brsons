@@ -61,6 +61,16 @@ public class Product {
     
     private String status;
 
+    // Tax Configuration Fields - Admin defines tax percentages for this product
+    @Column(name = "cgst_percentage", precision = 5, scale = 2)
+    private java.math.BigDecimal cgstPercentage = java.math.BigDecimal.ZERO;
+    
+    @Column(name = "sgst_percentage", precision = 5, scale = 2)
+    private java.math.BigDecimal sgstPercentage = java.math.BigDecimal.ZERO;
+    
+    @Column(name = "igst_percentage", precision = 5, scale = 2)
+    private java.math.BigDecimal igstPercentage = java.math.BigDecimal.ZERO;
+
     // Image URLs
     private String image1; // Mandatory
     private String image2;
@@ -133,6 +143,22 @@ public class Product {
     
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    // Tax Configuration Getters & Setters
+    public java.math.BigDecimal getCgstPercentage() { return cgstPercentage; }
+    public void setCgstPercentage(java.math.BigDecimal cgstPercentage) { 
+        this.cgstPercentage = cgstPercentage != null ? cgstPercentage : java.math.BigDecimal.ZERO; 
+    }
+    
+    public java.math.BigDecimal getSgstPercentage() { return sgstPercentage; }
+    public void setSgstPercentage(java.math.BigDecimal sgstPercentage) { 
+        this.sgstPercentage = sgstPercentage != null ? sgstPercentage : java.math.BigDecimal.ZERO; 
+    }
+    
+    public java.math.BigDecimal getIgstPercentage() { return igstPercentage; }
+    public void setIgstPercentage(java.math.BigDecimal igstPercentage) { 
+        this.igstPercentage = igstPercentage != null ? igstPercentage : java.math.BigDecimal.ZERO; 
+    }
 
     public String getImage1() { return image1; }
     public void setImage1(String image1) { this.image1 = image1; }

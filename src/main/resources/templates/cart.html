@@ -865,7 +865,7 @@
                 
                 <div class="summary-row">
                     <span class="summary-label">Subtotal</span>
-                    <span class="summary-value" th:text="'₹' + ${grandTotal}">₹0.00</span>
+                    <span class="summary-value" th:text="'₹' + ${#numbers.formatDecimal(grandTotal, 1, 2)}">₹0.00</span>
                 </div>
                 
                 <div class="summary-row">
@@ -873,20 +873,45 @@
                     <span class="summary-value">Free</span>
                 </div>
                 
-                <!-- Tax row - only show for non-B2B users -->
-                <div class="summary-row" th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B') or (adminOrderMode == null or !adminOrderMode) and (session.user == null or session.user.type != 'B2B')}">
-                    <span class="summary-label">Tax (18%)</span>
-                    <span class="summary-value" th:text="'₹' + ${#numbers.formatDecimal(grandTotal * 0.18, 1, 2)}">₹0.00</span>
+                <!-- Tax breakdown based on user state -->
+                <div th:if="${taxType != null and taxType != 'UNKNOWN' and taxBreakdown != null}">
+                    <!-- CGST/SGST for intra-state -->
+                    <div th:if="${taxType == 'CGST_SGST'}" class="cgst-sgst-breakdown">
+                        <div class="summary-row">
+                            <span class="summary-label">CGST (<span th:text="${#numbers.formatDecimal(taxBreakdown.cgstPercentage, 1, 0)}">9</span>%)</span>
+                            <span class="summary-value" th:text="'₹' + ${#numbers.formatDecimal(taxBreakdown.cgstAmount, 1, 2)}">₹0.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">SGST (<span th:text="${#numbers.formatDecimal(taxBreakdown.sgstPercentage, 1, 0)}">9</span>%)</span>
+                            <span class="summary-value" th:text="'₹' + ${#numbers.formatDecimal(taxBreakdown.sgstAmount, 1, 2)}">₹0.00</span>
+                        </div>
+                    </div>
+                    
+                    <!-- IGST for inter-state -->
+                    <div th:if="${taxType == 'IGST'}" class="igst-breakdown">
+                        <div class="summary-row">
+                            <span class="summary-label">IGST (<span th:text="${#numbers.formatDecimal(taxBreakdown.igstPercentage, 1, 0)}">18</span>%)</span>
+                            <span class="summary-value" th:text="'₹' + ${#numbers.formatDecimal(taxBreakdown.igstAmount, 1, 2)}">₹0.00</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Show message if no address available -->
+                <div class="summary-row" th:if="${taxType == null or taxType == 'UNKNOWN'}">
+                    <span class="summary-label">Tax</span>
+                    <span class="summary-value" style="color: #666; font-style: italic; font-size: 0.9rem;">
+                        Will be calculated at checkout
+                    </span>
                 </div>
                 
                 <div class="summary-row total-row">
                     <span class="summary-label">Total</span>
-                    <!-- Show total with tax for non-B2B users, without tax for B2B users -->
+                    <!-- Show total with tax if tax is calculated, otherwise show subtotal -->
                     <span class="summary-value" 
-                          th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type != 'B2B') or (adminOrderMode == null or !adminOrderMode) and (session.user == null or session.user.type != 'B2B')}"
-                          th:text="'₹' + ${#numbers.formatDecimal(grandTotal * 1.18, 1, 2)}">₹0.00</span>
+                          th:if="${taxBreakdown != null and taxBreakdown.totalTaxAmount > 0}"
+                          th:text="'₹' + ${#numbers.formatDecimal(grandTotal + taxBreakdown.totalTaxAmount, 1, 2)}">₹0.00</span>
                     <span class="summary-value" 
-                          th:if="${(adminOrderMode != null and adminOrderMode and orderForUser != null and orderForUser.type == 'B2B') or (adminOrderMode == null or !adminOrderMode) and (session.user != null and session.user.type == 'B2B')}"
+                          th:if="${taxBreakdown == null or taxBreakdown.totalTaxAmount == 0}"
                           th:text="'₹' + ${#numbers.formatDecimal(grandTotal, 1, 2)}">₹0.00</span>
                 </div>
 

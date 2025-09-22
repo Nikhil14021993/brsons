@@ -216,6 +216,49 @@
             });
         }
 
+        // Tax Configuration Helper Functions
+        const cgstInput = document.querySelector('input[name="cgstPercentage"]');
+        const sgstInput = document.querySelector('input[name="sgstPercentage"]');
+        const igstInput = document.querySelector('input[name="igstPercentage"]');
+
+        // Auto-sync CGST and SGST (they should typically be equal)
+        if (cgstInput && sgstInput) {
+            cgstInput.addEventListener('input', function() {
+                const cgstValue = parseFloat(this.value) || 0;
+                if (cgstValue > 0) {
+                    sgstInput.value = cgstValue.toFixed(2);
+                    // Auto-calculate IGST as sum of CGST + SGST
+                    if (igstInput) {
+                        igstInput.value = (cgstValue * 2).toFixed(2);
+                    }
+                }
+            });
+
+            sgstInput.addEventListener('input', function() {
+                const sgstValue = parseFloat(this.value) || 0;
+                if (sgstValue > 0) {
+                    cgstInput.value = sgstValue.toFixed(2);
+                    // Auto-calculate IGST as sum of CGST + SGST
+                    if (igstInput) {
+                        igstInput.value = (sgstValue * 2).toFixed(2);
+                    }
+                }
+            });
+        }
+
+        // IGST auto-calculation helper
+        if (igstInput && cgstInput && sgstInput) {
+            igstInput.addEventListener('input', function() {
+                const igstValue = parseFloat(this.value) || 0;
+                if (igstValue > 0) {
+                    // Split IGST equally between CGST and SGST
+                    const halfIgst = (igstValue / 2).toFixed(2);
+                    cgstInput.value = halfIgst;
+                    sgstInput.value = halfIgst;
+                }
+            });
+        }
+
         const fileInputs = [
             { input: document.querySelector('input[name="imageFile1"]'), label: "Image 1" },
             { input: document.querySelector('input[name="imageFile2"]'), label: "Image 2" },
@@ -339,6 +382,46 @@
                 <div>
                     <label>Stock Quantity:</label>
                     <input type="number" th:field="*{stockQuantity}" placeholder="0">
+                </div>
+            </div>
+
+            <!-- Tax Configuration Section -->
+            <div class="form-row full" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+                <div>
+                    <h4 style="margin: 0 0 15px 0; color: #28a745;">
+                        <i class="fas fa-percentage"></i> Tax Configuration
+                    </h4>
+                    <p style="color: #666; margin-bottom: 15px; font-size: 14px;">
+                        Define tax percentages for this product. Admin can set CGST, SGST, and IGST rates.
+                        The appropriate tax will be applied based on customer's location.
+                    </p>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label>CGST % (Central GST):</label>
+                    <input type="number" step="0.01" th:field="*{cgstPercentage}" 
+                           placeholder="e.g., 9.00" min="0" max="50">
+                    <small style="color: #666;">For intra-state transactions</small>
+                </div>
+                <div>
+                    <label>SGST % (State GST):</label>
+                    <input type="number" step="0.01" th:field="*{sgstPercentage}" 
+                           placeholder="e.g., 9.00" min="0" max="50">
+                    <small style="color: #666;">For intra-state transactions</small>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label>IGST % (Integrated GST):</label>
+                    <input type="number" step="0.01" th:field="*{igstPercentage}" 
+                           placeholder="e.g., 18.00" min="0" max="50">
+                    <small style="color: #666;">For inter-state transactions</small>
+                </div>
+                <div>
+                    <!-- Empty div for spacing -->
                 </div>
             </div>
 

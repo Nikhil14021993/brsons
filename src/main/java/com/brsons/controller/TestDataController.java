@@ -170,6 +170,11 @@ public class TestDataController {
                     product.setCategory(category);
                     product.setSku(skus[i]);
                     
+                    // Set default tax configuration for sample products
+                    product.setCgstPercentage(new java.math.BigDecimal("9.00")); // 9% CGST
+                    product.setSgstPercentage(new java.math.BigDecimal("9.00")); // 9% SGST
+                    product.setIgstPercentage(new java.math.BigDecimal("18.00")); // 18% IGST
+                    
                     productRepository.save(product);
                     productsCreated++;
                 }

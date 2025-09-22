@@ -5,29 +5,27 @@ import com.brsons.model.CartItemDetails;
 import com.brsons.model.CartProductEntry;
 import com.brsons.model.Category;
 import com.brsons.model.Product;
+import com.brsons.model.TaxBreakdown;
 import com.brsons.model.User;
 import com.brsons.repository.AddToCartRepository;
 import com.brsons.repository.CategoryRepository;
 import com.brsons.repository.ProductRepository;
 import com.brsons.repository.UserRepository;
+import com.brsons.service.TaxCalculationService;
 
 import jakarta.servlet.http.HttpSession;
 
-import java.security.Principal;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class ShopController {
@@ -35,12 +33,14 @@ public class ShopController {
 	 private final ProductRepository productRepository ;
 	 private final AddToCartRepository addToCartRepository ;
 	 private final UserRepository userRepository ;
+	 private final TaxCalculationService taxCalculationService;
 	 
-	 public ShopController(CategoryRepository categoryRepository,ProductRepository productRepository, AddToCartRepository addToCartRepository, UserRepository userRepository) {
+	 public ShopController(CategoryRepository categoryRepository,ProductRepository productRepository, AddToCartRepository addToCartRepository, UserRepository userRepository, TaxCalculationService taxCalculationService) {
 	        this.categoryRepository = categoryRepository;
 	        this.productRepository = productRepository;
 	        this.addToCartRepository = addToCartRepository;
 	        this.userRepository = userRepository;
+	        this.taxCalculationService = taxCalculationService;
 	    }
 
 	@GetMapping("/shop")
@@ -652,8 +652,31 @@ public class ShopController {
 	    System.out.println("Final cart items count: " + cartItems.size());
 	    System.out.println("Final grand total: " + grandTotal);
 
+	    // Calculate tax breakdown based on user state
+	    String userState = null;
+	    if (adminOrderMode != null && adminOrderMode && orderForUser != null) {
+	        userState = orderForUser.getState();
+	    } else {
+	        userState = user.getState();
+	    }
+	    
+	    TaxBreakdown taxBreakdown = null;
+	    String taxType = "UNKNOWN";
+	    
+	    if (userState != null && !userState.trim().isEmpty()) {
+	        taxType = taxCalculationService.determineTaxType(userState);
+	        taxBreakdown = taxCalculationService.calculateTaxForCart(cartItems, userState);
+	        System.out.println("Tax calculation - User State: " + userState + ", Tax Type: " + taxType + ", Tax Breakdown: " + taxBreakdown);
+	    } else {
+	        System.out.println("No user state available for tax calculation");
+	    }
+
 	    model.addAttribute("cartItems", cartItems);
 	    model.addAttribute("grandTotal", grandTotal);
+	    model.addAttribute("taxBreakdown", taxBreakdown);
+	    model.addAttribute("taxType", taxType);
+	    model.addAttribute("userState", userState);
+	    model.addAttribute("businessState", taxCalculationService.getBusinessState());
 	    
 	    // Set cart count in session for navbar display
 	    int totalItems = cart.getProductQuantities().stream()
@@ -685,6 +708,24 @@ public class ShopController {
 	            .sum();
 	    
 	    return ResponseEntity.ok(Map.of("count", totalItems));
+	}
+
+	@GetMapping("/debug/tax-calculation")
+	@ResponseBody
+	public ResponseEntity<?> debugTaxCalculation(HttpSession session) {
+	    User user = (User) session.getAttribute("user");
+	    if (user == null) {
+	        return ResponseEntity.ok(Map.of("error", "User not logged in"));
+	    }
+	    
+	    Map<String, Object> response = new HashMap<>();
+	    response.put("userName", user.getName());
+	    response.put("userState", user.getState());
+	    response.put("businessState", taxCalculationService.getBusinessState());
+	    response.put("taxType", taxCalculationService.determineTaxType(user.getState()));
+	    response.put("isIntraState", taxCalculationService.isIntraStateTransaction(user.getState()));
+	    
+	    return ResponseEntity.ok(response);
 	}
 
 	@GetMapping("/debug/session")

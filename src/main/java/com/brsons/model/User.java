@@ -34,6 +34,25 @@ public class User {
     @Column(name = "type")
     private String type = "Retail"; // Example values: "Admin", "Customer"
     private String role = "USER";
+    
+    // Address Information for Tax Type Determination
+    @Column(name = "address_line1")
+    private String addressLine1;
+    
+    @Column(name = "address_line2")
+    private String addressLine2;
+    
+    @Column(name = "city")
+    private String city;
+    
+    @Column(name = "state")
+    private String state;
+    
+    @Column(name = "zip_code")
+    private String zipCode;
+    
+    @Column(name = "gstin")
+    private String gstin;
 
     // Getter & Setter
     public String getType() { return type; }
@@ -58,4 +77,48 @@ public class User {
 		this.role = role;
 	}
 	public void setStatus(String status) { this.status = status; }
+	
+	// Address Getters & Setters
+	public String getAddressLine1() { return addressLine1; }
+	public void setAddressLine1(String addressLine1) { this.addressLine1 = addressLine1; }
+	
+	public String getAddressLine2() { return addressLine2; }
+	public void setAddressLine2(String addressLine2) { this.addressLine2 = addressLine2; }
+	
+	public String getCity() { return city; }
+	public void setCity(String city) { this.city = city; }
+	
+	public String getState() { return state; }
+	public void setState(String state) { this.state = state; }
+	
+	public String getZipCode() { return zipCode; }
+	public void setZipCode(String zipCode) { this.zipCode = zipCode; }
+	
+	public String getGstin() { return gstin; }
+	public void setGstin(String gstin) { this.gstin = gstin; }
+	
+	// Helper method to get full address
+	public String getFullAddress() {
+		StringBuilder address = new StringBuilder();
+		if (addressLine1 != null && !addressLine1.trim().isEmpty()) {
+			address.append(addressLine1);
+		}
+		if (addressLine2 != null && !addressLine2.trim().isEmpty()) {
+			if (address.length() > 0) address.append(", ");
+			address.append(addressLine2);
+		}
+		if (city != null && !city.trim().isEmpty()) {
+			if (address.length() > 0) address.append(", ");
+			address.append(city);
+		}
+		if (state != null && !state.trim().isEmpty()) {
+			if (address.length() > 0) address.append(", ");
+			address.append(state);
+		}
+		if (zipCode != null && !zipCode.trim().isEmpty()) {
+			if (address.length() > 0) address.append(" - ");
+			address.append(zipCode);
+		}
+		return address.toString();
+	}
 }
