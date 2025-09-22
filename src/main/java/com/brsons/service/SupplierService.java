@@ -235,8 +235,12 @@ public class SupplierService {
             throw new IllegalArgumentException("Company name is required");
         }
         
-        if (supplier.getEmail() == null || supplier.getEmail().trim().isEmpty()) {
-            throw new IllegalArgumentException("Email is required");
+        // Email is now optional - only validate format if provided
+        if (supplier.getEmail() != null && !supplier.getEmail().trim().isEmpty()) {
+            // Basic email format validation
+            if (!supplier.getEmail().contains("@") || !supplier.getEmail().contains(".")) {
+                throw new IllegalArgumentException("Please enter a valid email address");
+            }
         }
         
         if (supplier.getSupplierCode() == null || supplier.getSupplierCode().trim().isEmpty()) {
@@ -249,11 +253,13 @@ public class SupplierService {
             throw new IllegalArgumentException("Supplier code must be unique");
         }
         
-        // Check if email is unique
-        List<Supplier> existingSuppliers = supplierRepository.findByEmailContainingIgnoreCase(supplier.getEmail());
-        for (Supplier existing : existingSuppliers) {
-            if (!existing.getId().equals(supplier.getId())) {
-                throw new IllegalArgumentException("Email must be unique");
+        // Check if email is unique (only if email is provided)
+        if (supplier.getEmail() != null && !supplier.getEmail().trim().isEmpty()) {
+            List<Supplier> existingSuppliers = supplierRepository.findByEmailContainingIgnoreCase(supplier.getEmail());
+            for (Supplier existing : existingSuppliers) {
+                if (!existing.getId().equals(supplier.getId())) {
+                    throw new IllegalArgumentException("Email must be unique");
+                }
             }
         }
     }
