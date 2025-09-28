@@ -435,6 +435,7 @@ public class AdminController {
             @RequestParam(required = false) Integer stockQuantity,
             @RequestParam String status,
             @RequestParam String mainPhoto,
+            @RequestParam(required = false) String hsnCode,
             @RequestParam String selectedCategory,
             @RequestParam(required = false) String newCategoryName,
             // Tax Configuration Fields
@@ -480,7 +481,8 @@ public class AdminController {
         product.setB2bMinQuantity(b2bMinQuantity != null ? b2bMinQuantity : 1); // Default B2B minimum quantity
         product.setDiscount(discount != null ? discount : 0.0);
         product.setStockQuantity(stockQuantity != null ? stockQuantity : 0);
-        product.setStatus(status != null ? status : "Active");
+    product.setStatus(status != null ? status : "Active");
+    product.setHsnCode(hsnCode);
         
         // Set tax configuration fields
         product.setCgstPercentage(cgstPercentage != null ? cgstPercentage : java.math.BigDecimal.ZERO);

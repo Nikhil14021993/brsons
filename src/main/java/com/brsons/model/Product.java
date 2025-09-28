@@ -6,6 +6,16 @@ import java.util.List;
 @Entity
 @Table(name = "products")
 public class Product {
+    @Column(name = "hsn_code")
+    private String hsnCode;
+
+    public String getHsnCode() {
+        return hsnCode;
+    }
+
+    public void setHsnCode(String hsnCode) {
+        this.hsnCode = hsnCode;
+    }
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
