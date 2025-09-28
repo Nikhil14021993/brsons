@@ -403,7 +403,7 @@ public class AdminOrderService {
             
             if ("Cash".equalsIgnoreCase(paymentMethod)) {
                 // For cash payments, debit Cash account (ID 5)
-                debitAccount = accountRepository.findById(6L).orElse(null);
+                debitAccount = accountRepository.findById(5L).orElse(null);
                 accountName = "Cash Account";
                 accountCode = "1001.03";
             } else {
