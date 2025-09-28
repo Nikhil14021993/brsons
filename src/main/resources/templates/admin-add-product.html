@@ -115,6 +115,14 @@
         .remove-variant-btn:hover {
             background: #c82333;
         }
+        .image-preview {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            margin-top: 4px;
+        }
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -429,6 +437,7 @@
                 <div>
                     <label>Image 1 (Mandatory):</label>
                     <input type="file" name="imageFile1" accept="image/*" required>
+                    <div id="previewImage1" style="margin-top:8px;"></div>
                 </div>
             </div>
 
@@ -450,6 +459,7 @@
                 <div>
                     <label>Image 2:</label>
                     <input type="file" name="imageFile2" accept="image/*">
+                    <div id="previewImage2" style="margin-top:8px;"></div>
                 </div>
             </div>
 
@@ -457,6 +467,7 @@
                 <div>
                     <label>Image 3:</label>
                     <input type="file" name="imageFile3" accept="image/*">
+                    <div id="previewImage3" style="margin-top:8px;"></div>
                 </div>
             </div>
 
@@ -464,6 +475,7 @@
                 <div>
                     <label>Image 4:</label>
                     <input type="file" name="imageFile4" accept="image/*">
+                    <div id="previewImage4" style="margin-top:8px;"></div>
                 </div>
             </div>
 
@@ -471,6 +483,7 @@
                 <div>
                     <label>Image 5:</label>
                     <input type="file" name="imageFile5" accept="image/*">
+                    <div id="previewImage5" style="margin-top:8px;"></div>
                 </div>
                 <div>
                     <label>Main Photo:</label>
@@ -526,4 +539,33 @@
         </form>
     </div>
 </body>
+    <script>
+        // Image preview for Image 1, 2, 3, 4, 5
+        document.addEventListener('DOMContentLoaded', function() {
+            function setupImagePreview(inputName, previewId) {
+                var imageInput = document.querySelector('input[name="' + inputName + '"]');
+                var previewDiv = document.getElementById(previewId);
+                if (imageInput && previewDiv) {
+                    imageInput.addEventListener('change', function(e) {
+                        previewDiv.innerHTML = '';
+                        if (e.target.files && e.target.files[0]) {
+                            var reader = new FileReader();
+                            reader.onload = function(ev) {
+                                var img = document.createElement('img');
+                                img.src = ev.target.result;
+                                img.className = 'image-preview';
+                                previewDiv.appendChild(img);
+                            };
+                            reader.readAsDataURL(e.target.files[0]);
+                        }
+                    });
+                }
+            }
+            setupImagePreview('imageFile1', 'previewImage1');
+            setupImagePreview('imageFile2', 'previewImage2');
+            setupImagePreview('imageFile3', 'previewImage3');
+            setupImagePreview('imageFile4', 'previewImage4');
+            setupImagePreview('imageFile5', 'previewImage5');
+        });
+</script>
 </html>
