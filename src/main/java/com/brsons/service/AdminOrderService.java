@@ -206,7 +206,7 @@ public class AdminOrderService {
                 try {
                     // For regular retail orders, default to "Cash" payment method
                     // This can be enhanced later to store payment method in Order model
-                    createVoucherEntryForRetailOrder(order, "Cash");
+                    createVoucherEntryForRetailOrder(order, "Cash", order.getTotal());
                     System.out.println("Created voucher entry for confirmed Retail order ID: " + order.getId());
                 } catch (Exception e) {
                     System.err.println("Error creating voucher entry for confirmed Retail order ID " + order.getId() + ": " + e.getMessage());
@@ -385,16 +385,12 @@ public class AdminOrderService {
      * Debit: Cash Account (ID 5) for Cash payments, Bank Account (ID 6) for other payments
      * Credit: Sales (3001)
      */
-    public void createVoucherEntryForRetailOrder(Order order) {
-        createVoucherEntryForRetailOrder(order, "Cash"); // Default to Cash for backward compatibility
-    }
-    
     /**
-     * Create voucher entry for Retail order confirmation with payment method
+     * Create voucher entry for Retail order confirmation with payment method and amount
      * Debit: Cash Account (ID 5) for Cash payments, Bank Account (ID 6) for other payments
      * Credit: Sales (3001)
      */
-    public void createVoucherEntryForRetailOrder(Order order, String paymentMethod) {
+    public void createVoucherEntryForRetailOrder(Order order, String paymentMethod, BigDecimal amount) {
         try {
             // Determine which account to debit based on payment method
             Account debitAccount;
@@ -439,10 +435,11 @@ public class AdminOrderService {
             Voucher savedVoucher = voucherRepository.save(voucher);
             
             // Create debit entry (Cash or Bank Account)
+            BigDecimal voucherAmount = amount != null ? amount : order.getTotal();
             VoucherEntry debitEntry = new VoucherEntry();
             debitEntry.setVoucher(savedVoucher);
             debitEntry.setAccount(debitAccount);
-            debitEntry.setDebit(order.getTotal());
+            debitEntry.setDebit(voucherAmount);
             debitEntry.setCredit(BigDecimal.ZERO);
             debitEntry.setDescription(accountName + " - Order #" + order.getId() + " - " + order.getName() + " - " + paymentMethod);
             voucherEntryRepository.save(debitEntry);
@@ -452,7 +449,7 @@ public class AdminOrderService {
             creditEntry.setVoucher(savedVoucher);
             creditEntry.setAccount(salesAccount);
             creditEntry.setDebit(BigDecimal.ZERO);
-            creditEntry.setCredit(order.getTotal());
+            creditEntry.setCredit(voucherAmount);
             creditEntry.setDescription("Sales - Order #" + order.getId() + " - " + order.getName());
             voucherEntryRepository.save(creditEntry);
             

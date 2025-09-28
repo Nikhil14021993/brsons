@@ -305,14 +305,34 @@
                             <input type="text" id="customerAddress" name="customerAddress">
                         </div>
                         <div class="form-group">
-                            <label for="paymentMethod">Payment Method *</label>
-                            <select id="paymentMethod" name="paymentMethod" required>
-                                <option value="">Select Payment Method</option>
+                            <label for="paymentMethod1">Payment Mode 1 *</label>
+                            <select id="paymentMethod1" name="paymentMethod1" required>
+                                <option value="">Select Payment Mode</option>
                                 <option value="Cash">Cash</option>
                                 <option value="Card">Card</option>
                                 <option value="UPI">UPI</option>
                                 <option value="Bank Transfer">Bank Transfer</option>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="amount1">Amount 1 *</label>
+                            <input type="number" id="amount1" name="amount1" min="0" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="paymentMethod2">Payment Mode 2</label>
+                            <select id="paymentMethod2" name="paymentMethod2">
+                                <option value="">Select Payment Mode</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
+                                <option value="UPI">UPI</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="amount2">Amount 2</label>
+                            <input type="number" id="amount2" name="amount2" min="0" step="0.01">
                         </div>
                     </div>
                     <div class="form-group">
@@ -604,14 +624,14 @@
             // Validate that at least one product is selected and custom products have names
             let hasProducts = false;
             let validationErrors = [];
-            
+
             productRows.forEach((row, index) => {
                 const productSelect = row.querySelector('select[name="productIds"]');
                 const customProductName = row.querySelector('input[name="customProductNames"]');
-                
+
                 if (productSelect && productSelect.value) {
                     hasProducts = true;
-                    
+
                     // If it's a custom product, validate the name
                     if (productSelect.value === 'OTHER') {
                         if (!customProductName.value || customProductName.value.trim() === '') {
@@ -620,12 +640,21 @@
                     }
                 }
             });
-            
+
+            // Check that amount1 + amount2 equals total amount
+            const amount1 = parseFloat(document.getElementById('amount1').value) || 0;
+            const amount2 = parseFloat(document.getElementById('amount2').value) || 0;
+            const totalAmount = parseFloat(document.getElementById('totalAmount').textContent.replace(/[₹,]/g, '')) || 0;
+            if ((amount1 + amount2).toFixed(2) !== totalAmount.toFixed(2)) {
+                showMessage('Amount 1 + Amount 2 must be equal to Total Amount', 'error');
+                return;
+            }
+
             if (!hasProducts) {
                 showMessage('Please add at least one product', 'error');
                 return;
             }
-            
+
             if (validationErrors.length > 0) {
                 showMessage(validationErrors.join('<br>'), 'error');
                 return;

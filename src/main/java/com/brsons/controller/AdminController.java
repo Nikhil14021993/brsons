@@ -1533,7 +1533,10 @@ public class AdminController {
             @RequestParam String[] productIds,
             @RequestParam String[] quantities,
             @RequestParam String[] unitPrices,
-            @RequestParam String paymentMethod,
+            @RequestParam String paymentMethod1,
+            @RequestParam(required = false) String paymentMethod2,
+            @RequestParam BigDecimal amount1,
+            @RequestParam(required = false) BigDecimal amount2,
             @RequestParam(required = false) String notes,
             @RequestParam(required = false) String[] customProductNames,
             @RequestParam(required = false) String[] customProductSkus,
@@ -1623,10 +1626,14 @@ public class AdminController {
                 orderItemRepository.save(item);
             }
             
-            // Create voucher entry for retail sale with payment method
+            // Create voucher entries for both payment modes
             try {
-                // Use the existing method from AdminOrderService with payment method
-                adminOrderService.createVoucherEntryForRetailOrder(savedOrder, paymentMethod);
+                if (amount1 != null && amount1.compareTo(BigDecimal.ZERO) > 0 && paymentMethod1 != null && !paymentMethod1.isEmpty()) {
+                    adminOrderService.createVoucherEntryForRetailOrder(savedOrder, paymentMethod1, amount1);
+                }
+                if (amount2 != null && amount2.compareTo(BigDecimal.ZERO) > 0 && paymentMethod2 != null && !paymentMethod2.isEmpty()) {
+                    adminOrderService.createVoucherEntryForRetailOrder(savedOrder, paymentMethod2, amount2);
+                }
             } catch (Exception e) {
                 System.err.println("Error creating voucher for open sale: " + e.getMessage());
             }
