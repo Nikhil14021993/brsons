@@ -271,6 +271,42 @@ public class SupplierLedgerService {
     }
     
     /**
+     * Add Direct GRN entry to supplier ledger
+     */
+    @Transactional
+    public void addDirectGRNEntry(SupplierLedger supplierLedger, com.brsons.model.GoodsReceivedNote grn) {
+        String particulars = "Direct GRN #" + grn.getGrnNumber();
+        String referenceNumber = "GRN-" + grn.getGrnNumber();
+        
+        // Calculate balance after this entry
+        BigDecimal balanceAfter = supplierLedger.getCurrentBalance().add(grn.getTotalAmount());
+        
+        SupplierLedgerEntry entry = new SupplierLedgerEntry(
+            supplierLedger,
+            particulars,
+            "DIRECT_GRN",
+            grn.getId(),
+            referenceNumber,
+            grn.getTotalAmount(), // Debit amount (what we owe)
+            BigDecimal.ZERO, // Credit amount
+            balanceAfter
+        );
+        
+        // Set additional details
+        entry.setNotes("Direct GRN - No Purchase Order");
+        // Note: entry.setEntryDate() expects LocalDateTime, but grn.getReceivedDate() returns LocalDate
+        // The entry date will be set to current time by default
+        
+        supplierLedgerEntryRepository.save(entry);
+        
+        // Update supplier ledger
+        supplierLedger.addDebit(grn.getTotalAmount());
+        supplierLedgerRepository.save(supplierLedger);
+        
+        System.out.println("Added Direct GRN entry to supplier ledger: " + particulars);
+    }
+    
+    /**
      * Get all entries for a supplier ledger
      */
     public List<SupplierLedgerEntry> getSupplierLedgerEntries(Long supplierLedgerId) {

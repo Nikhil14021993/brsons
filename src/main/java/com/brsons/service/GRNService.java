@@ -513,10 +513,16 @@ public class GRNService {
                 outstandingService.createPurchaseOrderOutstanding(po);
                 System.out.println("Created outstanding payable for PO #" + po.getId());
             } else {
-                // For direct GRN, create a direct purchase entry
-                System.out.println("Creating direct purchase entry for GRN without PO");
-                // You might want to add a method to create direct purchase entries
-                // supplierLedgerService.addDirectPurchaseEntry(supplierLedger, grn);
+                // For direct GRN, create direct GRN entries
+                System.out.println("Creating direct GRN entries for GRN without PO");
+                
+                // 2. Add Direct GRN entry to supplier ledger
+                supplierLedgerService.addDirectGRNEntry(supplierLedger, grn);
+                System.out.println("Created supplier ledger entry for Direct GRN #" + grn.getGrnNumber());
+                
+                // 3. Create outstanding payable for Direct GRN
+                outstandingService.createDirectGRNOutstanding(grn);
+                System.out.println("Created outstanding payable for Direct GRN #" + grn.getGrnNumber());
             }
             
             // 4. Create voucher entry for double-entry bookkeeping

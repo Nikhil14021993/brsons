@@ -145,6 +145,37 @@ public class OutstandingService {
     }
     
     /**
+     * Create outstanding item for Direct GRN (GRN without Purchase Order)
+     */
+    @Transactional
+    public Outstanding createDirectGRNOutstanding(com.brsons.model.GoodsReceivedNote grn) {
+        // Check if outstanding already exists
+        List<Outstanding> existing = outstandingRepository.findByReferenceTypeAndReferenceId("DIRECT_GRN", grn.getId());
+        if (!existing.isEmpty()) {
+            return existing.get(0);
+        }
+        
+        Outstanding outstanding = new Outstanding(
+            Outstanding.OutstandingType.INVOICE_PAYABLE,
+            grn.getId(),
+            "DIRECT_GRN",
+            "GRN-" + grn.getGrnNumber(),
+            grn.getTotalAmount(),
+            grn.getReceivedDate().plusDays(30).atStartOfDay(), // Convert LocalDate to LocalDateTime
+            grn.getSupplier().getCompanyName()
+        );
+        
+        // Set contact info for supplier matching
+        outstanding.setContactInfo(grn.getSupplier().getPhone());
+        
+        outstanding = outstandingRepository.save(outstanding);
+        
+        System.out.println("Created outstanding payable for Direct GRN #" + grn.getGrnNumber());
+        
+        return outstanding;
+    }
+    
+    /**
      * Create outstanding item for customer invoice
      */
     @Transactional
