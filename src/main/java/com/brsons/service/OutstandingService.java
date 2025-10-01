@@ -168,6 +168,9 @@ public class OutstandingService {
         // Set contact info for supplier matching
         outstanding.setContactInfo(grn.getSupplier().getPhone());
         
+        // Set order type to "Kaccha" so voucher creation works properly
+        outstanding.setOrderType("Kaccha");
+        
         outstanding = outstandingRepository.save(outstanding);
         
         System.out.println("Created outstanding payable for Direct GRN #" + grn.getGrnNumber());
@@ -1345,20 +1348,17 @@ public class OutstandingService {
             System.out.println("Creating settlement voucher for outstanding item #" + outstanding.getId() + " with amount: " + amount + "outstanding.getPaymentMethod() "+ outstanding.getPaymentMethod());
             
             Account debitAccount = null;
-            
             if ("Cash".equals(outstanding.getPaymentMethod())) {
-                // For cash payments, find Cash account by name
+                // For cash payments, find Cash account by code
                 debitAccount = accountRepository.findById(5L).orElse(null);
                 if (debitAccount == null) {
-                    System.err.println("Cash account not found, trying ID 5");
-                    debitAccount = accountRepository.findById(5L).orElse(null);
+                    System.err.println("Cash account not found (Code: 1001)");
                 }
             } else {
-                // For other payments, find Bank account by name
+                // For other payments, find Bank account by code
                 debitAccount = accountRepository.findById(6L).orElse(null);
                 if (debitAccount == null) {
-                    System.err.println("Bank account not found, trying ID 6");
-                    debitAccount = accountRepository.findById(6L).orElse(null);
+                    System.err.println("Bank account not found (Code: 1002)");
                 }
             }
 	       	
@@ -1380,10 +1380,10 @@ public class OutstandingService {
                 }
             } else if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
                        outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
-                // For payables, credit Purchase / Cost of Goods Sold (ID 22)
+                // For payables, credit Purchase / Cost of Goods Sold (Account Code: 4001)
                 creditAccount = accountRepository.findById(22L).orElse(null);
                 if (creditAccount == null) {
-                    System.err.println("Cannot find account with ID 35 (Purchase / Cost of Goods Sold)");
+                    System.err.println("Cannot find Purchase/Cost of Goods Sold account (Code: 4001)");
                     return;
                 }
             }
@@ -1451,18 +1451,16 @@ public class OutstandingService {
             
             Account debitAccount = null;
             if ("Cash".equals(outstanding.getPaymentMethod())) {
-                // For cash payments, find Cash account by name
+                // For cash payments, find Cash account by code
                 debitAccount = accountRepository.findById(5L).orElse(null);
                 if (debitAccount == null) {
-                    System.err.println("Cash account not found, trying ID 5");
-                    debitAccount = accountRepository.findById(5L).orElse(null);
+                    System.err.println("Cash account not found (Code: 1001)");
                 }
             } else {
-                // For other payments, find Bank account by name
+                // For other payments, find Bank account by code
                 debitAccount = accountRepository.findById(6L).orElse(null);
                 if (debitAccount == null) {
-                    System.err.println("Bank account not found, trying ID 6");
-                    debitAccount = accountRepository.findById(6L).orElse(null);
+                    System.err.println("Bank account not found (Code: 1002)");
                 }
             }
             // Get account based on payment method for debit entry
@@ -1483,10 +1481,10 @@ public class OutstandingService {
                 }
             } else if (outstanding.getType() == Outstanding.OutstandingType.INVOICE_PAYABLE || 
                        outstanding.getType() == Outstanding.OutstandingType.PURCHASE_ORDER) {
-                // For payables, credit Purchase / Cost of Goods Sold (ID 35)
+                // For payables, credit Purchase / Cost of Goods Sold (Account Code: 4001)
                 creditAccount = accountRepository.findById(22L).orElse(null);
                 if (creditAccount == null) {
-                    System.err.println("Cannot find account with ID 35 (Purchase / Cost of Goods Sold)");
+                    System.err.println("Cannot find Purchase/Cost of Goods Sold account (Code: 4001)");
                     return;
                 }
             }
