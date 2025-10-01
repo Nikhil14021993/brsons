@@ -438,8 +438,9 @@ public class GRNService {
             System.out.println("Amount: " + grn.getTotalAmount());
             
             // Create voucher with double-entry bookkeeping:
-            // Debit: EXPENSES - Purchase / Cost of Goods Sold (Account ID: 35)
-            // Credit: Current Liabilities - Accounts Payable / Creditors (Account ID: 22)
+            // Debit: EXPENSES - Purchase / Cost of Goods Sold
+            // Credit: Current Liabilities - Accounts Payable / Creditors
+            
             String narration;
             if (po != null) {
                 narration = "GRN Approval - " + grn.getGrnNumber() + " for PO #" + po.getId() + " - " + po.getSupplier().getCompanyName();
@@ -447,16 +448,29 @@ public class GRNService {
                 narration = "Direct GRN Approval - " + grn.getGrnNumber() + " - " + grn.getSupplier().getCompanyName();
             }
             
+            // Find accounts by code instead of hardcoded IDs
+            Long purchaseAccountId = findAccountIdByCode("4001"); // Purchase / Cost of Goods Sold
+            Long payableAccountId = findAccountIdByCode("2001.01"); // Accounts Payable
+            
+            if (purchaseAccountId == null || payableAccountId == null) {
+                System.err.println("Cannot create voucher - missing required accounts:");
+                System.err.println("Purchase Account (4001): " + (purchaseAccountId != null ? "Found (ID: " + purchaseAccountId + ")" : "NOT FOUND"));
+                System.err.println("Payable Account (2001.01): " + (payableAccountId != null ? "Found (ID: " + payableAccountId + ")" : "NOT FOUND"));
+                System.err.println("Please run the fix_grn_accounts.sql script to create the required accounts.");
+                return;
+            }
+            
             accountingService.createVoucher(
                 grn.getReceivedDate(), // Use GRN received date
                 narration,
                 "PURCHASE", // Voucher type
-                35L, // Debit Account ID - EXPENSES - Purchase / Cost of Goods Sold
-                22L, // Credit Account ID - Current Liabilities - Accounts Payable / Creditors
+                purchaseAccountId, // Debit Account ID - EXPENSES - Purchase / Cost of Goods Sold
+                payableAccountId, // Credit Account ID - Current Liabilities - Accounts Payable / Creditors
                 grn.getTotalAmount() // Amount
             );
             
             System.out.println("Voucher created successfully for GRN approval");
+            System.out.println("Debit Account ID: " + purchaseAccountId + ", Credit Account ID: " + payableAccountId);
             
         } catch (Exception e) {
             System.err.println("Error creating voucher for GRN approval: " + e.getMessage());
@@ -524,6 +538,18 @@ public class GRNService {
         String timestamp = String.valueOf(System.currentTimeMillis()).substring(8); // Last 4 digits
         String random = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
         return prefix + timestamp + random;
+    }
+    
+    // Helper method to find account ID by code
+    private Long findAccountIdByCode(String accountCode) {
+        try {
+            // This is a simple implementation - you might want to inject AccountRepository
+            // For now, we'll use a basic approach
+            return accountingService.findAccountIdByCode(accountCode);
+        } catch (Exception e) {
+            System.err.println("Error finding account by code " + accountCode + ": " + e.getMessage());
+            return null;
+        }
     }
     
     // Statistics class

@@ -131,5 +131,16 @@ public class AccountingService {
         
         System.out.println("Voucher creation completed successfully!");
     }
+    
+    // Helper method to find account ID by code
+    public Long findAccountIdByCode(String accountCode) {
+        try {
+            Account account = accountRepository.findByCode(accountCode);
+            return account != null ? account.getId() : null;
+        } catch (Exception e) {
+            System.err.println("Error finding account by code " + accountCode + ": " + e.getMessage());
+            return null;
+        }
+    }
 
 }
