@@ -399,7 +399,7 @@ public class AdminOrderService {
             
             if ("Cash".equalsIgnoreCase(paymentMethod)) {
                 // For cash payments, debit Cash account (ID 5)
-                debitAccount = accountRepository.findById(5L).orElse(null);
+                debitAccount = accountRepository.findById(6L).orElse(null);
                 accountName = "Cash Account";
                 accountCode = "1001.03";
             } else {
@@ -409,8 +409,9 @@ public class AdminOrderService {
                 accountCode = "1001.02";
             }
             
-            // Find the sales account
+            // Find the required accounts
             Account salesAccount = accountRepository.findByCode("3001");
+            Account taxAccount = accountRepository.findByCode("7001");
             
             // Create accounts if they don't exist
             if (debitAccount == null) {
@@ -423,9 +424,27 @@ public class AdminOrderService {
                 salesAccount = createAccountIfNotExists("3001", "Sales", "INCOME", "Sales Revenue");
             }
             
-            if (debitAccount == null || salesAccount == null) {
+            if (taxAccount == null) {
+                System.err.println("Tax account (7001) not found. Creating it...");
+                taxAccount = createAccountIfNotExists("7001", "Duty and Taxes", "LIABILITY", "Duty and Taxes");
+            }
+            
+            if (debitAccount == null || salesAccount == null || taxAccount == null) {
                 throw new RuntimeException("Could not find or create required accounts for retail order voucher entry");
             }
+            
+            // Calculate amounts
+            BigDecimal voucherAmount = amount != null ? amount : order.getTotal();
+            BigDecimal subtotalAmount = order.getSubTotal() != null ? order.getSubTotal() : BigDecimal.ZERO;
+            BigDecimal taxAmount = order.getGstAmount() != null ? order.getGstAmount() : 
+                                 (voucherAmount.subtract(subtotalAmount));
+            
+            System.out.println("=== Retail Order Voucher Split Debug ===");
+            System.out.println("Order ID: " + order.getId());
+            System.out.println("Voucher Amount (Total): " + voucherAmount);
+            System.out.println("Subtotal Amount: " + subtotalAmount);
+            System.out.println("Tax Amount: " + taxAmount);
+            System.out.println("Calculated Total (Subtotal + Tax): " + subtotalAmount.add(taxAmount));
             
             // Create voucher
             Voucher voucher = new Voucher();
@@ -434,8 +453,7 @@ public class AdminOrderService {
             voucher.setType("SALES");
             Voucher savedVoucher = voucherRepository.save(voucher);
             
-            // Create debit entry (Cash or Bank Account)
-            BigDecimal voucherAmount = amount != null ? amount : order.getTotal();
+            // Create debit entry (Cash or Bank Account) - Full amount
             VoucherEntry debitEntry = new VoucherEntry();
             debitEntry.setVoucher(savedVoucher);
             debitEntry.setAccount(debitAccount);
@@ -444,19 +462,31 @@ public class AdminOrderService {
             debitEntry.setDescription(accountName + " - Order #" + order.getId() + " - " + order.getName() + " - " + paymentMethod);
             voucherEntryRepository.save(debitEntry);
             
-            // Create credit entry (Sales)
-            VoucherEntry creditEntry = new VoucherEntry();
-            creditEntry.setVoucher(savedVoucher);
-            creditEntry.setAccount(salesAccount);
-            creditEntry.setDebit(BigDecimal.ZERO);
-            creditEntry.setCredit(voucherAmount);
-            creditEntry.setDescription("Sales - Order #" + order.getId() + " - " + order.getName());
-            voucherEntryRepository.save(creditEntry);
+            // Create credit entry 1 (Sales) - Subtotal amount
+            VoucherEntry salesCreditEntry = new VoucherEntry();
+            salesCreditEntry.setVoucher(savedVoucher);
+            salesCreditEntry.setAccount(salesAccount);
+            salesCreditEntry.setDebit(BigDecimal.ZERO);
+            salesCreditEntry.setCredit(subtotalAmount);
+            salesCreditEntry.setDescription("Sales - Order #" + order.getId() + " - " + order.getName());
+            voucherEntryRepository.save(salesCreditEntry);
             
-            System.out.println("Successfully created voucher entry for Retail order ID: " + order.getId() + 
+            // Create credit entry 2 (Tax) - Tax amount
+            if (taxAmount.compareTo(BigDecimal.ZERO) > 0) {
+                VoucherEntry taxCreditEntry = new VoucherEntry();
+                taxCreditEntry.setVoucher(savedVoucher);
+                taxCreditEntry.setAccount(taxAccount);
+                taxCreditEntry.setDebit(BigDecimal.ZERO);
+                taxCreditEntry.setCredit(taxAmount);
+                taxCreditEntry.setDescription("Duty and Taxes - Order #" + order.getId() + " - " + order.getName());
+                voucherEntryRepository.save(taxCreditEntry);
+            }
+            
+            System.out.println("Successfully created split voucher entry for Retail order ID: " + order.getId() + 
                              " - Payment Method: " + paymentMethod +
-                             " - Debit: " + debitAccount.getName() + " (" + order.getTotal() + 
-                             "), Credit: " + salesAccount.getName() + " (" + order.getTotal() + ")");
+                             " - Debit: " + debitAccount.getName() + " (" + voucherAmount + 
+                             "), Credit Sales: " + salesAccount.getName() + " (" + subtotalAmount + 
+                             "), Credit Tax: " + taxAccount.getName() + " (" + taxAmount + ")");
             
         } catch (Exception e) {
             System.err.println("Error creating voucher entry for Retail order ID " + order.getId() + ": " + e.getMessage());

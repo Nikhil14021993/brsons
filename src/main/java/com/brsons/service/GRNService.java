@@ -449,7 +449,7 @@ public class GRNService {
             
             // Find accounts by code
             Long purchaseAccountId = findAccountIdByCode("6001"); // Purchase / Cost of Goods Sold
-            Long taxAccountId = findAccountIdByCode("2001.04"); // Duty and Taxes
+            Long taxAccountId = findAccountIdByCode("7001"); // Duty and Taxes
             Long payableAccountId = findAccountIdByCode("2001.01"); // Accounts Payable
             
             if (purchaseAccountId == null || taxAccountId == null || payableAccountId == null) {
@@ -465,6 +465,12 @@ public class GRNService {
             BigDecimal netAmount = grn.getSubtotal() != null ? grn.getSubtotal() : BigDecimal.ZERO;
             BigDecimal taxAmount = grn.getTaxAmount() != null ? grn.getTaxAmount() : BigDecimal.ZERO;
             BigDecimal grandTotal = grn.getTotalAmount();
+            
+            System.out.println("=== Amount Calculation Debug ===");
+            System.out.println("GRN Subtotal (Net Amount): " + netAmount);
+            System.out.println("GRN Tax Amount: " + taxAmount);
+            System.out.println("GRN Total Amount (Grand Total): " + grandTotal);
+            System.out.println("Calculated Total (Net + Tax): " + netAmount.add(taxAmount));
             
             // Verify calculation: Net Amount + Tax Amount = Grand Total
             BigDecimal calculatedTotal = netAmount.add(taxAmount);
@@ -523,7 +529,7 @@ public class GRNService {
             );
             
             System.out.println("Split voucher created successfully for GRN approval");
-            System.out.println("Net Amount (" + netAmount + ") → Purchase Account, Tax Amount (" + taxAmount + ") → Tax Account, Grand Total (" + grandTotal + ") → Payable Account");
+            System.out.println("Net Amount (" + netAmount + ") → Debit Purchase Account (6001), Tax Amount (" + taxAmount + ") → Debit Tax Account (7001), Grand Total (" + grandTotal + ") → Credit Payable Account");
             
         } catch (Exception e) {
             System.err.println("Error creating split voucher for GRN approval: " + e.getMessage());

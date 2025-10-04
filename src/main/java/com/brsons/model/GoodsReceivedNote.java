@@ -151,14 +151,35 @@ public class GoodsReceivedNote {
     }
     
     public void calculateTotals() {
-        this.subtotal = BigDecimal.ZERO;
+        BigDecimal totalNetAmount = BigDecimal.ZERO;
+        BigDecimal totalTaxAmount = BigDecimal.ZERO;
+        
         if (this.grnItems != null) {
             for (GRNItem item : this.grnItems) {
-                this.subtotal = this.subtotal.add(item.getTotalAmount());
+                // Calculate item net amount (subtotal - discount)
+                BigDecimal itemBaseAmount = item.getUnitPrice().multiply(BigDecimal.valueOf(item.getAcceptedQuantity()));
+                BigDecimal itemDiscountAmount = BigDecimal.ZERO;
+                if (item.getDiscountPercentage() != null && item.getDiscountPercentage().compareTo(BigDecimal.ZERO) > 0) {
+                    itemDiscountAmount = itemBaseAmount.multiply(item.getDiscountPercentage())
+                        .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                }
+                BigDecimal itemNetAmount = itemBaseAmount.subtract(itemDiscountAmount);
+                
+                // Calculate item tax amount
+                BigDecimal itemTaxAmount = BigDecimal.ZERO;
+                if (item.getCgstAmount() != null) itemTaxAmount = itemTaxAmount.add(item.getCgstAmount());
+                if (item.getSgstAmount() != null) itemTaxAmount = itemTaxAmount.add(item.getSgstAmount());
+                if (item.getIgstAmount() != null) itemTaxAmount = itemTaxAmount.add(item.getIgstAmount());
+                
+                totalNetAmount = totalNetAmount.add(itemNetAmount);
+                totalTaxAmount = totalTaxAmount.add(itemTaxAmount);
             }
         }
         
-        this.totalAmount = this.subtotal.add(this.taxAmount != null ? this.taxAmount : BigDecimal.ZERO);
+        // Set the calculated amounts
+        this.subtotal = totalNetAmount; // This is now the net amount (after discount, before tax)
+        this.taxAmount = totalTaxAmount; // This is the total tax amount
+        this.totalAmount = totalNetAmount.add(totalTaxAmount); // Grand total
     }
     
     public boolean canBeApproved() {
