@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
 import com.brsons.model.GoodsReceivedNote.GRNStatus;
@@ -432,14 +433,12 @@ public class GRNService {
     // Create voucher entry for GRN approval
     private void createVoucherForGRNApproval(GoodsReceivedNote grn, PurchaseOrder po) {
         try {
-            System.out.println("=== Creating voucher for GRN approval ===");
+            System.out.println("=== Creating split voucher for GRN approval ===");
             System.out.println("GRN: " + grn.getGrnNumber());
             System.out.println("PO: " + (po != null ? po.getId() : "Direct GRN (no PO)"));
-            System.out.println("Amount: " + grn.getTotalAmount());
-            
-            // Create voucher with double-entry bookkeeping:
-            // Debit: EXPENSES - Purchase / Cost of Goods Sold
-            // Credit: Current Liabilities - Accounts Payable / Creditors
+            System.out.println("Subtotal: " + grn.getSubtotal());
+            System.out.println("Tax Amount: " + grn.getTaxAmount());
+            System.out.println("Total Amount: " + grn.getTotalAmount());
             
             String narration;
             if (po != null) {
@@ -448,32 +447,86 @@ public class GRNService {
                 narration = "Direct GRN Approval - " + grn.getGrnNumber() + " - " + grn.getSupplier().getCompanyName();
             }
             
-            // Find accounts by code instead of hardcoded IDs
-            Long purchaseAccountId = findAccountIdByCode("4001"); // Purchase / Cost of Goods Sold
+            // Find accounts by code
+            Long purchaseAccountId = findAccountIdByCode("6001"); // Purchase / Cost of Goods Sold
+            Long taxAccountId = findAccountIdByCode("2001.04"); // Duty and Taxes
             Long payableAccountId = findAccountIdByCode("2001.01"); // Accounts Payable
             
-            if (purchaseAccountId == null || payableAccountId == null) {
+            if (purchaseAccountId == null || taxAccountId == null || payableAccountId == null) {
                 System.err.println("Cannot create voucher - missing required accounts:");
-                System.err.println("Purchase Account (4001): " + (purchaseAccountId != null ? "Found (ID: " + purchaseAccountId + ")" : "NOT FOUND"));
+                System.err.println("Purchase Account (6001): " + (purchaseAccountId != null ? "Found (ID: " + purchaseAccountId + ")" : "NOT FOUND"));
+                System.err.println("Tax Account (2001.04): " + (taxAccountId != null ? "Found (ID: " + taxAccountId + ")" : "NOT FOUND"));
                 System.err.println("Payable Account (2001.01): " + (payableAccountId != null ? "Found (ID: " + payableAccountId + ")" : "NOT FOUND"));
-                System.err.println("Please run the fix_grn_accounts.sql script to create the required accounts.");
+                System.err.println("Please run the create_grn_split_accounts.sql script to create the required accounts.");
                 return;
             }
             
-            accountingService.createVoucher(
+            // Calculate amounts
+            BigDecimal netAmount = grn.getSubtotal() != null ? grn.getSubtotal() : BigDecimal.ZERO;
+            BigDecimal taxAmount = grn.getTaxAmount() != null ? grn.getTaxAmount() : BigDecimal.ZERO;
+            BigDecimal grandTotal = grn.getTotalAmount();
+            
+            // Verify calculation: Net Amount + Tax Amount = Grand Total
+            BigDecimal calculatedTotal = netAmount.add(taxAmount);
+            if (calculatedTotal.compareTo(grandTotal) != 0) {
+                System.err.println("Warning: Amount calculation mismatch!");
+                System.err.println("Net Amount: " + netAmount);
+                System.err.println("Tax Amount: " + taxAmount);
+                System.err.println("Calculated Total: " + calculatedTotal);
+                System.err.println("GRN Total: " + grandTotal);
+                
+                // Adjust tax amount to match grand total
+                taxAmount = grandTotal.subtract(netAmount);
+                System.out.println("Adjusted Tax Amount to: " + taxAmount);
+            }
+            
+            // Create voucher entries list
+            List<com.brsons.dto.VoucherEntryDto> entries = new ArrayList<>();
+            
+            // Debit Entry 1: Net Amount to Purchase/Cost of Goods Sold
+            if (netAmount.compareTo(BigDecimal.ZERO) > 0) {
+                entries.add(new com.brsons.dto.VoucherEntryDto(
+                    purchaseAccountId,
+                    netAmount,
+                    null,
+                    "Purchase/Cost of Goods Sold - " + grn.getGrnNumber()
+                ));
+                System.out.println("Added debit entry: Purchase Account (ID: " + purchaseAccountId + ") - Amount: " + netAmount);
+            }
+            
+            // Debit Entry 2: Tax Amount to Duty and Taxes
+            if (taxAmount.compareTo(BigDecimal.ZERO) > 0) {
+                entries.add(new com.brsons.dto.VoucherEntryDto(
+                    taxAccountId,
+                    taxAmount,
+                    null,
+                    "Duty and Taxes - " + grn.getGrnNumber()
+                ));
+                System.out.println("Added debit entry: Tax Account (ID: " + taxAccountId + ") - Amount: " + taxAmount);
+            }
+            
+            // Credit Entry: Grand Total to Accounts Payable
+            entries.add(new com.brsons.dto.VoucherEntryDto(
+                payableAccountId,
+                null,
+                grandTotal,
+                "Accounts Payable - " + grn.getGrnNumber()
+            ));
+            System.out.println("Added credit entry: Payable Account (ID: " + payableAccountId + ") - Amount: " + grandTotal);
+            
+            // Create voucher with multiple entries
+            accountingService.createVoucherWithEntries(
                 grn.getReceivedDate(), // Use GRN received date
                 narration,
                 "PURCHASE", // Voucher type
-                purchaseAccountId, // Debit Account ID - EXPENSES - Purchase / Cost of Goods Sold
-                payableAccountId, // Credit Account ID - Current Liabilities - Accounts Payable / Creditors
-                grn.getTotalAmount() // Amount
+                entries
             );
             
-            System.out.println("Voucher created successfully for GRN approval");
-            System.out.println("Debit Account ID: " + purchaseAccountId + ", Credit Account ID: " + payableAccountId);
+            System.out.println("Split voucher created successfully for GRN approval");
+            System.out.println("Net Amount (" + netAmount + ") → Purchase Account, Tax Amount (" + taxAmount + ") → Tax Account, Grand Total (" + grandTotal + ") → Payable Account");
             
         } catch (Exception e) {
-            System.err.println("Error creating voucher for GRN approval: " + e.getMessage());
+            System.err.println("Error creating split voucher for GRN approval: " + e.getMessage());
             e.printStackTrace();
             // Don't fail the GRN approval if voucher creation fails
         }
