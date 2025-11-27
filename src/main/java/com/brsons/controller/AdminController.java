@@ -13,7 +13,6 @@ import com.brsons.repository.ProductVariantRepository;
 import com.brsons.repository.UserRepository;
 import com.brsons.repository.OrderRepository;
 import com.brsons.repository.OrderItemRepository;
-import com.brsons.service.DayBookService;
 import com.brsons.service.OutstandingService;
 import com.brsons.service.AdminOrderService;
 import com.brsons.service.OrderService;
@@ -77,8 +76,6 @@ import org.springframework.beans.factory.annotation.Value;
 @Controller
 public class AdminController {
 	
-	@Autowired
-    private DayBookService dayBookService;
 	
 	@Autowired
     private AdminOrderService adminOrderService;
@@ -447,14 +444,13 @@ public class AdminController {
             @RequestParam(value = "imageFile3", required = false) MultipartFile imageFile3,
             @RequestParam(value = "imageFile4", required = false) MultipartFile imageFile4,
             @RequestParam(value = "imageFile5", required = false) MultipartFile imageFile5,
-            // Variant fields
-            @RequestParam(value = "sizes", required = false) String[] sizes,
-            @RequestParam(value = "colors", required = false) String[] colors,
-            @RequestParam(value = "variantStockQuantities", required = false) Integer[] variantStockQuantities,
-            @RequestParam(value = "variantRetailPrices", required = false) Double[] variantRetailPrices,
-            @RequestParam(value = "variantB2bPrices", required = false) Double[] variantB2bPrices,
-            @RequestParam(value = "variantDiscounts", required = false) Double[] variantDiscounts,
-            @RequestParam(value = "skus", required = false) String[] skus
+            // Variant descriptive fields
+            @RequestParam(value = "variantFabrics", required = false) String[] variantFabrics,
+            @RequestParam(value = "variantStyles", required = false) String[] variantStyles,
+            @RequestParam(value = "variantSizes", required = false) String[] variantSizes,
+            @RequestParam(value = "variantPatterns", required = false) String[] variantPatterns,
+            @RequestParam(value = "variantCareInstructions", required = false) String[] variantCareInstructions,
+            @RequestParam(value = "variantOccasions", required = false) String[] variantOccasions
     ) throws IOException {
 
         // 1. Handle category
@@ -553,22 +549,37 @@ public class AdminController {
         productRepository.save(product);
 
         // 5. Create variants if provided
-        if (sizes != null && sizes.length > 0) {
-            for (int i = 0; i < sizes.length; i++) {
-                if (sizes[i] != null && !sizes[i].trim().isEmpty()) {
-                    ProductVariant variant = new ProductVariant();
-                    variant.setProduct(product);
-                    variant.setSize(sizes[i]);
-                    variant.setColor(colors != null && i < colors.length ? colors[i] : "Default");
-                    variant.setStockQuantity(variantStockQuantities != null && i < variantStockQuantities.length ? variantStockQuantities[i] : stockQuantity);
-                    variant.setRetailPrice(variantRetailPrices != null && i < variantRetailPrices.length ? variantRetailPrices[i] : retailPrice);
-                    variant.setB2bPrice(variantB2bPrices != null && i < variantB2bPrices.length ? variantB2bPrices[i] : product.getB2bPrice());
-                    variant.setVariantDiscount(variantDiscounts != null && i < variantDiscounts.length ? variantDiscounts[i] : discount);
-                    variant.setSku(skus != null && i < skus.length && skus[i] != null ? skus[i] : generateSKU(product, sizes[i], colors != null && i < colors.length ? colors[i] : "Default"));
-                    variant.setStatus("Active");
-                    
-                    productVariantRepository.save(variant);
+        int variantCount = getMaxArrayLength(variantSizes, variantFabrics, variantStyles, variantPatterns, variantCareInstructions, variantOccasions);
+        if (variantCount > 0) {
+            for (int i = 0; i < variantCount; i++) {
+                String sizeValue = getArrayValue(variantSizes, i);
+                String fabricValue = getArrayValue(variantFabrics, i);
+                String styleValue = getArrayValue(variantStyles, i);
+                String patternValue = getArrayValue(variantPatterns, i);
+                String careValue = getArrayValue(variantCareInstructions, i);
+                String occasionValue = getArrayValue(variantOccasions, i);
+
+                if (!hasAnyValue(sizeValue, fabricValue, styleValue, patternValue, careValue, occasionValue)) {
+                    continue;
                 }
+
+                ProductVariant variant = new ProductVariant();
+                variant.setProduct(product);
+                variant.setSize(hasText(sizeValue) ? sizeValue : "Default");
+                variant.setFabric(fabricValue);
+                variant.setStyle(styleValue);
+                variant.setPattern(patternValue);
+                variant.setCareInstruction(careValue);
+                variant.setOccasion(occasionValue);
+                variant.setColor(hasText(fabricValue) ? fabricValue : "Default");
+                variant.setStockQuantity(stockQuantity != null ? stockQuantity : 0);
+                variant.setRetailPrice(retailPrice);
+                variant.setB2bPrice(product.getB2bPrice());
+                variant.setVariantDiscount(discount != null ? discount : 0.0);
+                variant.setSku(generateSKU(product, variant.getSize(), hasText(fabricValue) ? fabricValue : "Default"));
+                variant.setStatus("Active");
+
+                productVariantRepository.save(variant);
             }
         } else {
             // Create default variant if no variants provided
@@ -576,6 +587,11 @@ public class AdminController {
             defaultVariant.setProduct(product);
             defaultVariant.setSize("Default");
             defaultVariant.setColor("Default");
+            defaultVariant.setFabric(null);
+            defaultVariant.setStyle(null);
+            defaultVariant.setPattern(null);
+            defaultVariant.setCareInstruction(null);
+            defaultVariant.setOccasion(null);
             defaultVariant.setStockQuantity(stockQuantity != null ? stockQuantity : 0);
             defaultVariant.setRetailPrice(retailPrice);
             defaultVariant.setB2bPrice(product.getB2bPrice());
@@ -596,6 +612,48 @@ public class AdminController {
         String idCode = String.format("%04d", product.getId());
         
         return productCode + "-" + sizeCode + "-" + colorCode + "-" + idCode;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private boolean hasAnyValue(String... values) {
+        if (values == null) {
+            return false;
+        }
+        for (String value : values) {
+            if (hasText(value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String getArrayValue(String[] values, int index) {
+        if (values == null || index < 0 || index >= values.length) {
+            return null;
+        }
+        String value = values[index];
+        return value != null ? value.trim() : null;
+    }
+
+    private String getListValue(List<String> values, int index) {
+        if (values == null || index < 0 || index >= values.size()) {
+            return null;
+        }
+        String value = values.get(index);
+        return value != null ? value.trim() : null;
+    }
+
+    private int getMaxArrayLength(String[]... arrays) {
+        int max = 0;
+        for (String[] array : arrays) {
+            if (array != null && array.length > max) {
+                max = array.length;
+            }
+        }
+        return max;
     }
     
     
@@ -632,18 +690,6 @@ public class AdminController {
         return "redirect:/";
     }
     
-    @GetMapping("/admin/daybook")
-    public String showDaybook(@RequestParam(value = "date", required = false) String date, Model model, HttpSession session) {
-    	 if (isAdmin(session)) {
-    	if (date != null) {
-            LocalDate localDate = LocalDate.parse(date);
-            Map<String, Object> daybookData = dayBookService.getDayBook(localDate);
-            model.addAttribute("daybook", daybookData);
-        }
-    	return "daybook"; // daybook.html
-    	 }
-    	 return "redirect:/";
-    }
 
     // Inventory Management Endpoints
     @GetMapping("/admin/inventory")
@@ -992,9 +1038,12 @@ public class AdminController {
                                @RequestParam Integer stockQuantity,
                                @RequestParam String status,
                                @RequestParam Long categoryId,
+                               @RequestParam(required = false) List<String> variantFabrics,
+                               @RequestParam(required = false) List<String> variantStyles,
                                @RequestParam(required = false) List<String> variantSizes,
-                               @RequestParam(required = false) List<String> variantColors,
-                               @RequestParam(required = false) List<Integer> variantStockQuantities,
+                               @RequestParam(required = false) List<String> variantPatterns,
+                               @RequestParam(required = false) List<String> variantCareInstructions,
+                               @RequestParam(required = false) List<String> variantOccasions,
                                @RequestParam(required = false) List<Long> variantIds,
                                HttpSession session,
                                Model model) {
@@ -1028,32 +1077,47 @@ public class AdminController {
             productRepository.save(product);
             
             // Handle product variants
-            if (variantSizes != null && variantColors != null && variantStockQuantities != null) {
-                // Update existing variants
-                if (variantIds != null) {
-                    for (int i = 0; i < variantIds.size(); i++) {
-                        if (i < variantSizes.size() && i < variantColors.size() && i < variantStockQuantities.size()) {
-                            Long variantId = variantIds.get(i);
-                            if (variantId != null && variantId > 0) {
-                                // Update existing variant
-                                ProductVariant variant = productVariantRepository.findById(variantId).orElse(null);
-                                if (variant != null) {
-                                    variant.setSize(variantSizes.get(i));
-                                    variant.setColor(variantColors.get(i));
-                                    variant.setStockQuantity(variantStockQuantities.get(i));
-                                    productVariantRepository.save(variant);
-                                }
-                            } else {
-                                // Create new variant
-                                ProductVariant newVariant = new ProductVariant();
-                                newVariant.setProduct(product);
-                                newVariant.setSize(variantSizes.get(i));
-                                newVariant.setColor(variantColors.get(i));
-                                newVariant.setStockQuantity(variantStockQuantities.get(i));
-                                productVariantRepository.save(newVariant);
-                            }
-                        }
+            if (variantIds != null && !variantIds.isEmpty()) {
+                for (int i = 0; i < variantIds.size(); i++) {
+                    Long variantId = variantIds.get(i);
+                    String sizeValue = getListValue(variantSizes, i);
+                    String fabricValue = getListValue(variantFabrics, i);
+                    String styleValue = getListValue(variantStyles, i);
+                    String patternValue = getListValue(variantPatterns, i);
+                    String careValue = getListValue(variantCareInstructions, i);
+                    String occasionValue = getListValue(variantOccasions, i);
+
+                    if (!hasAnyValue(sizeValue, fabricValue, styleValue, patternValue, careValue, occasionValue)) {
+                        continue;
                     }
+
+                    ProductVariant variant;
+                    if (variantId != null && variantId > 0) {
+                        variant = productVariantRepository.findById(variantId).orElseGet(ProductVariant::new);
+                    } else {
+                        variant = new ProductVariant();
+                    }
+
+                    if (variant.getProduct() == null) {
+                        variant.setProduct(product);
+                        variant.setStockQuantity(product.getStockQuantity() != null ? product.getStockQuantity() : 0);
+                        variant.setRetailPrice(product.getRetailPrice());
+                        variant.setB2bPrice(product.getB2bPrice());
+                        variant.setVariantDiscount(product.getDiscount());
+                        variant.setStatus("Active");
+                    }
+
+                    variant.setSize(hasText(sizeValue) ? sizeValue : "Default");
+                    variant.setFabric(fabricValue);
+                    variant.setStyle(styleValue);
+                    variant.setPattern(patternValue);
+                    variant.setCareInstruction(careValue);
+                    variant.setOccasion(occasionValue);
+                    String colorSeed = hasText(fabricValue) ? fabricValue : (variant.getColor() != null ? variant.getColor() : "Default");
+                    variant.setColor(colorSeed);
+                    variant.setSku(generateSKU(product, variant.getSize(), colorSeed));
+
+                    productVariantRepository.save(variant);
                 }
             }
             

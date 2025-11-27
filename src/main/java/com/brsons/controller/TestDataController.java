@@ -108,7 +108,7 @@ public class TestDataController {
     @GetMapping("/test/debug-products")
     @ResponseBody
     public String debugProducts() {
-        try {
+   try {
             List<Product> products = productRepository.findByStatus("Active");
             StringBuilder result = new StringBuilder();
             result.append("Found ").append(products.size()).append(" active products:\n");

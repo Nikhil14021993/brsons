@@ -8,7 +8,6 @@ import com.brsons.model.VoucherEntry;
 import com.brsons.model.Account;
 import com.brsons.repository.SupplierLedgerRepository;
 import com.brsons.repository.SupplierLedgerEntryRepository;
-import com.brsons.repository.PurchaseOrderRepository;
 import com.brsons.repository.VoucherRepository;
 import com.brsons.repository.VoucherEntryRepository;
 import com.brsons.repository.AccountRepository;
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,8 +29,6 @@ public class SupplierLedgerService {
     @Autowired
     private SupplierLedgerEntryRepository supplierLedgerEntryRepository;
     
-    @Autowired
-    private PurchaseOrderRepository purchaseOrderRepository;
     
     @Autowired
     private OutstandingRepository outstandingRepository;
@@ -53,24 +49,49 @@ public class SupplierLedgerService {
      */
     @Transactional
     public SupplierLedger findOrCreateSupplierLedger(String supplierName, String supplierPhone, String supplierEmail, String supplierCode) {
-        Optional<SupplierLedger> existingLedger = supplierLedgerRepository.findBySupplierPhone(supplierPhone);
+        Optional<SupplierLedger> existingLedger = Optional.empty();
+
+        // Prefer supplier code (unique per supplier) to avoid merging multiple suppliers with same phone
+        if (hasText(supplierCode)) {
+            existingLedger = supplierLedgerRepository.findBySupplierCode(supplierCode);
+        }
+
+        // Fall back to phone only when codes aren't available or already matched
+        if (existingLedger.isEmpty() && hasText(supplierPhone)) {
+            Optional<SupplierLedger> ledgerByPhone = supplierLedgerRepository.findBySupplierPhone(supplierPhone);
+            if (ledgerByPhone.isPresent()) {
+                SupplierLedger ledger = ledgerByPhone.get();
+                // Reuse the phone ledger only if it doesn't belong to another supplier code
+                if (!hasText(ledger.getSupplierCode()) ||
+                    !hasText(supplierCode) ||
+                    ledger.getSupplierCode().equalsIgnoreCase(supplierCode)) {
+                    existingLedger = ledgerByPhone;
+                }
+            }
+        }
         
         if (existingLedger.isPresent()) {
             SupplierLedger ledger = existingLedger.get();
             // Update supplier information if needed
-            if (supplierName != null && !supplierName.equals(ledger.getSupplierName())) {
+            if (hasText(supplierName) && !supplierName.equals(ledger.getSupplierName())) {
                 ledger.setSupplierName(supplierName);
             }
-            if (supplierEmail != null && !supplierEmail.equals(ledger.getSupplierEmail())) {
+            if (hasText(supplierPhone) && !supplierPhone.equals(ledger.getSupplierPhone())) {
+                ledger.setSupplierPhone(supplierPhone);
+            }
+            if (hasText(supplierEmail) && !supplierEmail.equals(ledger.getSupplierEmail())) {
                 ledger.setSupplierEmail(supplierEmail);
             }
-            if (supplierCode != null && !supplierCode.equals(ledger.getSupplierCode())) {
+            if (hasText(supplierCode) && !supplierCode.equals(ledger.getSupplierCode())) {
                 ledger.setSupplierCode(supplierCode);
             }
             return supplierLedgerRepository.save(ledger);
         } else {
             // Create new supplier ledger
-            SupplierLedger newLedger = new SupplierLedger(supplierName, supplierPhone);
+            SupplierLedger newLedger = new SupplierLedger(
+                hasText(supplierName) ? supplierName : (hasText(supplierCode) ? supplierCode : "Unknown Supplier"),
+                resolveSupplierPhone(supplierPhone, supplierCode)
+            );
             newLedger.setSupplierEmail(supplierEmail);
             newLedger.setSupplierCode(supplierCode);
             return supplierLedgerRepository.save(newLedger);
@@ -411,7 +432,22 @@ public class SupplierLedgerService {
         
         voucherEntryRepository.save(entry);
     }
-    
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private String resolveSupplierPhone(String supplierPhone, String supplierCode) {
+        if (hasText(supplierPhone)) {
+            return supplierPhone.trim();
+        }
+        if (hasText(supplierCode)) {
+            return "SUP-" + supplierCode.trim();
+        }
+        // Fallback to a generated identifier to satisfy NOT NULL constraint
+        return "SUP-" + System.currentTimeMillis();
+    }
+
     // ==================== OUTSTANDING PAYABLES SYNC ====================
     
     /**

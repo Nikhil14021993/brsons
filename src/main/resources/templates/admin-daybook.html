@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daybook - BRSons</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .daybook-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        
+        .daybook-card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+        
+        .summary-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .daybook-table {
+            font-size: 0.9rem;
+        }
+        
+        .daybook-table th {
+            background-color: #f8f9fa;
+            border-top: none;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .transaction-type {
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        
+        .transaction-type.VOUCHER {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .transaction-type.ORDER {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+        
+        .transaction-type.PURCHASE_ORDER {
+            background-color: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .transaction-type.GRN {
+            background-color: #f3e5f5;
+            color: #7b1fa2;
+        }
+        
+        .transaction-type.OUTSTANDING_PAYMENT {
+            background-color: #fce4ec;
+            color: #c2185b;
+        }
+        
+        .transaction-type.SUPPLIER_LEDGER {
+            background-color: #e0f2f1;
+            color: #00695c;
+        }
+        
+        .transaction-type.CUSTOMER_LEDGER {
+            background-color: #fff8e1;
+            color: #f57f17;
+        }
+        
+        .amount-debit {
+            color: #d32f2f;
+            font-weight: 600;
+        }
+        
+        .amount-credit {
+            color: #388e3c;
+            font-weight: 600;
+        }
+        
+        .balance-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .filter-section {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+        
+        .export-buttons {
+            margin-bottom: 1rem;
+        }
+        
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            
+            .daybook-table {
+                font-size: 0.8rem;
+            }
+            
+            .daybook-header {
+                background: white !important;
+                color: black !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="daybook-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-0">
+                        <i class="fas fa-book"></i> Daybook
+                    </h1>
+                    <p class="mb-0 mt-2">Complete transaction register - Tally style</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="export-buttons no-print">
+                        <a th:href="@{/admin/daybook/export(startDate=${startDateStr}, endDate=${endDateStr})}" 
+                           class="btn btn-light btn-sm me-2">
+                            <i class="fas fa-file-csv"></i> Export CSV
+                        </a>
+                        <a th:href="@{/admin/daybook/print(startDate=${startDateStr}, endDate=${endDateStr})}" 
+                           class="btn btn-light btn-sm me-2" target="_blank">
+                            <i class="fas fa-print"></i> Print
+                        </a>
+                        <a href="/admin" class="btn btn-outline-light btn-sm">
+                            <i class="fas fa-arrow-left"></i> Back to Admin
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Date Filter Section -->
+        <div class="filter-section no-print">
+            <form method="get" th:action="@{/admin/daybook}">
+                <div class="row align-items-end">
+                    <div class="col-md-3">
+                        <label for="startDate" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="startDate" name="startDate" 
+                               th:value="${startDateStr}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="endDate" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="endDate" name="endDate" 
+                               th:value="${endDateStr}">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Filter
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary ms-2" onclick="setCurrentMonth()">
+                            Current Month
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Summary Card -->
+        <div class="card daybook-card summary-card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <h6 class="card-title">Total Entries</h6>
+                        <h3 class="mb-0" th:text="${summary.totalEntries}">0</h3>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="card-title">Total Debits</h6>
+                        <h3 class="mb-0" th:text="'₹' + ${#numbers.formatDecimal(summary.totalDebits, 1, 2)}">₹0.00</h3>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="card-title">Total Credits</h6>
+                        <h3 class="mb-0" th:text="'₹' + ${#numbers.formatDecimal(summary.totalCredits, 1, 2)}">₹0.00</h3>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="card-title">Balance</h6>
+                        <h3 class="mb-0" th:text="'₹' + ${#numbers.formatDecimal(summary.balance, 1, 2)}">₹0.00</h3>
+                        <small th:if="${summary.balanced}" class="text-success">
+                            <i class="fas fa-check-circle"></i> Balanced
+                        </small>
+                        <small th:unless="${summary.balanced}" class="text-warning">
+                            <i class="fas fa-exclamation-triangle"></i> Unbalanced
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Daybook Entries -->
+        <div class="card daybook-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i> Daybook Entries
+                    <span class="badge bg-primary ms-2" th:text="${#lists.size(entries)}">0</span>
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover daybook-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Ref No</th>
+                                <th>Account</th>
+                                <th>Particulars</th>
+                                <th class="text-end">Debit</th>
+                                <th class="text-end">Credit</th>
+                                <th>Narration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="entry : ${entries}">
+                                <td th:text="${#temporals.format(entry.date, 'dd/MM/yyyy')}">01/01/2024</td>
+                                <td th:text="${#temporals.format(entry.time, 'HH:mm')}">10:30</td>
+                                <td>
+                                    <span class="transaction-type" 
+                                          th:classappend="'transaction-type.' + ${entry.transactionType}"
+                                          th:text="${entry.transactionType}">VOUCHER</span>
+                                </td>
+                                <td th:text="${entry.referenceNumber}">REF-001</td>
+                                <td>
+                                    <strong th:text="${entry.accountName}">Account Name</strong><br>
+                                    <small class="text-muted" th:text="${entry.accountCode}">Code</small>
+                                </td>
+                                <td th:text="${entry.particulars}">Particulars</td>
+                                <td class="text-end amount-debit" 
+                                    th:if="${entry.debitAmount != null and entry.debitAmount > 0}"
+                                    th:text="'₹' + ${#numbers.formatDecimal(entry.debitAmount, 1, 2)}">₹0.00</td>
+                                <td class="text-end" th:unless="${entry.debitAmount != null and entry.debitAmount > 0}">-</td>
+                                <td class="text-end amount-credit" 
+                                    th:if="${entry.creditAmount != null and entry.creditAmount > 0}"
+                                    th:text="'₹' + ${#numbers.formatDecimal(entry.creditAmount, 1, 2)}">₹0.00</td>
+                                <td class="text-end" th:unless="${entry.creditAmount != null and entry.creditAmount > 0}">-</td>
+                                <td th:text="${entry.narration}">Narration</td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(entries)}">
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                                    No transactions found for the selected date range
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Balance Info -->
+        <div class="balance-info">
+            <h6><i class="fas fa-info-circle"></i> About Daybook</h6>
+            <p class="mb-0">
+                The Daybook shows all transactions in chronological order, similar to Tally's Daybook feature. 
+                It includes vouchers, orders, purchase orders, GRNs, outstanding payments, and ledger entries.
+                All amounts are displayed in ₹ (Indian Rupees).
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function setCurrentMonth() {
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            
+            document.getElementById('startDate').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('endDate').value = lastDay.toISOString().split('T')[0];
+        }
+
+        // Auto-refresh every 5 minutes
+        setInterval(function() {
+            if (!document.hidden) {
+                location.reload();
+            }
+        }, 300000);
+    </script>
+</body>
+</html>

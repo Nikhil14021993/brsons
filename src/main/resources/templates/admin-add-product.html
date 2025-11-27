@@ -97,12 +97,12 @@
             gap: 10px;
             flex: 1;
         }
-        .variant-size { background: #e3f2fd; }
-        .variant-color { background: #f3e5f5; }
-        .variant-stock { background: #e8f5e8; }
-        .variant-price { background: #fff3e0; }
-        .variant-discount { background: #fce4ec; }
-        .variant-sku { background: #f1f8e9; }
+        .variant-fabric { background: #e3f2fd; }
+        .variant-style { background: #f3e5f5; }
+        .variant-size { background: #e8f5e8; }
+        .variant-pattern { background: #fff3e0; }
+        .variant-care { background: #fce4ec; }
+        .variant-occasion { background: #f1f8e9; }
         .remove-variant-btn {
             background: #dc3545;
             color: white;
@@ -153,29 +153,29 @@
         variantRow.className = 'variant-row';
         variantRow.innerHTML = `
             <div class="variant-inputs">
+                <div class="variant-fabric">
+                    <label>Fabric:</label>
+                    <input type="text" name="variantFabrics" placeholder="e.g., Cotton, Denim">
+                </div>
+                <div class="variant-style">
+                    <label>Style:</label>
+                    <input type="text" name="variantStyles" placeholder="e.g., Casual, Formal">
+                </div>
                 <div class="variant-size">
                     <label>Size:</label>
-                    <input type="text" name="sizes" placeholder="e.g., S, M, L, XL">
+                    <input type="text" name="variantSizes" placeholder="e.g., S, M, L">
                 </div>
-                <div class="variant-color">
-                    <label>Color:</label>
-                    <input type="text" name="colors" placeholder="e.g., Red, Blue">
+                <div class="variant-pattern">
+                    <label>Pattern:</label>
+                    <input type="text" name="variantPatterns" placeholder="e.g., Solid, Striped">
                 </div>
-                <div class="variant-stock">
-                    <label>Stock:</label>
-                    <input type="number" name="variantStockQuantities" placeholder="Quantity">
+                <div class="variant-care">
+                    <label>Care Instruction:</label>
+                    <input type="text" name="variantCareInstructions" placeholder="e.g., Hand wash">
                 </div>
-                <div class="variant-price">
-                    <label>Retail Price:</label>
-                    <input type="number" step="0.01" name="variantRetailPrices" placeholder="Price">
-                </div>
-                <div class="variant-discount">
-                    <label>Discount %:</label>
-                    <input type="number" step="0.01" name="variantDiscounts" placeholder="0.0">
-                </div>
-                <div class="variant-sku">
-                    <label>SKU:</label>
-                    <input type="text" name="skus" placeholder="Auto-generated">
+                <div class="variant-occasion">
+                    <label>Occasion:</label>
+                    <input type="text" name="variantOccasions" placeholder="e.g., Party, Casual">
                 </div>
             </div>
             <button type="button" class="remove-variant-btn" onclick="removeVariant(this)">Remove</button>
@@ -187,43 +187,7 @@
         button.parentElement.remove();
     }
 
-    // Auto-calculate B2B price as 80% of retail price
     document.addEventListener("DOMContentLoaded", function () {
-        const retailPriceInput = document.querySelector('input[name="retailPrice"]');
-        const purchasePriceInput = document.querySelector('input[name="purchasePrice"]');
-        const b2bPriceInput = document.querySelector('input[name="b2bPrice"]');
-        
-        if (retailPriceInput && b2bPriceInput) {
-            retailPriceInput.addEventListener('input', function() {
-                const retailPrice = parseFloat(this.value) || 0;
-                // Auto-calculate B2B price as 80% of retail
-                b2bPriceInput.value = (retailPrice * 0.8).toFixed(2);
-                
-                // Auto-calculate purchase price as 60% of retail (typical cost structure)
-                if (purchasePriceInput && !purchasePriceInput.value) {
-                    purchasePriceInput.value = (retailPrice * 0.6).toFixed(2);
-                }
-            });
-        }
-
-        // Auto-calculate B2B price when purchase price changes
-        if (purchasePriceInput && b2bPriceInput) {
-            purchasePriceInput.addEventListener('input', function() {
-                const purchasePrice = parseFloat(this.value) || 0;
-                const retailPrice = parseFloat(retailPriceInput.value) || 0;
-                
-                // If retail price is set, calculate B2B as 80% of retail
-                if (retailPrice > 0) {
-                    b2bPriceInput.value = (retailPrice * 0.8).toFixed(2);
-                }
-                // If only purchase price is set, suggest retail price as 1.67x purchase price
-                else if (purchasePrice > 0) {
-                    const suggestedRetail = (purchasePrice * 1.67).toFixed(2);
-                    retailPriceInput.placeholder = `Suggested: ${suggestedRetail}`;
-                }
-            });
-        }
-
         // Tax Configuration Helper Functions
         const cgstInput = document.querySelector('input[name="cgstPercentage"]');
         const sgstInput = document.querySelector('input[name="sgstPercentage"]');
@@ -374,7 +338,7 @@
             <div class="form-row">
                 <div>
                     <label>B2B Price:</label>
-                    <input type="number" step="0.01" th:field="*{b2bPrice}" placeholder="Auto-calculated as 80% of retail">
+                    <input type="number" step="0.01" th:field="*{b2bPrice}" placeholder="Enter wholesale price">
                 </div>
                 <div>
                     <label>B2B Minimum Quantity:</label>
@@ -456,7 +420,7 @@
                 <ul style="margin: 0; padding-left: 20px; color: #666; font-size: 14px;">
                     <li><strong>Purchase Price:</strong> Cost price from supplier (typically 60% of retail price)</li>
                     <li><strong>Retail Price:</strong> Selling price to end customers</li>
-                    <li><strong>B2B Price:</strong> Wholesale price for business customers (auto-calculated as 80% of retail)</li>
+                    <li><strong>B2B Price:</strong> Wholesale price for business customers (set manually)</li>
                     <li><strong>B2B Minimum Quantity:</strong> Minimum quantity B2B customers must order (e.g., 3, 5, 10)</li>
                     <li><strong>Profit Margin:</strong> Retail price should be at least 1.67x purchase price for healthy margins</li>
                 </ul>
@@ -506,35 +470,35 @@
                     <h3>Product Variants</h3>
                     <button type="button" class="add-variant-btn" onclick="addVariant()">Add Another Variant</button>
                 </div>
-                <p style="color: #666; margin-bottom: 20px;">Add different sizes, colors, and pricing for this product. Leave empty to use default product values.</p>
+                <p style="color: #666; margin-bottom: 20px;">Capture fabric, style, size, pattern, care instruction, and occasion details for each variant. Leave empty to fall back to default product information.</p>
                 
                 <div id="variants-container">
                     <!-- Default variant row -->
                     <div class="variant-row">
                         <div class="variant-inputs">
+                            <div class="variant-fabric">
+                                <label>Fabric:</label>
+                                <input type="text" name="variantFabrics" placeholder="e.g., Cotton, Denim">
+                            </div>
+                            <div class="variant-style">
+                                <label>Style:</label>
+                                <input type="text" name="variantStyles" placeholder="e.g., Casual, Formal">
+                            </div>
                             <div class="variant-size">
                                 <label>Size:</label>
-                                <input type="text" name="sizes" placeholder="e.g., S, M, L, XL">
+                                <input type="text" name="variantSizes" placeholder="e.g., S, M, L">
                             </div>
-                            <div class="variant-color">
-                                <label>Color:</label>
-                                <input type="text" name="colors" placeholder="e.g., Red, Blue">
+                            <div class="variant-pattern">
+                                <label>Pattern:</label>
+                                <input type="text" name="variantPatterns" placeholder="e.g., Solid, Striped">
                             </div>
-                            <div class="variant-stock">
-                                <label>Stock:</label>
-                                <input type="number" name="variantStockQuantities" placeholder="Quantity">
+                            <div class="variant-care">
+                                <label>Care Instruction:</label>
+                                <input type="text" name="variantCareInstructions" placeholder="e.g., Hand wash">
                             </div>
-                            <div class="variant-price">
-                                <label>Retail Price:</label>
-                                <input type="number" step="0.01" name="variantRetailPrices" placeholder="Price">
-                            </div>
-                            <div class="variant-discount">
-                                <label>Discount %:</label>
-                                <input type="number" step="0.01" name="variantDiscounts" placeholder="0.0">
-                            </div>
-                            <div class="variant-sku">
-                                <label>SKU:</label>
-                                <input type="text" name="skus" placeholder="Auto-generated">
+                            <div class="variant-occasion">
+                                <label>Occasion:</label>
+                                <input type="text" name="variantOccasions" placeholder="e.g., Party, Casual">
                             </div>
                         </div>
                         <button type="button" class="remove-variant-btn" onclick="removeVariant(this)">Remove</button>

@@ -457,7 +457,7 @@
                     
                     <div class="variants-section">
                         <div class="variants-header">
-                            <h3>Variants (Size, Color, Stock)</h3>
+                            <h3>Variants (Fabric, Style, Size, Pattern, Care Instruction, Occasion)</h3>
                             <button type="button" class="add-variant-btn" onclick="addVariant()">
                                 <i class="fas fa-plus"></i> Add Variant
                             </button>
@@ -476,21 +476,39 @@
                                 
                                 <div class="variant-grid">
                                     <div class="form-group">
+                                        <label>Fabric</label>
+                                        <input type="text" name="variantFabrics" 
+                                               th:value="${variant.fabric}" placeholder="e.g., Cotton, Denim">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Style</label>
+                                        <input type="text" name="variantStyles" 
+                                               th:value="${variant.style}" placeholder="e.g., Casual, Formal">
+                                    </div>
+                                    
+                                    <div class="form-group">
                                         <label>Size</label>
                                         <input type="text" name="variantSizes" 
-                                               th:value="${variant.size}" placeholder="e.g., S, M, L, XL">
+                                               th:value="${variant.size}" placeholder="e.g., S, M, L">
                                     </div>
                                     
                                     <div class="form-group">
-                                        <label>Color</label>
-                                        <input type="text" name="variantColors" 
-                                               th:value="${variant.color}" placeholder="e.g., Red, Blue, Black">
+                                        <label>Pattern</label>
+                                        <input type="text" name="variantPatterns" 
+                                               th:value="${variant.pattern}" placeholder="e.g., Solid, Striped">
                                     </div>
                                     
                                     <div class="form-group">
-                                        <label>Stock Quantity</label>
-                                        <input type="number" name="variantStockQuantities" 
-                                               th:value="${variant.stockQuantity}" min="0" placeholder="0">
+                                        <label>Care Instruction</label>
+                                        <input type="text" name="variantCareInstructions" 
+                                               th:value="${variant.careInstruction}" placeholder="e.g., Hand wash">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Occasion</label>
+                                        <input type="text" name="variantOccasions" 
+                                               th:value="${variant.occasion}" placeholder="e.g., Party, Casual">
                                     </div>
                                     
                                     <input type="hidden" name="variantIds" th:value="${variant.id}">
@@ -531,18 +549,33 @@
                     
                     <div class="variant-grid">
                         <div class="form-group">
+                            <label>Fabric</label>
+                            <input type="text" name="variantFabrics" placeholder="e.g., Cotton, Denim">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Style</label>
+                            <input type="text" name="variantStyles" placeholder="e.g., Casual, Formal">
+                        </div>
+                        
+                        <div class="form-group">
                             <label>Size</label>
-                            <input type="text" name="variantSizes" placeholder="e.g., S, M, L, XL">
+                            <input type="text" name="variantSizes" placeholder="e.g., S, M, L">
                         </div>
                         
                         <div class="form-group">
-                            <label>Color</label>
-                            <input type="text" name="variantColors" placeholder="e.g., Red, Blue, Black">
+                            <label>Pattern</label>
+                            <input type="text" name="variantPatterns" placeholder="e.g., Solid, Striped">
                         </div>
                         
                         <div class="form-group">
-                            <label>Stock Quantity</label>
-                            <input type="number" name="variantStockQuantities" min="0" placeholder="0">
+                            <label>Care Instruction</label>
+                            <input type="text" name="variantCareInstructions" placeholder="e.g., Hand wash">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Occasion</label>
+                            <input type="text" name="variantOccasions" placeholder="e.g., Party, Casual">
                         </div>
                         
                         <input type="hidden" name="variantIds" value="0">

@@ -16,6 +16,14 @@ public class ProductVariant {
 
     private String size;
     private String color;
+    private String fabric;
+    private String style;
+    private String pattern;
+    
+    @Column(name = "care_instruction", length = 500)
+    private String careInstruction;
+    
+    private String occasion;
     
     @Column(name = "stock_quantity")
     private Integer stockQuantity;
@@ -65,6 +73,21 @@ public class ProductVariant {
 
     public String getColor() { return color; }
     public void setColor(String color) { this.color = color; }
+
+    public String getFabric() { return fabric; }
+    public void setFabric(String fabric) { this.fabric = fabric; }
+
+    public String getStyle() { return style; }
+    public void setStyle(String style) { this.style = style; }
+
+    public String getPattern() { return pattern; }
+    public void setPattern(String pattern) { this.pattern = pattern; }
+
+    public String getCareInstruction() { return careInstruction; }
+    public void setCareInstruction(String careInstruction) { this.careInstruction = careInstruction; }
+
+    public String getOccasion() { return occasion; }
+    public void setOccasion(String occasion) { this.occasion = occasion; }
 
     public Integer getStockQuantity() { return stockQuantity; }
     public void setStockQuantity(Integer stockQuantity) { this.stockQuantity = stockQuantity; }
