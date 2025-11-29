@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outstanding Suppliers - BRSons Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, #ffb347 0%, #ffcc33 100%);
+            color: #fff;
+            border-radius: 18px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 15px 35px rgba(255, 179, 71, 0.3);
+        }
+
+        .page-header h1 {
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .stats-card {
+            background: #fff;
+            border-radius: 18px;
+            padding: 1.5rem;
+            box-shadow: 0 15px 35px rgba(50, 50, 93, 0.05);
+            border: none;
+        }
+
+        .stats-number {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            color: #2c3e50;
+        }
+
+        .stats-label {
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.75rem;
+            color: #95a5a6;
+        }
+
+        .supplier-card {
+            background: #fff;
+            border-radius: 18px;
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 15px 35px rgba(50, 50, 93, 0.05);
+            border: none;
+            position: relative;
+        }
+
+        .supplier-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 4px;
+            border-radius: 4px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .balance-amount {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #e74c3c;
+            margin-bottom: 0.25rem;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.35rem 0.9rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .chip-warning {
+            background-color: rgba(255, 193, 7, 0.15);
+            color: #d48806;
+        }
+
+        .chip-danger {
+            background-color: rgba(220, 53, 69, 0.15);
+            color: #b21f2d;
+        }
+
+        .action-button {
+            border-radius: 999px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .empty-state i {
+            font-size: 3.5rem;
+            color: #dfe4ea;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container py-4">
+    <div class="page-header mb-4">
+        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+            <div>
+                <h1 class="mb-1">
+                    <i class="fas fa-exclamation-triangle me-3"></i>
+                    Outstanding Suppliers
+                </h1>
+                <p class="mb-0 text-white-50">
+                    Suppliers with pending balances that need your attention
+                </p>
+            </div>
+            <div class="mt-3 mt-md-0">
+                <a href="/admin/supplier-ledger/dashboard" class="btn btn-light action-button me-2">
+                    <i class="fas fa-chart-line me-2"></i>Dashboard
+                </a>
+                <a href="/admin/supplier-ledger/list" class="btn btn-outline-light action-button">
+                    <i class="fas fa-list me-2"></i>All Suppliers
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="stats-number" th:text="${supplierLedgers.size()}">0</div>
+                <div class="stats-label">Outstanding Suppliers</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="stats-number" th:text="'₹' + ${#numbers.formatDecimal(#aggregates.sum(supplierLedgers.?[currentBalance > 0].![currentBalance]), 0, 0)}">₹0</div>
+                <div class="stats-label">Total Outstanding</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="stats-number" th:text="'₹' + ${#numbers.formatDecimal(#aggregates.max(supplierLedgers.?[currentBalance > 0].![currentBalance]), 0, 0)}">₹0</div>
+                <div class="stats-label">Largest Balance</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div th:each="ledger : ${supplierLedgers}" class="col-12">
+            <div class="supplier-card">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
+                    <div>
+                        <h4 class="mb-1" th:text="${ledger.supplierName}">Supplier Name</h4>
+                        <div class="text-muted mb-2">
+                            <i class="fas fa-phone me-2"></i>
+                            <span th:text="${ledger.supplierPhone}">+91 00000 00000</span>
+                            <span class="mx-2">•</span>
+                            <i class="fas fa-barcode me-2"></i>
+                            <span th:text="${ledger.supplierCode}">SUP-001</span>
+                        </div>
+                        <div class="chip chip-warning" th:if="${ledger.creditLimit != null && ledger.creditLimit > 0}">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            Credit Limit: <span class="ms-1" th:text="'₹' + ${#numbers.formatDecimal(ledger.creditLimit, 0, 0)}">₹0</span>
+                        </div>
+                        <div class="chip chip-danger" th:if="${ledger.currentBalance > ledger.creditLimit}">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Over Limit
+                        </div>
+                    </div>
+                    <div class="text-end mt-3 mt-md-0">
+                        <div class="balance-amount" th:text="'₹' + ${#numbers.formatDecimal(ledger.currentBalance, 0, 0)}">₹0</div>
+                        <small class="text-muted text-uppercase">Outstanding Balance</small>
+                    </div>
+                </div>
+
+                <div class="row text-muted mb-3">
+                    <div class="col-md-4">
+                        <small>Last Updated</small>
+                        <div class="fw-semibold" th:text="${#temporals.format(ledger.updatedAt, 'dd MMM yyyy')}">12 Jan 2025</div>
+                    </div>
+                    <div class="col-md-4">
+                        <small>Total Debits</small>
+                        <div class="fw-semibold" th:text="'₹' + ${#numbers.formatDecimal(ledger.totalDebits, 0, 0)}">₹0</div>
+                    </div>
+                    <div class="col-md-4">
+                        <small>Total Credits</small>
+                        <div class="fw-semibold" th:text="'₹' + ${#numbers.formatDecimal(ledger.totalCredits, 0, 0)}">₹0</div>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <a th:href="@{/admin/supplier-ledger/{id}(id=${ledger.id})}"
+                       class="btn btn-outline-secondary action-button">
+                        <i class="fas fa-eye me-2"></i>View Ledger
+                    </a>
+                    <a th:href="@{/admin/supplier-ledger/{id}/payment(id=${ledger.id})}"
+                       class="btn btn-warning text-white action-button">
+                        <i class="fas fa-money-bill-transfer me-2"></i>Record Payment
+                    </a>
+                    <a th:href="@{/admin/outstanding/payables}"
+                       class="btn btn-light action-button">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>Outstanding Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div th:if="${#lists.isEmpty(supplierLedgers)}" class="stats-card empty-state mt-4">
+        <i class="fas fa-clipboard-check"></i>
+        <h3>No Outstanding Suppliers</h3>
+        <p class="text-muted">All supplier accounts are currently settled. Great job keeping things balanced!</p>
+        <a href="/admin/supplier-ledger/list" class="btn btn-secondary action-button">
+            <i class="fas fa-list me-2"></i>Back to Supplier List
+        </a>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
