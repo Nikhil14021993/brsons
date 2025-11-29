@@ -569,7 +569,8 @@
 
                     <div class="form-group">
                         <label for="receivedDate">Received Date</label>
-                        <input type="date" th:field="*{receivedDate}">
+                        <input type="date" id="receivedDate" name="receivedDate" 
+                               th:value="${grn.receivedDate != null ? #temporals.format(grn.receivedDate, 'yyyy-MM-dd') : ''}">
                     </div>
                 </div>
 
